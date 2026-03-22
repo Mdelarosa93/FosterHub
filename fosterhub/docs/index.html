@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FosterHub Prototype v1</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Raleway:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark" aria-label="FosterHub mark">
+            <span class="petal teal"></span>
+            <span class="petal blue"></span>
+            <span class="petal pink"></span>
+            <span class="petal terra"></span>
+            <span class="petal green"></span>
+            <span class="brand-core"></span>
+          </div>
+          <div>
+            <h1>FosterHub</h1>
+            <p>Simplifying Foster Care, Empowering Families</p>
+          </div>
+        </div>
+
+        <div class="portal-switcher">
+          <label for="portalSelect">Portal</label>
+          <select id="portalSelect">
+            <option value="worker">Caseworker Portal</option>
+            <option value="admin">DHR Admin Portal</option>
+            <option value="parent">Resource Parent Portal</option>
+            <option value="vendor">Vendor Portal</option>
+          </select>
+        </div>
+
+        <nav id="nav" class="nav"></nav>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow" id="portalLabel">Caseworker Portal</div>
+            <h2 id="screenTitle">Dashboard</h2>
+          </div>
+          <div class="topbar-actions">
+            <button class="ghost-btn">Search</button>
+            <button class="ghost-btn">Notifications</button>
+            <div class="user-pill">Mike Demo</div>
+          </div>
+        </header>
+
+        <section id="screen" class="screen"></section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

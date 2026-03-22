@@ -58,6 +58,11 @@ The repository is being used to shape:
 - `prototype-v1/styles.css`
 - `prototype-v1/script.js`
 
+### GitHub Pages publish folder
+- `docs/index.html`
+- `docs/styles.css`
+- `docs/script.js`
+
 ## Current Brand Direction
 
 ### Name
@@ -80,6 +85,8 @@ The repository is being used to shape:
 ## Clickable Prototype
 
 The `prototype-v1/` folder contains a lightweight browser prototype used to explore the product visually.
+
+A GitHub Pages-ready copy is also stored in `docs/`, so the prototype can be published directly from the repository.
 
 Current prototype coverage includes:
 - Caseworker Portal
