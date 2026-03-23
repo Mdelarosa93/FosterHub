@@ -1,0 +1,16 @@
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+
+[phases.install]
+cmds = [
+  "cd fosterhub-app && corepack pnpm install"
+]
+
+[phases.build]
+cmds = [
+  "cd fosterhub-app && corepack pnpm --filter @fosterhub/api build",
+  "cd fosterhub-app && PRISMA_GENERATE_SKIP_AUTOINSTALL=1 corepack pnpm prisma db push --accept-data-loss"
+]
+
+[start]
+cmd = "cd fosterhub-app/apps/api && node dist/apps/api/src/main.js"
