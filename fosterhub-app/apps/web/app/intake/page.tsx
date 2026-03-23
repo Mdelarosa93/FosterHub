@@ -22,14 +22,14 @@ export default function IntakePage() {
   const [loading, setLoading] = useState(false);
 
   async function loadRecords() {
-    const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
+    const authToken = localStorage.getItem('fosterhub.dev.token') ?? '';
+    if (!authToken) {
       setError('No token found. Please log in first.');
       return;
     }
 
     try {
-      const result = await authedGet('/intake-records', token);
+      const result = await authedGet('/intake-records', authToken);
       setRecords(result.data || []);
     } catch (err: any) {
       setError(err?.message || 'Failed to load intake records');

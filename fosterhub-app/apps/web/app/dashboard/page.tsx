@@ -36,8 +36,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
+    const authToken = localStorage.getItem('fosterhub.dev.token') ?? '';
+    if (!authToken) {
       setError('No token found. Please log in first.');
       return;
     }
@@ -45,11 +45,11 @@ export default function DashboardPage() {
     async function load() {
       try {
         const [me, permissions, summary, myCases, pendingRequests] = await Promise.all([
-          authedGet('/auth/me', token),
-          authedGet('/auth/my-permissions', token),
-          authedGet('/worker-dashboard/summary', token),
-          authedGet('/worker-dashboard/my-cases', token),
-          authedGet('/worker-dashboard/pending-requests', token),
+          authedGet('/auth/me', authToken),
+          authedGet('/auth/my-permissions', authToken),
+          authedGet('/worker-dashboard/summary', authToken),
+          authedGet('/worker-dashboard/my-cases', authToken),
+          authedGet('/worker-dashboard/pending-requests', authToken),
         ]);
 
         setState({

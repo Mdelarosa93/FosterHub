@@ -1,11 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { API_BASE, authedGet } from '../../../lib/api';
 import { AppShell } from '../../../components/AppShell';
 
-export default function CaseDetailPage({ params }: { params: { id: string } }) {
+export default function CaseDetailPage() {
+  const params = useParams<{ id: string }>();
+  const caseId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [data, setData] = useState<any>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [title, setTitle] = useState('');
@@ -20,15 +22,15 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
 
   async function load() {
     const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
-      setError('No token found. Please log in first.');
+    if (!token || !caseId) {
+      setError('No token or case id found. Please log in first.');
       return;
     }
 
     try {
       const [caseResult, docResult] = await Promise.all([
-        authedGet(`/cases/${params.id}`, token),
-        authedGet(`/documents/case/${params.id}`, token),
+        authedGet(`/cases/${caseId}`, token),
+        authedGet(`/documents/case/${caseId}`, token),
       ]);
       setData(caseResult.data);
       setDocuments(docResult.data || []);
@@ -38,14 +40,14 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   }
 
   useEffect(() => {
-    load();
-  }, [params.id]);
+    if (caseId) load();
+  }, [caseId]);
 
   async function handleCreateRequest(event: FormEvent) {
     event.preventDefault();
     const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
-      setError('No token found. Please log in first.');
+    if (!token || !caseId) {
+      setError('No token or case id found. Please log in first.');
       return;
     }
 
@@ -53,7 +55,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/cases/${params.id}/requests`, {
+      const response = await fetch(`${API_BASE}/cases/${caseId}/requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,13 +78,13 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   async function handleAssignWorker(event: FormEvent) {
     event.preventDefault();
     const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
-      setError('No token found. Please log in first.');
+    if (!token || !caseId) {
+      setError('No token or case id found. Please log in first.');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/cases/${params.id}/assign-worker`, {
+      const response = await fetch(`${API_BASE}/cases/${caseId}/assign-worker`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,8 +103,8 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   async function handleCreateDocument(event: FormEvent) {
     event.preventDefault();
     const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
-      setError('No token found. Please log in first.');
+    if (!token || !caseId) {
+      setError('No token or case id found. Please log in first.');
       return;
     }
 
@@ -114,7 +116,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          caseId: params.id,
+          caseId,
           title: docTitle,
           fileName: docFileName,
           notes: docNotes,

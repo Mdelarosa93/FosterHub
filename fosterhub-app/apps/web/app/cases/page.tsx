@@ -20,15 +20,15 @@ export default function CasesPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
+    const authToken = localStorage.getItem('fosterhub.dev.token') ?? '';
+    if (!authToken) {
       setError('No token found. Please log in first.');
       return;
     }
 
     async function load() {
       try {
-        const result = await authedGet('/cases', token);
+        const result = await authedGet('/cases', authToken);
         setCases(result.data || []);
       } catch (err: any) {
         setError(err?.message || 'Failed to load cases');
