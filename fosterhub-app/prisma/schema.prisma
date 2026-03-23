@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum IntakeStatus {
+  NEW
+  ASSIGNED
+  CONVERTED
+}
+
+enum CaseStatus {
+  INTAKE
+  ACTIVE
+  PENDING_PLACEMENT
+  PLACED
+  CLOSED
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  DENIED
+  COMPLETED
+}
+
+enum PermissionOverrideValue {
+  ALLOW
+  DENY
+}
+
+model Organization {
+  id            String         @id @default(cuid())
+  name          String
+  timezone      String         @default("America/New_York")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  users         User[]
+  teams         Team[]
+  children      Child[]
+  cases         Case[]
+  intakeRecords IntakeRecord[]
+  roleTemplates RoleTemplate[]
+}
+
+model User {
+  id                   String                   @id @default(cuid())
+  organizationId       String
+  firstName            String
+  lastName             String
+  email                String                   @unique
+  phone                String?
+  passwordHash         String?
+  status               UserStatus               @default(INVITED)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  organization         Organization             @relation(fields: [organizationId], references: [id])
+  roleAssignments      UserRoleAssignment[]
+  permissionOverrides  UserPermissionOverride[]
+  caseAssignments      CaseAssignment[]
+  createdIntakeRecords IntakeRecord[]           @relation("CreatedIntakeRecords")
+  assignedIntakeRecords IntakeRecord[]          @relation("AssignedIntakeRecords")
+  decidedRequests      ServiceRequest[]         @relation("RequestDecider")
+  uploadedDocuments    Document[]               @relation("UploadedDocuments")
+}
+
+model Team {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+model RoleTemplate {
+  id              String   @id @default(cuid())
+  organizationId  String?
+  key             String   @unique
+  name            String
+  description     String?
+  isSystemDefault Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  assignments  UserRoleAssignment[]
+  permissions  RoleTemplatePermission[]
+}
+
+model Permission {
+  id                      String                   @id @default(cuid())
+  key                     String                   @unique
+  label                   String
+  category                String
+  description             String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  roleTemplatePermissions RoleTemplatePermission[]
+  userOverrides           UserPermissionOverride[]
+}
+
+model RoleTemplatePermission {
+  id             String       @id @default(cuid())
+  roleTemplateId String
+  permissionId   String
+
+  roleTemplate   RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+  permission     Permission   @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleTemplateId, permissionId])
+}
+
+model UserRoleAssignment {
+  id             String       @id @default(cuid())
+  userId         String
+  roleTemplateId String
+  active         Boolean      @default(true)
+  assignedAt     DateTime     @default(now())
+
+  user           User         @relation(fields: [userId], references: [id])
+  roleTemplate   RoleTemplate @relation(fields: [roleTemplateId], references: [id])
+
+  @@unique([userId, roleTemplateId])
+}
+
+model UserPermissionOverride {
+  id            String                  @id @default(cuid())
+  userId        String
+  permissionId  String
+  overrideValue PermissionOverrideValue
+  reason        String?
+  createdAt     DateTime                @default(now())
+
+  user          User                    @relation(fields: [userId], references: [id])
+  permission    Permission              @relation(fields: [permissionId], references: [id])
+
+  @@unique([userId, permissionId])
+}
+
+model IntakeRecord {
+  id                   String       @id @default(cuid())
+  organizationId       String
+  childFirstName       String
+  childLastName        String
+  status               IntakeStatus @default(NEW)
+  notes                String?
+  createdByUserId      String
+  assignedWorkerUserId String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  createdBy            User         @relation("CreatedIntakeRecords", fields: [createdByUserId], references: [id])
+  assignedWorker       User?        @relation("AssignedIntakeRecords", fields: [assignedWorkerUserId], references: [id])
+}
+
+model Child {
+  id                  String        @id @default(cuid())
+  organizationId      String
+  firstName           String
+  lastName            String
+  preferredName       String?
+  dateOfBirth         DateTime?
+  caseReferenceNumber String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  organization        Organization  @relation(fields: [organizationId], references: [id])
+  cases               Case[]
+}
+
+model Case {
+  id                  String          @id @default(cuid())
+  organizationId      String
+  childId             String
+  status              CaseStatus      @default(INTAKE)
+  openedAt            DateTime        @default(now())
+  closedAt            DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  organization        Organization    @relation(fields: [organizationId], references: [id])
+  child               Child           @relation(fields: [childId], references: [id])
+  assignments         CaseAssignment[]
+  requests            ServiceRequest[]
+  documents           Document[]
+}
+
+model CaseAssignment {
+  id                  String        @id @default(cuid())
+  caseId              String
+  userId              String
+  roleLabel           String
+  createdAt           DateTime      @default(now())
+
+  case                Case          @relation(fields: [caseId], references: [id])
+  user                User          @relation(fields: [userId], references: [id])
+}
+
+model ServiceRequest {
+  id                  String         @id @default(cuid())
+  caseId              String
+  title               String
+  description         String?
+  status              RequestStatus  @default(DRAFT)
+  decisionNote        String?
+  decidedAt           DateTime?
+  decidedByUserId     String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  case                Case           @relation(fields: [caseId], references: [id])
+  decidedBy           User?          @relation("RequestDecider", fields: [decidedByUserId], references: [id])
+}
+
+model Document {
+  id               String    @id @default(cuid())
+  caseId           String
+  title            String
+  fileName         String
+  contentType      String?
+  notes            String?
+  uploadedByUserId String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  case             Case      @relation(fields: [caseId], references: [id])
+  uploadedBy       User      @relation("UploadedDocuments", fields: [uploadedByUserId], references: [id])
+}
