@@ -100,7 +100,7 @@ export default function CalendarPage() {
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState(caseOptions[0]);
   const [selectedEventType, setSelectedEventType] = useState(eventTypeOptions[0]);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>(['Sarah Hall']);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userQuery, setUserQuery] = useState('');
   const [showMoreInviteSuggestions, setShowMoreInviteSuggestions] = useState(false);
   const [locationQuery, setLocationQuery] = useState('');
