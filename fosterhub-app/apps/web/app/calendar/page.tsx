@@ -99,6 +99,7 @@ export default function CalendarPage() {
   const [selectedEventType, setSelectedEventType] = useState(eventTypeOptions[0]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>(['Sarah Hall']);
   const [userQuery, setUserQuery] = useState('');
+  const [showMoreInviteSuggestions, setShowMoreInviteSuggestions] = useState(false);
   const [locationQuery, setLocationQuery] = useState('');
   const [eventDate, setEventDate] = useState('2026-04-05');
   const [eventTime, setEventTime] = useState('14:00');
@@ -124,9 +125,9 @@ export default function CalendarPage() {
   const recommendedUsers = useMemo(() => recommendedUsersByCase[selectedCase] || [], [selectedCase]);
 
   const filteredUserSuggestions = useMemo(() => {
-    const pool = Array.from(new Set([...recommendedUsers, ...userOptions]));
-    return pool.filter(user => user.toLowerCase().includes(userQuery.toLowerCase()) && !selectedUsers.includes(user)).slice(0, 6);
-  }, [recommendedUsers, userQuery, selectedUsers]);
+    const pool = userOptions.filter(user => !recommendedUsers.includes(user));
+    return pool.filter(user => user.toLowerCase().includes(userQuery.toLowerCase())).slice(0, 12);
+  }, [recommendedUsers, userQuery]);
 
   const recommendedLocations = useMemo(() => recommendedLocationsByCase[selectedCase] || [], [selectedCase]);
 
@@ -348,33 +349,47 @@ export default function CalendarPage() {
 
                 <div className="field">
                   <label htmlFor="invite-search">Invite FosterHub users</label>
-                  <input
-                    id="invite-search"
-                    className="input"
-                    value={userQuery}
-                    onChange={e => setUserQuery(e.target.value)}
-                    placeholder="Search for users to invite"
-                  />
-
-                  {selectedUsers.length ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {selectedUsers.map(user => (
-                        <button
-                          key={user}
-                          type="button"
-                          className="button button-ghost"
-                          style={{ minHeight: 36 }}
-                          onClick={() => removeUser(user)}
-                        >
-                          {user} ×
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
+                  <div
+                    style={{
+                      border: '1px solid #cbd8d0',
+                      borderRadius: 16,
+                      background: 'white',
+                      padding: 12,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                    }}
+                  >
+                    {selectedUsers.map(user => (
+                      <button
+                        key={user}
+                        type="button"
+                        className="button button-ghost"
+                        style={{ minHeight: 34, padding: '8px 12px' }}
+                        onClick={() => removeUser(user)}
+                      >
+                        {user} ×
+                      </button>
+                    ))}
+                    <input
+                      id="invite-search"
+                      value={userQuery}
+                      onChange={e => setUserQuery(e.target.value)}
+                      placeholder={selectedUsers.length ? 'Add another user' : 'Search for users to invite'}
+                      style={{
+                        flex: '1 1 180px',
+                        minWidth: 180,
+                        border: 'none',
+                        outline: 'none',
+                        fontSize: 16,
+                        color: '#123122',
+                      }}
+                    />
+                  </div>
 
                   <div className="card card-muted" style={{ padding: 14 }}>
                     <div className="eyebrow" style={{ marginBottom: 10 }}>Recommended for {selectedCase}</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                       {recommendedUsers.map(user => (
                         <button
                           key={user}
@@ -389,19 +404,46 @@ export default function CalendarPage() {
                       ))}
                     </div>
 
-                    <div className="stack" style={{ gap: 8 }}>
-                      {filteredUserSuggestions.map(user => (
-                        <button
-                          key={user}
-                          type="button"
-                          className="button button-ghost"
-                          style={{ justifyContent: 'flex-start' }}
-                          onClick={() => addUser(user)}
-                        >
-                          {user}
-                        </button>
-                      ))}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMoreInviteSuggestions(current => !current)}
+                      style={{
+                        marginTop: 14,
+                        border: 'none',
+                        background: 'transparent',
+                        padding: 0,
+                        color: '#10588c',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {showMoreInviteSuggestions ? '▾' : '▸'} View more recommendations
+                    </button>
+
+                    {showMoreInviteSuggestions ? (
+                      <div
+                        style={{
+                          marginTop: 12,
+                          maxHeight: 220,
+                          overflowY: 'auto',
+                          display: 'grid',
+                          gap: 8,
+                        }}
+                      >
+                        {filteredUserSuggestions.map(user => (
+                          <button
+                            key={user}
+                            type="button"
+                            className="button button-ghost"
+                            style={{ justifyContent: 'flex-start', opacity: selectedUsers.includes(user) ? 0.45 : 1 }}
+                            onClick={() => addUser(user)}
+                            disabled={selectedUsers.includes(user)}
+                          >
+                            {user}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
