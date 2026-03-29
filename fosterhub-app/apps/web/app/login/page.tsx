@@ -58,17 +58,44 @@ export default function LoginPage() {
           <div className="section-title">
             <div>
               <div className="eyebrow">Portal access</div>
-              <h2 style={{ marginBottom: 8 }}>Enter development credentials</h2>
-              <p>Use the current seeded admin credentials to access the worker-side MVP screens.</p>
+              <h2 style={{ marginBottom: 8 }}>Sign in to your workspace</h2>
+              <p>Use single sign-on for production-style access, or development credentials while the identity layer is still being built.</p>
             </div>
           </div>
 
-          <div className="logo-panel" style={{ marginBottom: 20 }}>
+          <div className="logo-panel" style={{ marginBottom: 10 }}>
             <img
               src="/brand/fosterhub-logo.svg"
               alt="FosterHub logo"
               className="logo-image"
             />
+          </div>
+
+          <div className="card sso-card" style={{ padding: 18, marginBottom: 18 }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Organization sign-in</div>
+            <h3 style={{ marginBottom: 8 }}>Sign in with Microsoft</h3>
+            <p style={{ marginBottom: 16 }}>
+              Recommended long-term path for agency and enterprise users. This will map cleanly to
+              Microsoft 365, Entra ID, MFA, and future conditional access policies.
+            </p>
+
+            <button type="button" className="button sso-button" disabled>
+              <span className="microsoft-mark" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
+              </span>
+              Continue with Microsoft
+            </button>
+
+            <p style={{ marginTop: 12, marginBottom: 0, fontSize: 14 }}>
+              <strong>Coming soon:</strong> SSO UI is in place now so we can plug in Entra ID when the backend auth flow is ready.
+            </p>
+          </div>
+
+          <div className="login-divider" style={{ marginBottom: 18 }}>
+            <span>or use development credentials</span>
           </div>
 
           <form onSubmit={handleSubmit} className="form-grid">

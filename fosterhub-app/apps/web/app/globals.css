@@ -354,15 +354,67 @@ ul {
 .logo-panel {
   display: grid;
   place-items: center;
-  padding: 8px 0 4px;
+  padding: 0;
+  margin-top: -4px;
 }
 
 .logo-image {
-  width: min(100%, 240px);
+  width: min(100%, 232px);
   height: auto;
   display: block;
   object-fit: contain;
 }
+
+.login-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  color: var(--fh-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  height: 1px;
+  background: var(--fh-border);
+}
+
+.sso-card {
+  border: 1px solid rgba(16, 88, 140, 0.14);
+  background: linear-gradient(180deg, #f8fbff 0%, #f4f8ff 100%);
+}
+
+.sso-button {
+  width: 100%;
+  justify-content: center;
+  background: white;
+  color: #1f1f1f;
+  border: 1px solid #d0d7de;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.sso-button:hover {
+  background: #fafcff;
+}
+
+.microsoft-mark {
+  display: grid;
+  grid-template-columns: repeat(2, 8px);
+  grid-template-rows: repeat(2, 8px);
+  gap: 2px;
+  width: 18px;
+  height: 18px;
+}
+
+.microsoft-mark span:nth-child(1) { background: #f25022; }
+.microsoft-mark span:nth-child(2) { background: #7fba00; }
+.microsoft-mark span:nth-child(3) { background: #00a4ef; }
+.microsoft-mark span:nth-child(4) { background: #ffb900; }
 
 .muted {
   color: var(--fh-text-muted);
