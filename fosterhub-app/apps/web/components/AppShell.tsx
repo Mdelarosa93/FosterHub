@@ -71,13 +71,13 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
         <div
           style={{
             marginBottom: 28,
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 12,
+            position: 'relative',
+            minHeight: sidebarCollapsed ? 40 : 170,
+            display: 'grid',
+            placeItems: sidebarCollapsed ? 'start' : 'center',
           }}
         >
-          <div>
+          <div style={{ display: 'grid', placeItems: 'center', width: '100%' }}>
             {sidebarCollapsed ? (
               <img
                 src="/brand/fosterhub-bug.svg"
@@ -88,7 +88,7 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
               <img
                 src="/brand/fosterhub-sidebar-logo.svg"
                 alt="FosterHub logo"
-                style={{ width: 178, height: 'auto', display: 'block' }}
+                style={{ width: 178, height: 'auto', display: 'block', margin: '0 auto' }}
               />
             )}
           </div>
@@ -106,6 +106,9 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
               color: 'white',
               fontWeight: 800,
               flexShrink: 0,
+              position: 'absolute',
+              top: 0,
+              right: 0,
             }}
           >
             {sidebarCollapsed ? '›' : '‹'}
