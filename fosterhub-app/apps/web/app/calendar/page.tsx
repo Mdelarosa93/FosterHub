@@ -373,7 +373,37 @@ export default function CalendarPage() {
 
                 <div className="field">
                   <label>Child / children</label>
+                  <div
+                    style={{
+                      border: '1px solid #cbd8d0',
+                      borderRadius: 16,
+                      background: 'white',
+                      padding: 12,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      minHeight: 62,
+                    }}
+                  >
+                    {selectedChildren.length ? (
+                      selectedChildren.map(child => (
+                        <button
+                          key={child}
+                          type="button"
+                          className="button button-ghost"
+                          style={{ minHeight: 34, padding: '8px 12px' }}
+                          onClick={() => toggleChild(child)}
+                        >
+                          {child} ×
+                        </button>
+                      ))
+                    ) : (
+                      <span style={{ color: '#567060', alignSelf: 'center' }}>Select child or children</span>
+                    )}
+                  </div>
+
                   <div className="card card-muted" style={{ padding: 14 }}>
+                    <div className="eyebrow" style={{ marginBottom: 10 }}>Children on {selectedCase}</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                       {childOptions.map(child => (
                         <button
