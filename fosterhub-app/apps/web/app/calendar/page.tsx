@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '../../components/AppShell';
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -12,7 +12,13 @@ const sampleAppointments = [
   { id: '4', child: 'Archer Hall', date: '2026-04-22', time: '11:00AM', note: 'Medical appointment', color: '#d96c3c' },
 ];
 
-const caseOptions = ['Archer Hall', 'Ava Johnson', 'Noah Carter', 'Emma Lewis'];
+const caseOptions = ['Hall - 123456', 'Johnson - 234567', 'Carter - 345678', 'Lewis - 456789'];
+const childrenByCase: Record<string, string[]> = {
+  'Hall - 123456': ['Archer Hall', 'Mia Hall'],
+  'Johnson - 234567': ['Ava Johnson'],
+  'Carter - 345678': ['Noah Carter', 'Liam Carter'],
+  'Lewis - 456789': ['Emma Lewis'],
+};
 const userOptions = [
   'Sarah Hall',
   'David Hall',
@@ -23,10 +29,10 @@ const userOptions = [
   'School Liaison Marcus Green',
 ];
 const recommendedUsersByCase: Record<string, string[]> = {
-  'Archer Hall': ['Sarah Hall', 'David Hall', 'Attorney Maria Lopez', 'Case Worker Taylor Reed'],
-  'Ava Johnson': ['Case Worker Taylor Reed', 'Dr. Priya Shah', 'School Liaison Marcus Green'],
-  'Noah Carter': ['Case Worker Taylor Reed', 'Attorney Maria Lopez'],
-  'Emma Lewis': ['Case Worker Taylor Reed'],
+  'Hall - 123456': ['Sarah Hall', 'David Hall', 'Attorney Maria Lopez', 'Case Worker Taylor Reed'],
+  'Johnson - 234567': ['Case Worker Taylor Reed', 'Dr. Priya Shah', 'School Liaison Marcus Green'],
+  'Carter - 345678': ['Case Worker Taylor Reed', 'Attorney Maria Lopez'],
+  'Lewis - 456789': ['Case Worker Taylor Reed'],
 };
 const eventTypeOptions = [
   'Biological Parent Visitation',
@@ -49,18 +55,18 @@ const placeSuggestions = [
   'Biological Parent Residence - Hall Family, 411 E Colonial Dr, Orlando, FL',
 ];
 const recommendedLocationsByCase: Record<string, string[]> = {
-  'Archer Hall': [
+  'Hall - 123456': [
     'Archer Hall Foster Home, 1452 Oak Terrace, Orlando, FL',
     'Biological Parent Residence - Hall Family, 411 E Colonial Dr, Orlando, FL',
     'Orange County Courthouse, 425 N Orange Ave, Orlando, FL',
   ],
-  'Ava Johnson': [
+  'Johnson - 234567': [
     'Ava Johnson Foster Home, 803 Pine Grove Ct, Orlando, FL',
     'Arnold Palmer Hospital for Children, 92 W Miller St, Orlando, FL',
     'Lake Nona Medical Center, 6718 Lake Nona Blvd, Orlando, FL',
   ],
-  'Noah Carter': ['FosterHub Office - Orlando, 100 S Orange Ave, Orlando, FL'],
-  'Emma Lewis': ['FosterHub Office - Orlando, 100 S Orange Ave, Orlando, FL'],
+  'Carter - 345678': ['FosterHub Office - Orlando, 100 S Orange Ave, Orlando, FL'],
+  'Lewis - 456789': ['FosterHub Office - Orlando, 100 S Orange Ave, Orlando, FL'],
 };
 
 function formatMonthHeading(date: Date) {
@@ -99,6 +105,7 @@ export default function CalendarPage() {
   const [visibleDate, setVisibleDate] = useState(() => new Date());
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState(caseOptions[0]);
+  const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
   const [selectedEventType, setSelectedEventType] = useState(eventTypeOptions[0]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userQuery, setUserQuery] = useState('');
@@ -127,6 +134,7 @@ export default function CalendarPage() {
     return map;
   }, []);
 
+  const childOptions = useMemo(() => childrenByCase[selectedCase] || [], [selectedCase]);
   const recommendedUsers = useMemo(() => recommendedUsersByCase[selectedCase] || [], [selectedCase]);
 
   const filteredUserSuggestions = useMemo(() => {
@@ -157,8 +165,24 @@ export default function CalendarPage() {
       .slice(0, 6);
   }, [recommendedLocations, locationQuery]);
 
+  useEffect(() => {
+    setSelectedChildren([]);
+    setSelectedUsers([]);
+    setUserQuery('');
+    setShowMoreInviteSuggestions(false);
+    setLocationQuery('');
+    setLocationChosen(false);
+    setShowMoreLocationSuggestions(false);
+  }, [selectedCase]);
+
   function changeMonth(direction: number) {
     setVisibleDate(current => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  }
+
+  function toggleChild(child: string) {
+    setSelectedChildren(current =>
+      current.includes(child) ? current.filter(entry => entry !== child) : [...current, child],
+    );
   }
 
   function addUser(user: string) {
@@ -331,13 +355,7 @@ export default function CalendarPage() {
               onClick={event => event.stopPropagation()}
             >
               <div className="section-title">
-                <div>
-                  <div className="eyebrow">Case calendar event</div>
-                  <h2 style={{ marginBottom: 8 }}>New event</h2>
-                  <p style={{ marginBottom: 0 }}>
-                    Create an event tied to a FosterHub case without replacing a user’s external work calendar.
-                  </p>
-                </div>
+                <h2 style={{ marginBottom: 0 }}>New Event</h2>
                 <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
                   Close
                 </button>
@@ -345,12 +363,31 @@ export default function CalendarPage() {
 
               <div className="form-grid">
                 <div className="field">
-                  <label htmlFor="case-select">Case / child</label>
+                  <label htmlFor="case-select">Case</label>
                   <select id="case-select" className="select" value={selectedCase} onChange={e => setSelectedCase(e.target.value)}>
                     {caseOptions.map(option => (
                       <option key={option} value={option}>{option}</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="field">
+                  <label>Child / children</label>
+                  <div className="card card-muted" style={{ padding: 14 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {childOptions.map(child => (
+                        <button
+                          key={child}
+                          type="button"
+                          className="button button-ghost"
+                          style={{ minHeight: 36, opacity: selectedChildren.includes(child) ? 0.6 : 1 }}
+                          onClick={() => toggleChild(child)}
+                        >
+                          {child}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="field">
