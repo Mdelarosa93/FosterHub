@@ -78,14 +78,20 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
           }}
         >
           <div>
-            <div style={{ fontWeight: 900, fontSize: sidebarCollapsed ? 18 : 28, letterSpacing: '-0.03em' }}>
-              {sidebarCollapsed ? 'FH' : 'FosterHub'}
-            </div>
-            {!sidebarCollapsed ? (
-              <div style={{ opacity: 0.78, marginTop: 8, lineHeight: 1.5 }}>
-                Simplifying Foster Care, Empowering Families
-              </div>
-            ) : null}
+            {sidebarCollapsed ? (
+              <img
+                src="/brand/fosterhub-bug.svg"
+                alt="FosterHub logo"
+                style={{ width: 34, height: 34, display: 'block' }}
+              />
+            ) : (
+              <>
+                <div style={{ fontWeight: 900, fontSize: 28, letterSpacing: '-0.03em' }}>FosterHub</div>
+                <div style={{ opacity: 0.78, marginTop: 8, lineHeight: 1.5 }}>
+                  Simplifying Foster Care, Empowering Families
+                </div>
+              </>
+            )}
           </div>
 
           <button
