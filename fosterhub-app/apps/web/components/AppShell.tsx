@@ -73,9 +73,10 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
           style={{
             marginBottom: 28,
             position: 'relative',
-            minHeight: sidebarCollapsed ? 40 : 170,
+            minHeight: sidebarCollapsed ? 88 : 170,
             display: 'grid',
-            placeItems: sidebarCollapsed ? 'start' : 'center',
+            placeItems: 'center',
+            paddingTop: sidebarCollapsed ? 22 : 0,
           }}
         >
           <div style={{ display: 'grid', placeItems: 'center', width: '100%' }}>
@@ -83,7 +84,7 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
               <img
                 src="/brand/fosterhub-bug.svg"
                 alt="FosterHub logo"
-                style={{ width: 34, height: 34, display: 'block' }}
+                style={{ width: 48, height: 48, display: 'block', marginTop: 18 }}
               />
             ) : (
               <img
