@@ -1,9 +1,12 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { API_BASE, authedGet } from '../../../lib/api';
 import { AppShell } from '../../../components/AppShell';
+
+type RequestDecisionState = Record<string, string>;
 
 export default function CaseDetailPage() {
   const params = useParams<{ id: string }>();
@@ -16,9 +19,10 @@ export default function CaseDetailPage() {
   const [docTitle, setDocTitle] = useState('');
   const [docFileName, setDocFileName] = useState('');
   const [docNotes, setDocNotes] = useState('');
-  const [decisionNotes, setDecisionNotes] = useState<Record<string, string>>({});
+  const [decisionNotes, setDecisionNotes] = useState<RequestDecisionState>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function load() {
     const token = localStorage.getItem('fosterhub.dev.token');
@@ -27,6 +31,8 @@ export default function CaseDetailPage() {
       return;
     }
 
+    setLoading(true);
+
     try {
       const [caseResult, docResult] = await Promise.all([
         authedGet(`/cases/${caseId}`, token),
@@ -34,8 +40,11 @@ export default function CaseDetailPage() {
       ]);
       setData(caseResult.data);
       setDocuments(docResult.data || []);
+      setError(null);
     } catch (err: any) {
       setError(err?.message || 'Failed to load case detail');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -83,6 +92,8 @@ export default function CaseDetailPage() {
       return;
     }
 
+    setSaving(true);
+
     try {
       const response = await fetch(`${API_BASE}/cases/${caseId}/assign-worker`, {
         method: 'POST',
@@ -95,8 +106,11 @@ export default function CaseDetailPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body?.message || 'Failed to assign worker');
       await load();
+      setError(null);
     } catch (err: any) {
       setError(err?.message || 'Failed to assign worker');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -107,6 +121,8 @@ export default function CaseDetailPage() {
       setError('No token or case id found. Please log in first.');
       return;
     }
+
+    setSaving(true);
 
     try {
       const response = await fetch(`${API_BASE}/documents`, {
@@ -129,8 +145,11 @@ export default function CaseDetailPage() {
       setDocFileName('');
       setDocNotes('');
       await load();
+      setError(null);
     } catch (err: any) {
       setError(err?.message || 'Failed to create document metadata');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -140,6 +159,8 @@ export default function CaseDetailPage() {
       setError('No token found. Please log in first.');
       return;
     }
+
+    setSaving(true);
 
     try {
       const response = await fetch(`${API_BASE}/cases/requests/${requestId}/${action}`, {
@@ -153,151 +174,264 @@ export default function CaseDetailPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body?.message || `Failed to ${action} request`);
       await load();
+      setError(null);
     } catch (err: any) {
       setError(err?.message || `Failed to ${action} request`);
+    } finally {
+      setSaving(false);
     }
   }
 
+  const childName = data ? `${data.child.firstName} ${data.child.lastName}` : 'Case detail';
+
   return (
     <AppShell title="Case detail">
-      <main>
-        <section className="grid" style={{ padding: 24 }}>
-          {data ? (
-            <>
-              <article className="card">
-                <h3>Child</h3>
-                <p>{data.child.firstName} {data.child.lastName}</p>
-              </article>
-              <article className="card">
-                <h3>Status</h3>
-                <p>{data.status}</p>
-              </article>
-              <article className="card">
-                <h3>Opened</h3>
-                <p>{new Date(data.openedAt).toLocaleString()}</p>
-              </article>
-            </>
-          ) : null}
+      <main className="page-stack">
+        <section className="hero">
+          <span className="badge">Case workspace</span>
+          <h2 style={{ fontSize: 38, marginTop: 18, marginBottom: 12 }}>{childName}</h2>
+          <p style={{ fontSize: 17, maxWidth: 760 }}>
+            Use this workspace to manage assignments, supporting documents, and approval requests
+            for a single child case.
+          </p>
+          <div className="actions-row">
+            <Link href="/cases" className="button button-ghost">Back to cases</Link>
+            <Link href="/dashboard" className="button button-primary">Open dashboard</Link>
+          </div>
         </section>
 
         {error ? (
-          <section className="card" style={{ margin: '0 24px 24px' }}>
-            <h3>Case problem</h3>
-            <p>{error}</p>
+          <section className="notice notice-error">
+            <strong>Case problem</strong>
+            <p style={{ marginBottom: 0 }}>{error}</p>
           </section>
         ) : null}
 
-        {data ? (
-          <section className="card" style={{ margin: '0 24px 24px' }}>
-            <h3>Assignments</h3>
-            {data.assignments?.length ? (
-              <ul>
+        <section className="grid">
+          <article className="card kpi">
+            <span className="kpi-label">Case status</span>
+            <span className="kpi-value" style={{ fontSize: 24 }}>{data?.status ?? (loading ? 'Loading...' : 'Unknown')}</span>
+          </article>
+          <article className="card kpi">
+            <span className="kpi-label">Opened</span>
+            <span className="kpi-value" style={{ fontSize: 22 }}>
+              {data?.openedAt ? new Date(data.openedAt).toLocaleDateString() : loading ? 'Loading...' : 'Unknown'}
+            </span>
+          </article>
+          <article className="card kpi">
+            <span className="kpi-label">Assignments</span>
+            <span className="kpi-value">{data?.assignments?.length ?? 0}</span>
+          </article>
+          <article className="card kpi">
+            <span className="kpi-label">Requests</span>
+            <span className="kpi-value">{data?.requests?.length ?? 0}</span>
+          </article>
+        </section>
+
+        {!data && !loading ? (
+          <section className="empty-state">
+            <strong>Case details are not available yet.</strong>
+            <p style={{ marginBottom: 0 }}>Once the case loads successfully, assignments, documents, and requests will show here.</p>
+          </section>
+        ) : null}
+
+        <section className="grid" style={{ alignItems: 'start' }}>
+          <section className="card">
+            <div className="section-title">
+              <div>
+                <div className="eyebrow">Team coverage</div>
+                <h3>Assignments</h3>
+              </div>
+            </div>
+
+            {data?.assignments?.length ? (
+              <div className="record-list">
                 {data.assignments.map((assignment: any) => (
-                  <li key={assignment.id}>
-                    {assignment.user.firstName} {assignment.user.lastName} · {assignment.roleLabel}
-                  </li>
+                  <article key={assignment.id} className="record-item">
+                    <strong>{assignment.user.firstName} {assignment.user.lastName}</strong>
+                    <div className="record-meta">
+                      <span>{assignment.user.email}</span>
+                      <span className="status-pill">{assignment.roleLabel}</span>
+                    </div>
+                  </article>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p>No assignments yet.</p>
+              <div className="empty-state">
+                <strong>No assignments yet.</strong>
+                <p style={{ marginBottom: 0 }}>Assign a worker to start the case team structure.</p>
+              </div>
             )}
 
-            <form onSubmit={handleAssignWorker} style={{ display: 'grid', gap: 12, marginTop: 16 }}>
-              <label>
-                <div>Assign worker by email</div>
-                <input value={workerEmail} onChange={e => setWorkerEmail(e.target.value)} type="email" required style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-              </label>
-              <button type="submit" style={{ background: '#10588c', color: 'white', border: 'none', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}>
-                Assign worker
+            <form onSubmit={handleAssignWorker} className="form-grid" style={{ marginTop: 18 }}>
+              <div className="field">
+                <label htmlFor="workerEmail">Assign worker by email</label>
+                <input
+                  id="workerEmail"
+                  className="input"
+                  value={workerEmail}
+                  onChange={e => setWorkerEmail(e.target.value)}
+                  type="email"
+                  required
+                />
+              </div>
+              <button type="submit" className="button button-secondary" disabled={saving}>
+                {saving ? 'Saving...' : 'Assign worker'}
               </button>
             </form>
           </section>
-        ) : null}
 
-        <section className="card" style={{ margin: '0 24px 24px' }}>
-          <h3>Documents</h3>
-          <form onSubmit={handleCreateDocument} style={{ display: 'grid', gap: 12, marginTop: 16 }}>
-            <label>
-              <div>Document title</div>
-              <input value={docTitle} onChange={e => setDocTitle(e.target.value)} required style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-            </label>
-            <label>
-              <div>File name</div>
-              <input value={docFileName} onChange={e => setDocFileName(e.target.value)} required style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-            </label>
-            <label>
-              <div>Notes</div>
-              <textarea value={docNotes} onChange={e => setDocNotes(e.target.value)} rows={3} style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-            </label>
-            <button type="submit" style={{ background: '#7a4f01', color: 'white', border: 'none', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}>
-              Add document metadata
-            </button>
-          </form>
-
-          {documents.length ? (
-            <ul style={{ marginTop: 16 }}>
-              {documents.map(doc => (
-                <li key={doc.id}>
-                  {doc.title} · {doc.fileName}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p style={{ marginTop: 16 }}>No documents linked yet.</p>
-          )}
+          <section className="card card-muted">
+            <div className="section-title">
+              <div>
+                <div className="eyebrow">Case summary</div>
+                <h3>Current snapshot</h3>
+              </div>
+            </div>
+            <div className="stack">
+              <div>
+                <strong>Child</strong>
+                <p style={{ marginBottom: 0 }}>{childName}</p>
+              </div>
+              <div>
+                <strong>Status</strong>
+                <p style={{ marginBottom: 0 }}>{data?.status ?? 'Not loaded yet'}</p>
+              </div>
+              <div>
+                <strong>Opened at</strong>
+                <p style={{ marginBottom: 0 }}>
+                  {data?.openedAt ? new Date(data.openedAt).toLocaleString() : 'Not loaded yet'}
+                </p>
+              </div>
+            </div>
+          </section>
         </section>
 
-        <section className="card" style={{ margin: '0 24px 24px' }}>
-          <h3>Create request</h3>
-          <form onSubmit={handleCreateRequest} style={{ display: 'grid', gap: 16, marginTop: 16 }}>
-            <label>
-              <div>Request title</div>
-              <input value={title} onChange={e => setTitle(e.target.value)} required style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-            </label>
-            <label>
-              <div>Description</div>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-            </label>
-            <button type="submit" disabled={saving} style={{ background: '#046307', color: 'white', border: 'none', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}>
-              {saving ? 'Saving...' : 'Create request'}
-            </button>
-          </form>
+        <section className="grid" style={{ alignItems: 'start' }}>
+          <section className="card">
+            <div className="section-title">
+              <div>
+                <div className="eyebrow">Document tracking</div>
+                <h3>Documents</h3>
+                <p>Track document metadata attached to this case before full file workflows are added.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateDocument} className="form-grid">
+              <div className="field">
+                <label htmlFor="docTitle">Document title</label>
+                <input id="docTitle" className="input" value={docTitle} onChange={e => setDocTitle(e.target.value)} required />
+              </div>
+              <div className="field">
+                <label htmlFor="docFileName">File name</label>
+                <input id="docFileName" className="input" value={docFileName} onChange={e => setDocFileName(e.target.value)} required />
+              </div>
+              <div className="field">
+                <label htmlFor="docNotes">Notes</label>
+                <textarea id="docNotes" className="textarea" value={docNotes} onChange={e => setDocNotes(e.target.value)} rows={3} />
+              </div>
+              <button type="submit" className="button button-warning" disabled={saving}>
+                {saving ? 'Saving...' : 'Add document metadata'}
+              </button>
+            </form>
+
+            <div style={{ marginTop: 18 }}>
+              {documents.length ? (
+                <div className="record-list">
+                  {documents.map(doc => (
+                    <article key={doc.id} className="record-item">
+                      <strong>{doc.title}</strong>
+                      <div className="record-meta">
+                        <span>{doc.fileName}</span>
+                        {doc.contentType ? <span>{doc.contentType}</span> : null}
+                      </div>
+                      {doc.notes ? <p style={{ marginTop: 12, marginBottom: 0 }}>{doc.notes}</p> : null}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <strong>No documents linked yet.</strong>
+                  <p style={{ marginBottom: 0 }}>Add basic metadata so supporting records are visible in the case workspace.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="section-title">
+              <div>
+                <div className="eyebrow">Request intake</div>
+                <h3>Create request</h3>
+                <p>Submit a new request for placement, service, or operational action tied to this case.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateRequest} className="form-grid">
+              <div className="field">
+                <label htmlFor="requestTitle">Request title</label>
+                <input id="requestTitle" className="input" value={title} onChange={e => setTitle(e.target.value)} required />
+              </div>
+              <div className="field">
+                <label htmlFor="requestDescription">Description</label>
+                <textarea id="requestDescription" className="textarea" value={description} onChange={e => setDescription(e.target.value)} rows={4} />
+              </div>
+              <button type="submit" className="button button-primary" disabled={saving}>
+                {saving ? 'Saving...' : 'Create request'}
+              </button>
+            </form>
+          </section>
         </section>
 
-        <section className="card" style={{ margin: '0 24px 24px' }}>
-          <h3>Requests</h3>
+        <section className="card">
+          <div className="section-title">
+            <div>
+              <div className="eyebrow">Approval workflow</div>
+              <h3>Requests</h3>
+            </div>
+          </div>
+
           {data?.requests?.length ? (
-            <div style={{ display: 'grid', gap: 12 }}>
+            <div className="record-list">
               {data.requests.map((request: any) => (
-                <article key={request.id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
+                <article key={request.id} className="record-item">
                   <strong>{request.title}</strong>
-                  <div>Status: {request.status}</div>
-                  {request.description ? <p style={{ marginTop: 8 }}>{request.description}</p> : null}
+                  <div className="record-meta">
+                    <span className="status-pill">{request.status}</span>
+                    {request.createdAt ? <span>Created: {new Date(request.createdAt).toLocaleString()}</span> : null}
+                  </div>
+                  {request.description ? <p style={{ marginTop: 12 }}>{request.description}</p> : null}
+
                   {request.decidedAt ? (
-                    <div style={{ marginTop: 8 }}>
-                      <div>Decision time: {new Date(request.decidedAt).toLocaleString()}</div>
-                      <div>Decided by: {request.decidedBy ? `${request.decidedBy.firstName} ${request.decidedBy.lastName}` : 'Unknown'}</div>
+                    <div className="notice" style={{ marginTop: 14 }}>
+                      <strong>Decision recorded</strong>
+                      <p style={{ marginBottom: 0 }}>
+                        {request.decidedBy ? `${request.decidedBy.firstName} ${request.decidedBy.lastName}` : 'Unknown approver'}
+                        {' '}updated this request on {new Date(request.decidedAt).toLocaleString()}.
+                      </p>
+                      {request.decisionNote ? (
+                        <p style={{ marginTop: 10, marginBottom: 0 }}><strong>Decision note:</strong> {request.decisionNote}</p>
+                      ) : null}
                     </div>
                   ) : null}
-                  {request.decisionNote ? (
-                    <p style={{ marginTop: 8 }}><strong>Decision note:</strong> {request.decisionNote}</p>
-                  ) : null}
+
                   {request.status === 'SUBMITTED' ? (
-                    <div style={{ marginTop: 12 }}>
-                      <label>
-                        <div>Decision note</div>
+                    <div style={{ marginTop: 16 }}>
+                      <div className="field">
+                        <label htmlFor={`decision-note-${request.id}`}>Decision note</label>
                         <textarea
+                          id={`decision-note-${request.id}`}
+                          className="textarea"
                           value={decisionNotes[request.id] || ''}
                           onChange={e => setDecisionNotes(current => ({ ...current, [request.id]: e.target.value }))}
                           rows={3}
-                          style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc', marginTop: 8 }}
                         />
-                      </label>
-                      <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-                        <button onClick={() => handleRequestDecision(request.id, 'approve')} style={{ background: '#046307', color: 'white', border: 'none', borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}>
+                      </div>
+                      <div className="actions-row">
+                        <button onClick={() => handleRequestDecision(request.id, 'approve')} className="button button-primary" disabled={saving}>
                           Approve
                         </button>
-                        <button onClick={() => handleRequestDecision(request.id, 'deny')} style={{ background: '#b42318', color: 'white', border: 'none', borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}>
+                        <button onClick={() => handleRequestDecision(request.id, 'deny')} className="button button-danger" disabled={saving}>
                           Deny
                         </button>
                       </div>
@@ -307,7 +441,10 @@ export default function CaseDetailPage() {
               ))}
             </div>
           ) : (
-            <p>No requests yet.</p>
+            <div className="empty-state">
+              <strong>No requests yet.</strong>
+              <p style={{ marginBottom: 0 }}>Create the first request to begin the approval workflow for this case.</p>
+            </div>
           )}
         </section>
       </main>

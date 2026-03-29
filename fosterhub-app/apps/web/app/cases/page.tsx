@@ -40,28 +40,43 @@ export default function CasesPage() {
 
   return (
     <AppShell title="Cases">
-      <main>
-        {error ? (
-          <section className="card" style={{ margin: 24 }}>
-            <h3>Cases load problem</h3>
-            <p>{error}</p>
-          </section>
-        ) : null}
+      <main className="page-stack">
+        <section className="card">
+          <div className="section-title">
+            <div>
+              <div className="eyebrow">Case management</div>
+              <h2>Current cases</h2>
+              <p>Browse active case records and move into detailed workflow actions from here.</p>
+            </div>
+            <Link href="/intake" className="button button-ghost">Go to intake</Link>
+          </div>
 
-        <section className="card" style={{ margin: 24 }}>
-          <h3>Current cases</h3>
+          {error ? (
+            <div className="notice notice-error">
+              <strong>Cases load problem</strong>
+              <p style={{ marginBottom: 0 }}>{error}</p>
+            </div>
+          ) : null}
+
           {cases.length === 0 ? (
-            <p>No cases yet.</p>
+            <div className="empty-state">
+              <strong>No cases yet.</strong>
+              <p style={{ marginBottom: 0 }}>
+                Once intake records are converted into active cases, they will appear here.
+              </p>
+            </div>
           ) : (
-            <div style={{ display: 'grid', gap: 12 }}>
+            <div className="record-list">
               {cases.map(item => (
-                <article key={item.id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
+                <article key={item.id} className="record-item">
                   <strong>{item.child.firstName} {item.child.lastName}</strong>
-                  <div>Status: {item.status}</div>
-                  <div>Created: {new Date(item.createdAt).toLocaleString()}</div>
-                  <p style={{ marginTop: 12 }}>
-                    <Link href={`/cases/${item.id}`}>Open case</Link>
-                  </p>
+                  <div className="record-meta">
+                    <span className="status-pill">{item.status}</span>
+                    <span>Created: {new Date(item.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="actions-row">
+                    <Link href={`/cases/${item.id}`} className="button button-secondary">Open case detail</Link>
+                  </div>
                 </article>
               ))}
             </div>

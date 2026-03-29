@@ -68,107 +68,133 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <AppShell title="Dashboard">
-      <main>
+    <AppShell title="Worker dashboard">
+      <main className="page-stack">
         {state ? (
-          <section style={{ padding: 24, paddingBottom: 0 }}>
-            <div className="badge">Signed in as {state.user.email}</div>
-          </section>
-        ) : null}
-
-        <section className="grid" style={{ padding: 24 }}>
-          <article className="card">
-            <h3>Quick actions</h3>
-            <ul>
-              <li><Link href="/intake">Open intake queue</Link></li>
-              <li><Link href="/cases">View cases</Link></li>
-            </ul>
-          </article>
-
-          {state ? (
-            <>
-              <article className="card">
-                <h3>User</h3>
-                <p>{state.user.email}</p>
-                <p>Role: {state.user.role}</p>
-              </article>
-              <article className="card">
-                <h3>Assigned cases</h3>
-                <p>{state.summary?.assignedCases ?? 0}</p>
-              </article>
-              <article className="card">
-                <h3>Assigned intake records</h3>
-                <p>{state.summary?.assignedIntakeRecords ?? 0}</p>
-              </article>
-              <article className="card">
-                <h3>Pending requests</h3>
-                <p>{state.summary?.pendingRequests ?? 0}</p>
-              </article>
-            </>
-          ) : null}
-        </section>
-
-        {state ? (
-          <section className="card" style={{ margin: '0 24px 24px' }}>
-            <h3>My assigned cases</h3>
-            {state.myCases.length ? (
-              <div style={{ display: 'grid', gap: 12 }}>
-                {state.myCases.map(item => (
-                  <article key={item.assignmentId} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
-                    <strong>{item.childFirstName} {item.childLastName}</strong>
-                    <div>Status: {item.caseStatus}</div>
-                    <div>Role: {item.roleLabel}</div>
-                    <p style={{ marginTop: 12 }}>
-                      <Link href={`/cases/${item.caseId}`}>Open case</Link>
-                    </p>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p>No assigned cases yet.</p>
-            )}
-          </section>
-        ) : null}
-
-        {state ? (
-          <section className="card" style={{ margin: '0 24px 24px' }}>
-            <h3>Pending request queue</h3>
-            {state.pendingRequests.length ? (
-              <div style={{ display: 'grid', gap: 12 }}>
-                {state.pendingRequests.map(request => (
-                  <article key={request.id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
-                    <strong>{request.title}</strong>
-                    <div>Child: {request.childFirstName} {request.childLastName}</div>
-                    <div>Status: {request.status}</div>
-                    <p style={{ marginTop: 12 }}>
-                      <Link href={`/cases/${request.caseId}`}>Review request</Link>
-                    </p>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p>No pending requests right now.</p>
-            )}
+          <section className="hero">
+            <span className="badge">Signed in as {state.user.email}</span>
+            <h2 style={{ fontSize: 38, marginTop: 18, marginBottom: 12 }}>
+              Welcome back{state.user.firstName ? `, ${state.user.firstName}` : ''}.
+            </h2>
+            <p style={{ fontSize: 17, maxWidth: 760 }}>
+              This dashboard is the control center for assigned cases, intake workload, and pending
+              decisions. The goal is quick orientation, not clutter.
+            </p>
+            <div className="actions-row">
+              <Link href="/intake" className="button button-primary">Open intake queue</Link>
+              <Link href="/cases" className="button button-ghost">View all cases</Link>
+            </div>
           </section>
         ) : null}
 
         {error ? (
-          <section className="card" style={{ margin: '0 24px 24px' }}>
-            <h3>Login state problem</h3>
-            <p>{error}</p>
+          <section className="notice notice-error">
+            <strong>Dashboard problem</strong>
+            <p style={{ marginBottom: 0 }}>{error}</p>
           </section>
         ) : null}
 
-        {state ? (
-          <section className="card" style={{ margin: '0 24px 24px' }}>
-            <h3>Permissions</h3>
+        <section className="grid">
+          <article className="card kpi">
+            <span className="kpi-label">Assigned cases</span>
+            <span className="kpi-value">{state?.summary?.assignedCases ?? 0}</span>
+          </article>
+          <article className="card kpi">
+            <span className="kpi-label">Assigned intake records</span>
+            <span className="kpi-value">{state?.summary?.assignedIntakeRecords ?? 0}</span>
+          </article>
+          <article className="card kpi">
+            <span className="kpi-label">Pending requests</span>
+            <span className="kpi-value">{state?.summary?.pendingRequests ?? 0}</span>
+          </article>
+          <article className="card">
+            <div className="eyebrow">User context</div>
+            <h3 style={{ marginBottom: 6 }}>{state?.user?.email ?? 'Not loaded yet'}</h3>
+            <p style={{ marginBottom: 0 }}>Role: {state?.user?.role ?? 'Unknown'}</p>
+          </article>
+        </section>
+
+        <section className="card">
+          <div className="section-title">
+            <div>
+              <div className="eyebrow">Assigned work</div>
+              <h3>My cases</h3>
+            </div>
+            <Link href="/cases" className="button button-ghost">Open cases</Link>
+          </div>
+
+          {state?.myCases?.length ? (
+            <div className="record-list">
+              {state.myCases.map(item => (
+                <article key={item.assignmentId} className="record-item">
+                  <strong>{item.childFirstName} {item.childLastName}</strong>
+                  <div className="record-meta">
+                    <span className="status-pill">{item.caseStatus}</span>
+                    <span>Role: {item.roleLabel}</span>
+                  </div>
+                  <div className="actions-row">
+                    <Link href={`/cases/${item.caseId}`} className="button button-secondary">Open case</Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <strong>No assigned cases yet.</strong>
+              <p style={{ marginBottom: 0 }}>Once case assignments exist, they will show up here for quick access.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="section-title">
+            <div>
+              <div className="eyebrow">Decision queue</div>
+              <h3>Pending requests</h3>
+            </div>
+          </div>
+
+          {state?.pendingRequests?.length ? (
+            <div className="record-list">
+              {state.pendingRequests.map(request => (
+                <article key={request.id} className="record-item">
+                  <strong>{request.title}</strong>
+                  <div className="record-meta">
+                    <span className="status-pill">{request.status}</span>
+                    <span>Child: {request.childFirstName} {request.childLastName}</span>
+                  </div>
+                  <div className="actions-row">
+                    <Link href={`/cases/${request.caseId}`} className="button button-secondary">Review request</Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <strong>No pending requests right now.</strong>
+              <p style={{ marginBottom: 0 }}>When approvals need attention, they will appear here.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="card card-muted">
+          <div className="section-title">
+            <div>
+              <div className="eyebrow">Access model</div>
+              <h3>Permissions</h3>
+            </div>
+          </div>
+
+          {state?.permissions?.length ? (
             <ul>
               {state.permissions.map(permission => (
                 <li key={permission}>{permission}</li>
               ))}
             </ul>
-          </section>
-        ) : null}
+          ) : (
+            <p style={{ marginBottom: 0 }}>Permissions will display here after successful load.</p>
+          )}
+        </section>
       </main>
     </AppShell>
   );

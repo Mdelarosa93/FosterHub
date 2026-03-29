@@ -98,49 +98,96 @@ export default function IntakePage() {
   }
 
   return (
-    <AppShell title="Intake">
-      <main>
-        <section className="card" style={{ margin: 24 }}>
-          <h3>Create intake record</h3>
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 16, marginTop: 16 }}>
-            <label>
-              <div>Child first name</div>
-              <input value={childFirstName} onChange={e => setChildFirstName(e.target.value)} required style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-            </label>
-            <label>
-              <div>Child last name</div>
-              <input value={childLastName} onChange={e => setChildLastName(e.target.value)} required style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-            </label>
-            <label>
-              <div>Notes</div>
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid #ccc' }} />
-            </label>
-            <button type="submit" disabled={loading} style={{ background: '#046307', color: 'white', border: 'none', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}>
-              {loading ? 'Saving...' : 'Create intake record'}
-            </button>
-          </form>
-          {error ? <p style={{ color: '#b42318', marginTop: 16 }}>{error}</p> : null}
+    <AppShell title="Intake queue">
+      <main className="page-stack">
+        <section className="grid" style={{ alignItems: 'start' }}>
+          <div className="card">
+            <div className="section-title">
+              <div>
+                <div className="eyebrow">New intake</div>
+                <h2>Create intake record</h2>
+                <p>Capture an incoming child record and move it into the formal intake queue.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="form-grid">
+              <div className="field">
+                <label htmlFor="childFirstName">Child first name</label>
+                <input id="childFirstName" className="input" value={childFirstName} onChange={e => setChildFirstName(e.target.value)} required />
+              </div>
+              <div className="field">
+                <label htmlFor="childLastName">Child last name</label>
+                <input id="childLastName" className="input" value={childLastName} onChange={e => setChildLastName(e.target.value)} required />
+              </div>
+              <div className="field">
+                <label htmlFor="notes">Notes</label>
+                <textarea id="notes" className="textarea" value={notes} onChange={e => setNotes(e.target.value)} rows={4} />
+              </div>
+              <button type="submit" disabled={loading} className="button button-primary">
+                {loading ? 'Saving intake record...' : 'Create intake record'}
+              </button>
+            </form>
+
+            {error ? (
+              <div className="notice notice-error" style={{ marginTop: 16 }}>
+                <strong>Intake problem</strong>
+                <p style={{ marginBottom: 0 }}>{error}</p>
+              </div>
+            ) : null}
+          </div>
+
+          <aside className="card card-muted">
+            <div className="eyebrow">Workflow</div>
+            <h3 style={{ marginBottom: 12 }}>Expected path</h3>
+            <div className="stack">
+              <div>
+                <strong>1. Capture intake</strong>
+                <p style={{ marginBottom: 0 }}>Create a clean intake record with basic child information and notes.</p>
+              </div>
+              <div>
+                <strong>2. Review queue</strong>
+                <p style={{ marginBottom: 0 }}>Confirm details and validate that the record is ready for case creation.</p>
+              </div>
+              <div>
+                <strong>3. Convert to case</strong>
+                <p style={{ marginBottom: 0 }}>Promote the record into a real case when the next workflow stage begins.</p>
+              </div>
+            </div>
+          </aside>
         </section>
 
-        <section className="card" style={{ margin: '0 24px 24px' }}>
-          <h3>Current intake queue</h3>
+        <section className="card">
+          <div className="section-title">
+            <div>
+              <div className="eyebrow">Current workload</div>
+              <h3>Intake queue</h3>
+            </div>
+          </div>
+
           {records.length === 0 ? (
-            <p>No intake records yet.</p>
+            <div className="empty-state">
+              <strong>No intake records yet.</strong>
+              <p style={{ marginBottom: 0 }}>Create the first intake record to begin the workflow.</p>
+            </div>
           ) : (
-            <div style={{ display: 'grid', gap: 12 }}>
+            <div className="record-list">
               {records.map(record => (
-                <article key={record.id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
+                <article key={record.id} className="record-item">
                   <strong>{record.childFirstName} {record.childLastName}</strong>
-                  <div>Status: {record.status}</div>
-                  <div>Created: {new Date(record.createdAt).toLocaleString()}</div>
-                  {record.notes ? <p style={{ marginTop: 8 }}>{record.notes}</p> : null}
-                  {record.status !== 'CONVERTED' ? (
-                    <button onClick={() => handleConvertToCase(record.id)} style={{ marginTop: 12, background: '#10588c', color: 'white', border: 'none', borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}>
-                      Convert to case
-                    </button>
-                  ) : (
-                    <p style={{ marginTop: 12 }}><strong>Converted to case</strong></p>
-                  )}
+                  <div className="record-meta">
+                    <span className="status-pill">{record.status}</span>
+                    <span>Created: {new Date(record.createdAt).toLocaleString()}</span>
+                  </div>
+                  {record.notes ? <p style={{ marginTop: 12, marginBottom: 0 }}>{record.notes}</p> : null}
+                  <div className="actions-row">
+                    {record.status !== 'CONVERTED' ? (
+                      <button onClick={() => handleConvertToCase(record.id)} className="button button-secondary">
+                        Convert to case
+                      </button>
+                    ) : (
+                      <span className="status-pill">Converted to case</span>
+                    )}
+                  </div>
                 </article>
               ))}
             </div>
