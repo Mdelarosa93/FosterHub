@@ -13,7 +13,21 @@ const sampleAppointments = [
 ];
 
 const caseOptions = ['Archer Hall', 'Ava Johnson', 'Noah Carter', 'Emma Lewis'];
-const userOptions = ['Sarah Hall', 'David Hall', 'Attorney Maria Lopez', 'Case Worker Taylor Reed'];
+const userOptions = [
+  'Sarah Hall',
+  'David Hall',
+  'Attorney Maria Lopez',
+  'Case Worker Taylor Reed',
+  'Biological Parent Janelle Hall',
+  'Dr. Priya Shah',
+  'School Liaison Marcus Green',
+];
+const recommendedUsersByCase: Record<string, string[]> = {
+  'Archer Hall': ['Sarah Hall', 'David Hall', 'Attorney Maria Lopez', 'Case Worker Taylor Reed'],
+  'Ava Johnson': ['Case Worker Taylor Reed', 'Dr. Priya Shah', 'School Liaison Marcus Green'],
+  'Noah Carter': ['Case Worker Taylor Reed', 'Attorney Maria Lopez'],
+  'Emma Lewis': ['Case Worker Taylor Reed'],
+};
 const eventTypeOptions = [
   'Biological Parent Visitation',
   'Court',
@@ -23,13 +37,28 @@ const eventTypeOptions = [
   'Home Visit',
 ];
 const placeSuggestions = [
-  'Orange County Courthouse',
-  'Arnold Palmer Hospital for Children',
-  'Lake Nona Medical Center',
-  'FosterHub Office - Orlando',
-  'Ava Johnson Foster Home',
-  'Archer Hall Foster Home',
+  'Orange County Courthouse, 425 N Orange Ave, Orlando, FL',
+  'Arnold Palmer Hospital for Children, 92 W Miller St, Orlando, FL',
+  'Lake Nona Medical Center, 6718 Lake Nona Blvd, Orlando, FL',
+  'FosterHub Office - Orlando, 100 S Orange Ave, Orlando, FL',
+  'Archer Hall Foster Home, 1452 Oak Terrace, Orlando, FL',
+  'Ava Johnson Foster Home, 803 Pine Grove Ct, Orlando, FL',
+  'Biological Parent Residence - Hall Family, 411 E Colonial Dr, Orlando, FL',
 ];
+const recommendedLocationsByCase: Record<string, string[]> = {
+  'Archer Hall': [
+    'Archer Hall Foster Home, 1452 Oak Terrace, Orlando, FL',
+    'Biological Parent Residence - Hall Family, 411 E Colonial Dr, Orlando, FL',
+    'Orange County Courthouse, 425 N Orange Ave, Orlando, FL',
+  ],
+  'Ava Johnson': [
+    'Ava Johnson Foster Home, 803 Pine Grove Ct, Orlando, FL',
+    'Arnold Palmer Hospital for Children, 92 W Miller St, Orlando, FL',
+    'Lake Nona Medical Center, 6718 Lake Nona Blvd, Orlando, FL',
+  ],
+  'Noah Carter': ['FosterHub Office - Orlando, 100 S Orange Ave, Orlando, FL'],
+  'Emma Lewis': ['FosterHub Office - Orlando, 100 S Orange Ave, Orlando, FL'],
+};
 
 function formatMonthHeading(date: Date) {
   return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -69,6 +98,7 @@ export default function CalendarPage() {
   const [selectedCase, setSelectedCase] = useState(caseOptions[0]);
   const [selectedEventType, setSelectedEventType] = useState(eventTypeOptions[0]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>(['Sarah Hall']);
+  const [userQuery, setUserQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
   const [eventDate, setEventDate] = useState('2026-04-05');
   const [eventTime, setEventTime] = useState('14:00');
@@ -91,19 +121,32 @@ export default function CalendarPage() {
     return map;
   }, []);
 
+  const recommendedUsers = useMemo(() => recommendedUsersByCase[selectedCase] || [], [selectedCase]);
+
+  const filteredUserSuggestions = useMemo(() => {
+    const pool = Array.from(new Set([...recommendedUsers, ...userOptions]));
+    return pool.filter(user => user.toLowerCase().includes(userQuery.toLowerCase()) && !selectedUsers.includes(user)).slice(0, 6);
+  }, [recommendedUsers, userQuery, selectedUsers]);
+
+  const recommendedLocations = useMemo(() => recommendedLocationsByCase[selectedCase] || [], [selectedCase]);
+
   const filteredSuggestions = useMemo(() => {
-    if (!locationQuery.trim()) return placeSuggestions.slice(0, 4);
-    return placeSuggestions.filter(place => place.toLowerCase().includes(locationQuery.toLowerCase())).slice(0, 4);
-  }, [locationQuery]);
+    const pool = Array.from(new Set([...recommendedLocations, ...placeSuggestions]));
+    if (!locationQuery.trim()) return pool.slice(0, 5);
+    return pool.filter(place => place.toLowerCase().includes(locationQuery.toLowerCase())).slice(0, 5);
+  }, [recommendedLocations, locationQuery]);
 
   function changeMonth(direction: number) {
     setVisibleDate(current => new Date(current.getFullYear(), current.getMonth() + direction, 1));
   }
 
-  function toggleUser(user: string) {
-    setSelectedUsers(current =>
-      current.includes(user) ? current.filter(entry => entry !== user) : [...current, user],
-    );
+  function addUser(user: string) {
+    setSelectedUsers(current => (current.includes(user) ? current : [...current, user]));
+    setUserQuery('');
+  }
+
+  function removeUser(user: string) {
+    setSelectedUsers(current => current.filter(entry => entry !== user));
   }
 
   return (
@@ -279,108 +322,146 @@ export default function CalendarPage() {
                 </button>
               </div>
 
-              <div className="grid" style={{ alignItems: 'start' }}>
-                <div className="stack">
-                  <div className="field">
-                    <label htmlFor="case-select">Case / child</label>
-                    <select id="case-select" className="select" value={selectedCase} onChange={e => setSelectedCase(e.target.value)}>
-                      {caseOptions.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
+              <div className="form-grid">
+                <div className="field">
+                  <label htmlFor="case-select">Case / child</label>
+                  <select id="case-select" className="select" value={selectedCase} onChange={e => setSelectedCase(e.target.value)}>
+                    {caseOptions.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="field">
-                    <label htmlFor="event-type-select">Event type</label>
-                    <select
-                      id="event-type-select"
-                      className="select"
-                      value={selectedEventType}
-                      onChange={e => setSelectedEventType(e.target.value)}
-                    >
-                      {eventTypeOptions.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="field">
+                  <label htmlFor="event-type-select">Event type</label>
+                  <select
+                    id="event-type-select"
+                    className="select"
+                    value={selectedEventType}
+                    onChange={e => setSelectedEventType(e.target.value)}
+                  >
+                    {eventTypeOptions.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="field">
-                    <label>Invite FosterHub users</label>
-                    <div className="card card-muted" style={{ padding: 14 }}>
-                      <div className="stack" style={{ gap: 10 }}>
-                        {userOptions.map(user => (
-                          <label key={user} style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#123122' }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedUsers.includes(user)}
-                              onChange={() => toggleUser(user)}
-                            />
-                            <span>{user}</span>
-                          </label>
-                        ))}
-                      </div>
+                <div className="field">
+                  <label htmlFor="invite-search">Invite FosterHub users</label>
+                  <input
+                    id="invite-search"
+                    className="input"
+                    value={userQuery}
+                    onChange={e => setUserQuery(e.target.value)}
+                    placeholder="Search for users to invite"
+                  />
+
+                  {selectedUsers.length ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {selectedUsers.map(user => (
+                        <button
+                          key={user}
+                          type="button"
+                          className="button button-ghost"
+                          style={{ minHeight: 36 }}
+                          onClick={() => removeUser(user)}
+                        >
+                          {user} ×
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="card card-muted" style={{ padding: 14 }}>
+                    <div className="eyebrow" style={{ marginBottom: 10 }}>Recommended for {selectedCase}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                      {recommendedUsers.map(user => (
+                        <button
+                          key={user}
+                          type="button"
+                          className="button button-ghost"
+                          style={{ minHeight: 36 }}
+                          onClick={() => addUser(user)}
+                          disabled={selectedUsers.includes(user)}
+                        >
+                          {user}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="stack" style={{ gap: 8 }}>
+                      {filteredUserSuggestions.map(user => (
+                        <button
+                          key={user}
+                          type="button"
+                          className="button button-ghost"
+                          style={{ justifyContent: 'flex-start' }}
+                          onClick={() => addUser(user)}
+                        >
+                          {user}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="stack">
-                  <div className="field">
-                    <label htmlFor="location-input">Location</label>
-                    <input
-                      id="location-input"
-                      className="input"
-                      value={locationQuery}
-                      onChange={e => setLocationQuery(e.target.value)}
-                      placeholder="Search address or place"
-                    />
-                    <div className="card card-muted" style={{ padding: 12 }}>
-                      <div className="stack" style={{ gap: 8 }}>
-                        {filteredSuggestions.map(place => (
-                          <button
-                            key={place}
-                            type="button"
-                            className="button button-ghost"
-                            style={{ justifyContent: 'flex-start' }}
-                            onClick={() => setLocationQuery(place)}
-                          >
-                            {place}
-                          </button>
-                        ))}
-                      </div>
+                <div className="field">
+                  <label htmlFor="location-input">Location</label>
+                  <input
+                    id="location-input"
+                    className="input"
+                    value={locationQuery}
+                    onChange={e => setLocationQuery(e.target.value)}
+                    placeholder="Search address or place"
+                  />
+                  <div className="card card-muted" style={{ padding: 14 }}>
+                    <div className="eyebrow" style={{ marginBottom: 10 }}>Recommended locations</div>
+                    <div className="stack" style={{ gap: 8 }}>
+                      {filteredSuggestions.map(place => (
+                        <button
+                          key={place}
+                          type="button"
+                          className="button button-ghost"
+                          style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                          onClick={() => setLocationQuery(place)}
+                        >
+                          {place}
+                        </button>
+                      ))}
                     </div>
                   </div>
+                </div>
 
-                  <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-                    <div className="field">
-                      <label htmlFor="event-date">Date</label>
-                      <input id="event-date" className="input" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="event-time">Time</label>
-                      <input id="event-time" className="input" type="time" value={eventTime} onChange={e => setEventTime(e.target.value)} />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="event-duration">Duration</label>
-                      <select id="event-duration" className="select" value={duration} onChange={e => setDuration(e.target.value)}>
-                        <option value="30">30 min</option>
-                        <option value="60">60 min</option>
-                        <option value="90">90 min</option>
-                        <option value="120">120 min</option>
-                      </select>
-                    </div>
-                  </div>
-
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
                   <div className="field">
-                    <label htmlFor="event-notes">Notes</label>
-                    <textarea
-                      id="event-notes"
-                      className="textarea"
-                      value={notes}
-                      onChange={e => setNotes(e.target.value)}
-                      rows={5}
-                      placeholder="Add details, reminders, or coordination notes"
-                    />
+                    <label htmlFor="event-date">Date</label>
+                    <input id="event-date" className="input" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
                   </div>
+                  <div className="field">
+                    <label htmlFor="event-time">Time</label>
+                    <input id="event-time" className="input" type="time" value={eventTime} onChange={e => setEventTime(e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="event-duration">Duration</label>
+                    <select id="event-duration" className="select" value={duration} onChange={e => setDuration(e.target.value)}>
+                      <option value="30">30 min</option>
+                      <option value="60">60 min</option>
+                      <option value="90">90 min</option>
+                      <option value="120">120 min</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="event-notes">Notes</label>
+                  <textarea
+                    id="event-notes"
+                    className="textarea"
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    rows={5}
+                    placeholder="Add details, reminders, or coordination notes"
+                  />
                 </div>
               </div>
 
