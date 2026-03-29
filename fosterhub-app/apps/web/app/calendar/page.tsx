@@ -5,11 +5,78 @@ import { AppShell } from '../../components/AppShell';
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const initialAppointments = [
-  { id: '1', caseLabel: 'Hall - 123456', child: 'Archer Hall', date: '2026-04-05', time: '2:00PM', note: 'Court review', color: '#50c4b7' },
-  { id: '2', caseLabel: 'Johnson - 234567', child: 'Ava Johnson', date: '2026-04-06', time: '9:00AM', note: 'Home visit', color: '#046307' },
-  { id: '3', caseLabel: 'Johnson - 234567', child: 'Ava Johnson', date: '2026-04-18', time: '1:30PM', note: 'School meeting', color: '#10588c' },
-  { id: '4', caseLabel: 'Hall - 123456', child: 'Archer Hall', date: '2026-04-22', time: '11:00AM', note: 'Medical appointment', color: '#d96c3c' },
+type CalendarEvent = {
+  id: string;
+  caseLabel: string;
+  children: string[];
+  date: string;
+  startTime: string;
+  endTime: string;
+  time: string;
+  eventType: string;
+  notes: string;
+  location: string;
+  invitees: string[];
+  color: string;
+};
+
+const initialAppointments: CalendarEvent[] = [
+  {
+    id: '1',
+    caseLabel: 'Hall - 123456',
+    children: ['Archer Hall'],
+    date: '2026-04-05',
+    startTime: '14:00',
+    endTime: '15:00',
+    time: '2:00PM',
+    eventType: 'Court',
+    notes: 'Court review',
+    location: 'Orange County Courthouse, 425 N Orange Ave, Orlando, FL',
+    invitees: ['Attorney Maria Lopez'],
+    color: '#10588c',
+  },
+  {
+    id: '2',
+    caseLabel: 'Johnson - 234567',
+    children: ['Ava Johnson'],
+    date: '2026-04-06',
+    startTime: '09:00',
+    endTime: '10:00',
+    time: '9:00AM',
+    eventType: 'Home Visit',
+    notes: 'Home visit',
+    location: 'Ava Johnson Foster Home, 803 Pine Grove Ct, Orlando, FL',
+    invitees: ['Case Worker Taylor Reed'],
+    color: '#046307',
+  },
+  {
+    id: '3',
+    caseLabel: 'Johnson - 234567',
+    children: ['Ava Johnson'],
+    date: '2026-04-18',
+    startTime: '13:30',
+    endTime: '14:30',
+    time: '1:30PM',
+    eventType: 'Sibling Visitation',
+    notes: 'School meeting',
+    location: 'FosterHub Office - Orlando, 100 S Orange Ave, Orlando, FL',
+    invitees: ['School Liaison Marcus Green'],
+    color: '#ff6fa7',
+  },
+  {
+    id: '4',
+    caseLabel: 'Hall - 123456',
+    children: ['Archer Hall'],
+    date: '2026-04-22',
+    startTime: '11:00',
+    endTime: '12:00',
+    time: '11:00AM',
+    eventType: 'Child Doctor Appointment',
+    notes: 'Medical appointment',
+    location: 'Arnold Palmer Hospital for Children, 92 W Miller St, Orlando, FL',
+    invitees: ['Dr. Priya Shah'],
+    color: '#50c4b7',
+  },
 ];
 
 const caseOptions = ['Hall - 123456', 'Johnson - 234567', 'Carter - 345678', 'Lewis - 456789'];
@@ -119,9 +186,11 @@ function formatTimeForCalendar(value: string) {
 }
 
 export default function CalendarPage() {
-  const [appointments, setAppointments] = useState(initialAppointments);
+  const [appointments, setAppointments] = useState<CalendarEvent[]>(initialAppointments);
   const [visibleDate, setVisibleDate] = useState(() => new Date());
   const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventModalMode, setEventModalMode] = useState<'create' | 'view' | 'edit'>('create');
+  const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [selectedCase, setSelectedCase] = useState(caseOptions[0]);
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
   const [selectedEventType, setSelectedEventType] = useState(eventTypeOptions[0]);
@@ -139,9 +208,10 @@ export default function CalendarPage() {
   const monthDays = useMemo(() => buildCalendarDays(visibleDate), [visibleDate]);
   const monthLabel = useMemo(() => formatMonthHeading(visibleDate), [visibleDate]);
   const activeMonth = visibleDate.getMonth();
+  const formDisabled = eventModalMode === 'view';
 
   const appointmentMap = useMemo(() => {
-    const map = new Map<string, typeof appointments>();
+    const map = new Map<string, CalendarEvent[]>();
     for (const appointment of appointments) {
       const current = map.get(appointment.date) || [];
       map.set(
@@ -194,31 +264,36 @@ export default function CalendarPage() {
   }, [recommendedLocations, locationQuery]);
 
   useEffect(() => {
-    setSelectedChildren([]);
-    setSelectedUsers([]);
-    setUserQuery('');
-    setShowMoreInviteSuggestions(false);
-    setLocationQuery('');
-    setLocationChosen(false);
-    setShowMoreLocationSuggestions(false);
-  }, [selectedCase]);
+    if (eventModalMode === 'create') {
+      setSelectedChildren([]);
+      setSelectedUsers([]);
+      setUserQuery('');
+      setShowMoreInviteSuggestions(false);
+      setLocationQuery('');
+      setLocationChosen(false);
+      setShowMoreLocationSuggestions(false);
+    }
+  }, [selectedCase, eventModalMode]);
 
   function changeMonth(direction: number) {
     setVisibleDate(current => new Date(current.getFullYear(), current.getMonth() + direction, 1));
   }
 
   function toggleChild(child: string) {
+    if (formDisabled) return;
     setSelectedChildren(current =>
       current.includes(child) ? current.filter(entry => entry !== child) : [...current, child],
     );
   }
 
   function addUser(user: string) {
+    if (formDisabled) return;
     setSelectedUsers(current => (current.includes(user) ? current : [...current, user]));
     setUserQuery('');
   }
 
   function removeUser(user: string) {
+    if (formDisabled) return;
     setSelectedUsers(current => current.filter(entry => entry !== user));
   }
 
@@ -236,20 +311,57 @@ export default function CalendarPage() {
     setStartTime('14:00');
     setEndTime('15:00');
     setNotes('');
+    setActiveEventId(null);
+  }
+
+  function openNewEventModal() {
+    resetEventForm();
+    setEventModalMode('create');
+    setEventModalOpen(true);
+  }
+
+  function openExistingEvent(event: CalendarEvent) {
+    setActiveEventId(event.id);
+    setSelectedCase(event.caseLabel);
+    setSelectedChildren(event.children);
+    setSelectedEventType(event.eventType);
+    setSelectedUsers(event.invitees);
+    setUserQuery('');
+    setShowMoreInviteSuggestions(false);
+    setLocationQuery(event.location);
+    setLocationChosen(true);
+    setShowMoreLocationSuggestions(false);
+    setEventDate(event.date);
+    setStartTime(event.startTime);
+    setEndTime(event.endTime);
+    setNotes(event.notes);
+    setEventModalMode('view');
+    setEventModalOpen(true);
   }
 
   function handleSaveEvent() {
-    const newEvent = {
-      id: `${Date.now()}`,
+    const normalizedEvent = {
       caseLabel: selectedCase,
-      child: selectedChildren.join(', '),
+      children: selectedChildren,
       date: eventDate,
+      startTime,
+      endTime,
       time: formatTimeForCalendar(startTime),
-      note: selectedEventType,
+      eventType: selectedEventType,
+      notes,
+      location: locationQuery,
+      invitees: selectedUsers,
       color: eventTypeColors[selectedEventType] || '#10588c',
     };
 
-    setAppointments(current => [...current, newEvent]);
+    if (eventModalMode === 'edit' && activeEventId) {
+      setAppointments(current =>
+        current.map(item => (item.id === activeEventId ? { ...item, ...normalizedEvent } : item)),
+      );
+    } else {
+      setAppointments(current => [...current, { id: `${Date.now()}`, ...normalizedEvent }]);
+    }
+
     setEventModalOpen(false);
     resetEventForm();
   }
@@ -267,12 +379,18 @@ export default function CalendarPage() {
 
           <div className="record-list">
             {upcomingAppointments.map(item => (
-              <article key={item.id} className="record-item">
+              <article
+                key={item.id}
+                className="record-item"
+                onClick={() => openExistingEvent(item)}
+                style={{ cursor: 'pointer' }}
+                title={`${item.time} · ${item.caseLabel} · ${item.eventType}`}
+              >
                 <strong>{item.caseLabel}</strong>
                 <div className="record-meta">
                   <span>{new Date(item.date).toLocaleDateString()}</span>
                   <span>{item.time}</span>
-                  <span>{item.note}</span>
+                  <span>{item.eventType}</span>
                 </div>
               </article>
             ))}
@@ -303,7 +421,7 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            <button type="button" className="button button-primary" onClick={() => setEventModalOpen(true)}>
+            <button type="button" className="button button-primary" onClick={openNewEventModal}>
               New Event
             </button>
           </div>
@@ -352,8 +470,10 @@ export default function CalendarPage() {
 
                   <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
                     {appointmentsForDay.map(appointment => (
-                      <div
+                      <button
                         key={appointment.id}
+                        type="button"
+                        onClick={() => openExistingEvent(appointment)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -364,8 +484,12 @@ export default function CalendarPage() {
                           textOverflow: 'ellipsis',
                           fontSize: 13,
                           color: '#123122',
+                          background: 'transparent',
+                          border: 'none',
+                          padding: 0,
+                          textAlign: 'left',
                         }}
-                        title={`${appointment.time} ${appointment.caseLabel}`}
+                        title={`${appointment.time} · ${appointment.caseLabel} · ${appointment.eventType}`}
                       >
                         <span
                           aria-hidden="true"
@@ -387,7 +511,7 @@ export default function CalendarPage() {
                         >
                           {appointment.caseLabel}
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -415,13 +539,13 @@ export default function CalendarPage() {
               onClick={event => event.stopPropagation()}
             >
               <div className="section-title">
-                <h2 style={{ marginBottom: 0 }}>New Event</h2>
+                <h2 style={{ marginBottom: 0 }}>{eventModalMode === 'create' ? 'New Event' : 'Event Details'}</h2>
               </div>
 
               <div className="form-grid">
                 <div className="field">
                   <label htmlFor="case-select">Case</label>
-                  <select id="case-select" className="select" value={selectedCase} onChange={e => setSelectedCase(e.target.value)}>
+                  <select id="case-select" className="select" value={selectedCase} onChange={e => setSelectedCase(e.target.value)} disabled={formDisabled}>
                     {caseOptions.map(option => (
                       <option key={option} value={option}>{option}</option>
                     ))}
@@ -450,6 +574,7 @@ export default function CalendarPage() {
                           className="button button-ghost"
                           style={{ minHeight: 34, padding: '8px 12px' }}
                           onClick={() => toggleChild(child)}
+                          disabled={formDisabled}
                         >
                           {child} ×
                         </button>
@@ -469,6 +594,7 @@ export default function CalendarPage() {
                           className="button button-ghost"
                           style={{ minHeight: 36, opacity: selectedChildren.includes(child) ? 0.6 : 1 }}
                           onClick={() => toggleChild(child)}
+                          disabled={formDisabled}
                         >
                           {child}
                         </button>
@@ -484,6 +610,7 @@ export default function CalendarPage() {
                     className="select"
                     value={selectedEventType}
                     onChange={e => setSelectedEventType(e.target.value)}
+                    disabled={formDisabled}
                   >
                     {eventTypeOptions.map(option => (
                       <option key={option} value={option}>{option}</option>
@@ -511,6 +638,7 @@ export default function CalendarPage() {
                         className="button button-ghost"
                         style={{ minHeight: 34, padding: '8px 12px' }}
                         onClick={() => removeUser(user)}
+                        disabled={formDisabled}
                       >
                         {user} ×
                       </button>
@@ -520,6 +648,7 @@ export default function CalendarPage() {
                       value={userQuery}
                       onChange={e => setUserQuery(e.target.value)}
                       placeholder={selectedUsers.length ? 'Add another user' : 'Search for users to invite'}
+                      disabled={formDisabled}
                       style={{
                         flex: '1 1 180px',
                         minWidth: 180,
@@ -527,60 +656,21 @@ export default function CalendarPage() {
                         outline: 'none',
                         fontSize: 16,
                         color: '#123122',
+                        background: 'transparent',
                       }}
                     />
                   </div>
 
-                  <div className="card card-muted" style={{ padding: 14 }}>
-                    <div className="eyebrow" style={{ marginBottom: 10 }}>Recommended for {selectedCase}</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {recommendedUsers.map(user => (
-                        <button
-                          key={user}
-                          type="button"
-                          className="button button-ghost"
-                          style={{ minHeight: 36 }}
-                          onClick={() => addUser(user)}
-                          disabled={selectedUsers.includes(user)}
-                        >
-                          {user}
-                        </button>
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowMoreInviteSuggestions(current => !current)}
-                      style={{
-                        marginTop: 14,
-                        border: 'none',
-                        background: 'transparent',
-                        padding: 0,
-                        color: '#10588c',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {showMoreInviteSuggestions ? '▾' : '▸'} View more recommendations
-                    </button>
-
-                    {showMoreInviteSuggestions ? (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          maxHeight: 180,
-                          overflowY: 'auto',
-                          display: 'grid',
-                          gap: 8,
-                          paddingRight: 4,
-                        }}
-                      >
-                        {filteredUserSuggestions.map(user => (
+                  {!formDisabled ? (
+                    <div className="card card-muted" style={{ padding: 14 }}>
+                      <div className="eyebrow" style={{ marginBottom: 10 }}>Recommended for {selectedCase}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {recommendedUsers.map(user => (
                           <button
                             key={user}
                             type="button"
                             className="button button-ghost"
-                            style={{ justifyContent: 'flex-start', opacity: selectedUsers.includes(user) ? 0.45 : 1 }}
+                            style={{ minHeight: 36 }}
                             onClick={() => addUser(user)}
                             disabled={selectedUsers.includes(user)}
                           >
@@ -588,8 +678,50 @@ export default function CalendarPage() {
                           </button>
                         ))}
                       </div>
-                    ) : null}
-                  </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowMoreInviteSuggestions(current => !current)}
+                        style={{
+                          marginTop: 14,
+                          border: 'none',
+                          background: 'transparent',
+                          padding: 0,
+                          color: '#10588c',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {showMoreInviteSuggestions ? '▾' : '▸'} View more recommendations
+                      </button>
+
+                      {showMoreInviteSuggestions ? (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            maxHeight: 180,
+                            overflowY: 'auto',
+                            display: 'grid',
+                            gap: 8,
+                            paddingRight: 4,
+                          }}
+                        >
+                          {filteredUserSuggestions.map(user => (
+                            <button
+                              key={user}
+                              type="button"
+                              className="button button-ghost"
+                              style={{ justifyContent: 'flex-start', opacity: selectedUsers.includes(user) ? 0.45 : 1 }}
+                              onClick={() => addUser(user)}
+                              disabled={selectedUsers.includes(user)}
+                            >
+                              {user}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="field">
@@ -603,8 +735,9 @@ export default function CalendarPage() {
                       setLocationChosen(false);
                     }}
                     placeholder="Search address or place"
+                    disabled={formDisabled}
                   />
-                  {!locationChosen ? (
+                  {!locationChosen && !formDisabled ? (
                     <div className="card card-muted" style={{ padding: 14 }}>
                       <div className="eyebrow" style={{ marginBottom: 10 }}>
                         {locationQuery.trim() ? 'Suggested results' : 'Recommended locations'}
@@ -650,15 +783,15 @@ export default function CalendarPage() {
                 <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
                   <div className="field">
                     <label htmlFor="event-date">Date</label>
-                    <input id="event-date" className="input" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
+                    <input id="event-date" className="input" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} disabled={formDisabled} />
                   </div>
                   <div className="field">
                     <label htmlFor="event-start-time">Start time</label>
-                    <input id="event-start-time" className="input" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+                    <input id="event-start-time" className="input" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} disabled={formDisabled} />
                   </div>
                   <div className="field">
                     <label htmlFor="event-end-time">End time</label>
-                    <input id="event-end-time" className="input" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+                    <input id="event-end-time" className="input" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} disabled={formDisabled} />
                   </div>
                 </div>
 
@@ -671,17 +804,31 @@ export default function CalendarPage() {
                     onChange={e => setNotes(e.target.value)}
                     rows={5}
                     placeholder="Add details, reminders, or coordination notes"
+                    disabled={formDisabled}
                   />
                 </div>
               </div>
 
               <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 22 }}>
-                <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="button" className="button button-primary" onClick={handleSaveEvent}>
-                  Save event
-                </button>
+                {eventModalMode === 'view' ? (
+                  <>
+                    <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
+                      Close
+                    </button>
+                    <button type="button" className="button button-primary" onClick={() => setEventModalMode('edit')}>
+                      Edit event
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
+                      Cancel
+                    </button>
+                    <button type="button" className="button button-primary" onClick={handleSaveEvent}>
+                      {eventModalMode === 'edit' ? 'Save changes' : 'Save event'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
