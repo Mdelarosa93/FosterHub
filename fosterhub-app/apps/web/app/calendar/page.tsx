@@ -5,7 +5,7 @@ import { AppShell } from '../../components/AppShell';
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const sampleAppointments = [
+const initialAppointments = [
   { id: '1', caseLabel: 'Hall - 123456', child: 'Archer Hall', date: '2026-04-05', time: '2:00PM', note: 'Court review', color: '#50c4b7' },
   { id: '2', caseLabel: 'Johnson - 234567', child: 'Ava Johnson', date: '2026-04-06', time: '9:00AM', note: 'Home visit', color: '#046307' },
   { id: '3', caseLabel: 'Johnson - 234567', child: 'Ava Johnson', date: '2026-04-18', time: '1:30PM', note: 'School meeting', color: '#10588c' },
@@ -42,6 +42,14 @@ const eventTypeOptions = [
   'Sibling Visitation',
   'Home Visit',
 ];
+const eventTypeColors: Record<string, string> = {
+  'Biological Parent Visitation': '#d96c3c',
+  Court: '#10588c',
+  'Child Doctor Appointment': '#50c4b7',
+  'Out of Office': '#8a5cf6',
+  'Sibling Visitation': '#ff6fa7',
+  'Home Visit': '#046307',
+};
 const placeSuggestions = [
   '126 Ridgewood Ave, Orlando, FL 32801',
   '126 Ridgewood St, Winter Park, FL 32789',
@@ -101,7 +109,17 @@ function timeToSortableNumber(value: string) {
   return hour * 60 + minute;
 }
 
+function formatTimeForCalendar(value: string) {
+  const [rawHour, rawMinute] = value.split(':');
+  let hour = Number(rawHour);
+  const minute = rawMinute;
+  const meridiem = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;
+  return `${hour}:${minute}${meridiem}`;
+}
+
 export default function CalendarPage() {
+  const [appointments, setAppointments] = useState(initialAppointments);
   const [visibleDate, setVisibleDate] = useState(() => new Date());
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState(caseOptions[0]);
@@ -123,8 +141,8 @@ export default function CalendarPage() {
   const activeMonth = visibleDate.getMonth();
 
   const appointmentMap = useMemo(() => {
-    const map = new Map<string, typeof sampleAppointments>();
-    for (const appointment of sampleAppointments) {
+    const map = new Map<string, typeof appointments>();
+    for (const appointment of appointments) {
       const current = map.get(appointment.date) || [];
       map.set(
         appointment.date,
@@ -132,7 +150,17 @@ export default function CalendarPage() {
       );
     }
     return map;
-  }, []);
+  }, [appointments]);
+
+  const upcomingAppointments = useMemo(() => {
+    return [...appointments]
+      .sort((a, b) => {
+        const dateA = new Date(`${a.date}T00:00:00`).getTime() + timeToSortableNumber(a.time) * 60000;
+        const dateB = new Date(`${b.date}T00:00:00`).getTime() + timeToSortableNumber(b.time) * 60000;
+        return dateA - dateB;
+      })
+      .slice(0, 2);
+  }, [appointments]);
 
   const childOptions = useMemo(() => childrenByCase[selectedCase] || [], [selectedCase]);
   const recommendedUsers = useMemo(() => recommendedUsersByCase[selectedCase] || [], [selectedCase]);
@@ -194,6 +222,38 @@ export default function CalendarPage() {
     setSelectedUsers(current => current.filter(entry => entry !== user));
   }
 
+  function resetEventForm() {
+    setSelectedCase(caseOptions[0]);
+    setSelectedChildren([]);
+    setSelectedEventType(eventTypeOptions[0]);
+    setSelectedUsers([]);
+    setUserQuery('');
+    setShowMoreInviteSuggestions(false);
+    setLocationQuery('');
+    setLocationChosen(false);
+    setShowMoreLocationSuggestions(false);
+    setEventDate('2026-04-05');
+    setStartTime('14:00');
+    setEndTime('15:00');
+    setNotes('');
+  }
+
+  function handleSaveEvent() {
+    const newEvent = {
+      id: `${Date.now()}`,
+      caseLabel: selectedCase,
+      child: selectedChildren.join(', '),
+      date: eventDate,
+      time: formatTimeForCalendar(startTime),
+      note: selectedEventType,
+      color: eventTypeColors[selectedEventType] || '#10588c',
+    };
+
+    setAppointments(current => [...current, newEvent]);
+    setEventModalOpen(false);
+    resetEventForm();
+  }
+
   return (
     <AppShell title="Calendar">
       <main className="page-stack">
@@ -206,7 +266,7 @@ export default function CalendarPage() {
           </div>
 
           <div className="record-list">
-            {sampleAppointments.slice(0, 2).map(item => (
+            {upcomingAppointments.map(item => (
               <article key={item.id} className="record-item">
                 <strong>{item.caseLabel}</strong>
                 <div className="record-meta">
@@ -263,7 +323,7 @@ export default function CalendarPage() {
 
             {monthDays.map(day => {
               const isoDate = day.toISOString().slice(0, 10);
-              const appointments = appointmentMap.get(isoDate) || [];
+              const appointmentsForDay = appointmentMap.get(isoDate) || [];
               const isCurrentMonth = day.getMonth() === activeMonth;
               const isToday = day.toDateString() === new Date().toDateString();
 
@@ -291,7 +351,7 @@ export default function CalendarPage() {
                   </div>
 
                   <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-                    {appointments.map(appointment => (
+                    {appointmentsForDay.map(appointment => (
                       <div
                         key={appointment.id}
                         style={{
@@ -356,9 +416,6 @@ export default function CalendarPage() {
             >
               <div className="section-title">
                 <h2 style={{ marginBottom: 0 }}>New Event</h2>
-                <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
-                  Close
-                </button>
               </div>
 
               <div className="form-grid">
@@ -622,7 +679,7 @@ export default function CalendarPage() {
                 <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="button" className="button button-primary">
+                <button type="button" className="button button-primary" onClick={handleSaveEvent}>
                   Save event
                 </button>
               </div>
