@@ -33,6 +33,7 @@ type DashboardState = {
 
 export default function DashboardPage() {
   const [state, setState] = useState<DashboardState | null>(null);
+  const [storedFirstName, setStoredFirstName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,6 +41,16 @@ export default function DashboardPage() {
     if (!authToken) {
       setError('No token found. Please log in first.');
       return;
+    }
+
+    try {
+      const rawUser = localStorage.getItem('fosterhub.dev.user');
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        setStoredFirstName(parsed?.firstName?.trim() ?? '');
+      }
+    } catch {
+      setStoredFirstName('');
     }
 
     async function load() {
@@ -68,9 +79,9 @@ export default function DashboardPage() {
   }, []);
 
   const title = useMemo(() => {
-    const firstName = state?.user?.firstName?.trim();
-    return firstName ? `Welcome back, ${firstName}.` : 'Welcome back.';
-  }, [state]);
+    const firstName = state?.user?.firstName?.trim() || storedFirstName;
+    return firstName ? `Welcome back, ${firstName}!` : 'Welcome back!';
+  }, [state, storedFirstName]);
 
   return (
     <AppShell title={title}>

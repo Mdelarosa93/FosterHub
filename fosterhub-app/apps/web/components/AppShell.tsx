@@ -5,9 +5,9 @@ import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', description: 'Overview and workload' },
-  { href: '/intake', label: 'Intake', description: 'Incoming children and requests' },
-  { href: '/cases', label: 'Cases', description: 'Active case management' },
+  { href: '/dashboard', label: 'Dashboard', shortLabel: 'DB', description: 'Overview and workload' },
+  { href: '/intake', label: 'Intake', shortLabel: 'IN', description: 'Incoming children and requests' },
+  { href: '/cases', label: 'Cases', shortLabel: 'CA', description: 'Active case management' },
 ];
 
 type StoredUser = {
@@ -20,6 +20,7 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState<StoredUser | null>(null);
 
   useEffect(() => {
@@ -50,26 +51,60 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '280px minmax(0, 1fr)',
+        gridTemplateColumns: `${sidebarCollapsed ? 92 : 280}px minmax(0, 1fr)`,
         minHeight: '100vh',
+        transition: 'grid-template-columns 0.2s ease',
       }}
     >
       <aside
         style={{
           background: 'linear-gradient(180deg, #0f2d1c 0%, #123e28 100%)',
           color: 'white',
-          padding: 24,
+          padding: sidebarCollapsed ? 16 : 24,
           position: 'sticky',
           top: 0,
           height: '100vh',
           borderRight: '1px solid rgba(255,255,255,0.06)',
+          transition: 'padding 0.2s ease',
         }}
       >
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontWeight: 900, fontSize: 28, letterSpacing: '-0.03em' }}>FosterHub</div>
-          <div style={{ opacity: 0.78, marginTop: 8, lineHeight: 1.5 }}>
-            Simplifying Foster Care, Empowering Families
+        <div
+          style={{
+            marginBottom: 28,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 900, fontSize: sidebarCollapsed ? 18 : 28, letterSpacing: '-0.03em' }}>
+              {sidebarCollapsed ? 'FH' : 'FosterHub'}
+            </div>
+            {!sidebarCollapsed ? (
+              <div style={{ opacity: 0.78, marginTop: 8, lineHeight: 1.5 }}>
+                Simplifying Foster Care, Empowering Families
+              </div>
+            ) : null}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(current => !current)}
+            aria-label={sidebarCollapsed ? 'Expand navigation menu' : 'Collapse navigation menu'}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              border: '1px solid rgba(255,255,255,0.14)',
+              background: 'rgba(255,255,255,0.08)',
+              color: 'white',
+              fontWeight: 800,
+              flexShrink: 0,
+            }}
+          >
+            {sidebarCollapsed ? '›' : '‹'}
+          </button>
         </div>
 
         <nav>
@@ -82,15 +117,20 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
                     href={item.href}
                     style={{
                       display: 'block',
-                      padding: '14px 14px',
+                      padding: sidebarCollapsed ? '14px 10px' : '14px 14px',
                       borderRadius: 16,
                       background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
                       border: active ? '1px solid rgba(255,255,255,0.16)' : '1px solid transparent',
                       boxShadow: active ? '0 8px 20px rgba(0,0,0,0.12)' : 'none',
+                      textAlign: sidebarCollapsed ? 'center' : 'left',
                     }}
                   >
-                    <div style={{ fontWeight: active ? 800 : 700 }}>{item.label}</div>
-                    <div style={{ fontSize: 13, opacity: 0.78, marginTop: 4 }}>{item.description}</div>
+                    <div style={{ fontWeight: active ? 800 : 700 }}>
+                      {sidebarCollapsed ? item.shortLabel : item.label}
+                    </div>
+                    {!sidebarCollapsed ? (
+                      <div style={{ fontSize: 13, opacity: 0.78, marginTop: 4 }}>{item.description}</div>
+                    ) : null}
                   </Link>
                 </li>
               );
