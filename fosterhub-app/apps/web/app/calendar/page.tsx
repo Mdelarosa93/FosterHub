@@ -6,10 +6,10 @@ import { AppShell } from '../../components/AppShell';
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const sampleAppointments = [
-  { id: '1', child: 'Archer Hall', date: '2026-04-05', time: '2:00PM', note: 'Court review' },
-  { id: '2', child: 'Ava Johnson', date: '2026-04-06', time: '9:00AM', note: 'Home visit' },
-  { id: '3', child: 'Ava Johnson', date: '2026-04-18', time: '1:30PM', note: 'School meeting' },
-  { id: '4', child: 'Archer Hall', date: '2026-04-22', time: '11:00AM', note: 'Medical appointment' },
+  { id: '1', child: 'Archer Hall', date: '2026-04-05', time: '2:00PM', note: 'Court review', color: '#50c4b7' },
+  { id: '2', child: 'Ava Johnson', date: '2026-04-06', time: '9:00AM', note: 'Home visit', color: '#046307' },
+  { id: '3', child: 'Ava Johnson', date: '2026-04-18', time: '1:30PM', note: 'School meeting', color: '#10588c' },
+  { id: '4', child: 'Archer Hall', date: '2026-04-22', time: '11:00AM', note: 'Medical appointment', color: '#d96c3c' },
 ];
 
 function formatMonthHeading(date: Date) {
@@ -30,6 +30,20 @@ function buildCalendarDays(baseDate: Date) {
   });
 }
 
+function timeToSortableNumber(value: string) {
+  const match = value.match(/(\d+):(\d+)(AM|PM)/i);
+  if (!match) return 0;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridiem = match[3].toUpperCase();
+
+  if (meridiem === 'PM' && hour !== 12) hour += 12;
+  if (meridiem === 'AM' && hour === 12) hour = 0;
+
+  return hour * 60 + minute;
+}
+
 export default function CalendarPage() {
   const [visibleDate, setVisibleDate] = useState(() => new Date());
 
@@ -41,7 +55,10 @@ export default function CalendarPage() {
     const map = new Map<string, typeof sampleAppointments>();
     for (const appointment of sampleAppointments) {
       const current = map.get(appointment.date) || [];
-      map.set(appointment.date, [...current, appointment]);
+      map.set(
+        appointment.date,
+        [...current, appointment].sort((a, b) => timeToSortableNumber(a.time) - timeToSortableNumber(b.time)),
+      );
     }
     return map;
   }, []);
@@ -132,6 +149,7 @@ export default function CalendarPage() {
                     padding: 12,
                     display: 'grid',
                     gap: 8,
+                    alignContent: 'start',
                   }}
                 >
                   <div
@@ -143,20 +161,43 @@ export default function CalendarPage() {
                     {day.getDate()}
                   </div>
 
-                  <div style={{ display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
                     {appointments.map(appointment => (
                       <div
                         key={appointment.id}
                         style={{
-                          padding: '8px 10px',
-                          borderRadius: 12,
-                          background: 'rgba(80, 196, 183, 0.14)',
-                          border: '1px solid rgba(16, 88, 140, 0.08)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          minWidth: 0,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          fontSize: 13,
+                          color: '#123122',
                         }}
+                        title={`${appointment.time} ${appointment.child}`}
                       >
-                        <div style={{ fontSize: 12, fontWeight: 800, color: '#046307' }}>{appointment.time}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#123122', marginTop: 4 }}>{appointment.child}</div>
-                        <div style={{ fontSize: 12, color: '#567060', marginTop: 2 }}>{appointment.note}</div>
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 999,
+                            background: appointment.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span style={{ fontWeight: 700, flexShrink: 0 }}>{appointment.time}</span>
+                        <span
+                          style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {appointment.child}
+                        </span>
                       </div>
                     ))}
                   </div>
