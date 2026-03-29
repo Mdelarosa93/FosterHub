@@ -6,10 +6,10 @@ import { AppShell } from '../../components/AppShell';
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const sampleAppointments = [
-  { id: '1', child: 'Archer Hall', date: '2026-04-05', time: '2:00PM', note: 'Court review', color: '#50c4b7' },
-  { id: '2', child: 'Ava Johnson', date: '2026-04-06', time: '9:00AM', note: 'Home visit', color: '#046307' },
-  { id: '3', child: 'Ava Johnson', date: '2026-04-18', time: '1:30PM', note: 'School meeting', color: '#10588c' },
-  { id: '4', child: 'Archer Hall', date: '2026-04-22', time: '11:00AM', note: 'Medical appointment', color: '#d96c3c' },
+  { id: '1', caseLabel: 'Hall - 123456', child: 'Archer Hall', date: '2026-04-05', time: '2:00PM', note: 'Court review', color: '#50c4b7' },
+  { id: '2', caseLabel: 'Johnson - 234567', child: 'Ava Johnson', date: '2026-04-06', time: '9:00AM', note: 'Home visit', color: '#046307' },
+  { id: '3', caseLabel: 'Johnson - 234567', child: 'Ava Johnson', date: '2026-04-18', time: '1:30PM', note: 'School meeting', color: '#10588c' },
+  { id: '4', caseLabel: 'Hall - 123456', child: 'Archer Hall', date: '2026-04-22', time: '11:00AM', note: 'Medical appointment', color: '#d96c3c' },
 ];
 
 const caseOptions = ['Hall - 123456', 'Johnson - 234567', 'Carter - 345678', 'Lewis - 456789'];
@@ -208,7 +208,7 @@ export default function CalendarPage() {
           <div className="record-list">
             {sampleAppointments.slice(0, 2).map(item => (
               <article key={item.id} className="record-item">
-                <strong>{item.child}</strong>
+                <strong>{item.caseLabel}</strong>
                 <div className="record-meta">
                   <span>{new Date(item.date).toLocaleDateString()}</span>
                   <span>{item.time}</span>
@@ -305,7 +305,7 @@ export default function CalendarPage() {
                           fontSize: 13,
                           color: '#123122',
                         }}
-                        title={`${appointment.time} ${appointment.child}`}
+                        title={`${appointment.time} ${appointment.caseLabel}`}
                       >
                         <span
                           aria-hidden="true"
@@ -325,7 +325,7 @@ export default function CalendarPage() {
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {appointment.child}
+                          {appointment.caseLabel}
                         </span>
                       </div>
                     ))}

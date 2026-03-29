@@ -115,11 +115,11 @@ export default function DashboardPage() {
                   borderBottom: '1px solid #e8efea',
                 }}
               >
-                <strong>Archer Hall</strong>
+                <strong>Hall - 123456</strong>
                 <p style={{ margin: '6px 0 0' }}>04/05/26 · 2:00PM</p>
               </div>
               <div>
-                <strong>Ava Johnson</strong>
+                <strong>Johnson - 234567</strong>
                 <p style={{ margin: '6px 0 0' }}>04/06/26 · 9:00AM</p>
               </div>
             </div>
