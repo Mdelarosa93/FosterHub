@@ -424,10 +424,11 @@ export default function CalendarPage() {
                       <div
                         style={{
                           marginTop: 12,
-                          maxHeight: 220,
+                          maxHeight: 180,
                           overflowY: 'auto',
                           display: 'grid',
                           gap: 8,
+                          paddingRight: 4,
                         }}
                       >
                         {filteredUserSuggestions.map(user => (
