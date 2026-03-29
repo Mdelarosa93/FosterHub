@@ -12,6 +12,25 @@ const sampleAppointments = [
   { id: '4', child: 'Archer Hall', date: '2026-04-22', time: '11:00AM', note: 'Medical appointment', color: '#d96c3c' },
 ];
 
+const caseOptions = ['Archer Hall', 'Ava Johnson', 'Noah Carter', 'Emma Lewis'];
+const userOptions = ['Sarah Hall', 'David Hall', 'Attorney Maria Lopez', 'Case Worker Taylor Reed'];
+const eventTypeOptions = [
+  'Biological Parent Visitation',
+  'Court',
+  'Child Doctor Appointment',
+  'Out of Office',
+  'Sibling Visitation',
+  'Home Visit',
+];
+const placeSuggestions = [
+  'Orange County Courthouse',
+  'Arnold Palmer Hospital for Children',
+  'Lake Nona Medical Center',
+  'FosterHub Office - Orlando',
+  'Ava Johnson Foster Home',
+  'Archer Hall Foster Home',
+];
+
 function formatMonthHeading(date: Date) {
   return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
@@ -46,6 +65,15 @@ function timeToSortableNumber(value: string) {
 
 export default function CalendarPage() {
   const [visibleDate, setVisibleDate] = useState(() => new Date());
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [selectedCase, setSelectedCase] = useState(caseOptions[0]);
+  const [selectedEventType, setSelectedEventType] = useState(eventTypeOptions[0]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>(['Sarah Hall']);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [eventDate, setEventDate] = useState('2026-04-05');
+  const [eventTime, setEventTime] = useState('14:00');
+  const [duration, setDuration] = useState('60');
+  const [notes, setNotes] = useState('');
 
   const monthDays = useMemo(() => buildCalendarDays(visibleDate), [visibleDate]);
   const monthLabel = useMemo(() => formatMonthHeading(visibleDate), [visibleDate]);
@@ -63,8 +91,19 @@ export default function CalendarPage() {
     return map;
   }, []);
 
+  const filteredSuggestions = useMemo(() => {
+    if (!locationQuery.trim()) return placeSuggestions.slice(0, 4);
+    return placeSuggestions.filter(place => place.toLowerCase().includes(locationQuery.toLowerCase())).slice(0, 4);
+  }, [locationQuery]);
+
   function changeMonth(direction: number) {
     setVisibleDate(current => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  }
+
+  function toggleUser(user: string) {
+    setSelectedUsers(current =>
+      current.includes(user) ? current.filter(entry => entry !== user) : [...current, user],
+    );
   }
 
   return (
@@ -116,7 +155,9 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            <button type="button" className="button button-primary">New Event</button>
+            <button type="button" className="button button-primary" onClick={() => setEventModalOpen(true)}>
+              New Event
+            </button>
           </div>
 
           <div
@@ -206,6 +247,154 @@ export default function CalendarPage() {
             })}
           </div>
         </section>
+
+        {eventModalOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 24,
+              zIndex: 50,
+            }}
+            onClick={() => setEventModalOpen(false)}
+          >
+            <div
+              className="card"
+              style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">Case calendar event</div>
+                  <h2 style={{ marginBottom: 8 }}>New event</h2>
+                  <p style={{ marginBottom: 0 }}>
+                    Create an event tied to a FosterHub case without replacing a user’s external work calendar.
+                  </p>
+                </div>
+                <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
+                  Close
+                </button>
+              </div>
+
+              <div className="grid" style={{ alignItems: 'start' }}>
+                <div className="stack">
+                  <div className="field">
+                    <label htmlFor="case-select">Case / child</label>
+                    <select id="case-select" className="select" value={selectedCase} onChange={e => setSelectedCase(e.target.value)}>
+                      {caseOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="event-type-select">Event type</label>
+                    <select
+                      id="event-type-select"
+                      className="select"
+                      value={selectedEventType}
+                      onChange={e => setSelectedEventType(e.target.value)}
+                    >
+                      {eventTypeOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label>Invite FosterHub users</label>
+                    <div className="card card-muted" style={{ padding: 14 }}>
+                      <div className="stack" style={{ gap: 10 }}>
+                        {userOptions.map(user => (
+                          <label key={user} style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#123122' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user)}
+                              onChange={() => toggleUser(user)}
+                            />
+                            <span>{user}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="stack">
+                  <div className="field">
+                    <label htmlFor="location-input">Location</label>
+                    <input
+                      id="location-input"
+                      className="input"
+                      value={locationQuery}
+                      onChange={e => setLocationQuery(e.target.value)}
+                      placeholder="Search address or place"
+                    />
+                    <div className="card card-muted" style={{ padding: 12 }}>
+                      <div className="stack" style={{ gap: 8 }}>
+                        {filteredSuggestions.map(place => (
+                          <button
+                            key={place}
+                            type="button"
+                            className="button button-ghost"
+                            style={{ justifyContent: 'flex-start' }}
+                            onClick={() => setLocationQuery(place)}
+                          >
+                            {place}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+                    <div className="field">
+                      <label htmlFor="event-date">Date</label>
+                      <input id="event-date" className="input" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="event-time">Time</label>
+                      <input id="event-time" className="input" type="time" value={eventTime} onChange={e => setEventTime(e.target.value)} />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="event-duration">Duration</label>
+                      <select id="event-duration" className="select" value={duration} onChange={e => setDuration(e.target.value)}>
+                        <option value="30">30 min</option>
+                        <option value="60">60 min</option>
+                        <option value="90">90 min</option>
+                        <option value="120">120 min</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="event-notes">Notes</label>
+                    <textarea
+                      id="event-notes"
+                      className="textarea"
+                      value={notes}
+                      onChange={e => setNotes(e.target.value)}
+                      rows={5}
+                      placeholder="Add details, reminders, or coordination notes"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 22 }}>
+                <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="button button-primary">
+                  Save event
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </main>
     </AppShell>
   );
