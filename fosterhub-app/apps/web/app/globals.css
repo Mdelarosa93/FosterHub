@@ -351,6 +351,19 @@ ul {
   margin-bottom: 4px;
 }
 
+.logo-panel {
+  display: grid;
+  place-items: center;
+  padding: 8px 0 4px;
+}
+
+.logo-image {
+  width: min(100%, 240px);
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
 .muted {
   color: var(--fh-text-muted);
 }

@@ -63,6 +63,14 @@ export default function LoginPage() {
             </div>
           </div>
 
+          <div className="logo-panel" style={{ marginBottom: 20 }}>
+            <img
+              src="/brand/fosterhub-logo.svg"
+              alt="FosterHub logo"
+              className="logo-image"
+            />
+          </div>
+
           <form onSubmit={handleSubmit} className="form-grid">
             <div className="field">
               <label htmlFor="email">Email</label>
