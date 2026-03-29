@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'DB', description: 'Overview and workload' },
+  { href: '/calendar', label: 'Calendar', shortLabel: 'CL', description: 'Appointments and planning' },
   { href: '/intake', label: 'Intake', shortLabel: 'IN', description: 'Incoming children and requests' },
   { href: '/cases', label: 'Cases', shortLabel: 'CA', description: 'Active case management' },
 ];

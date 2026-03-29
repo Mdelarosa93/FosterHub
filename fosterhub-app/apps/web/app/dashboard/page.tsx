@@ -107,9 +107,25 @@ export default function DashboardPage() {
             <span className="kpi-value">{state?.summary?.pendingRequests ?? 0}</span>
           </article>
           <article className="card">
-            <div className="eyebrow">User context</div>
-            <h3 style={{ marginBottom: 6 }}>{state?.user?.email ?? 'Not loaded yet'}</h3>
-            <p style={{ marginBottom: 0 }}>Role: {state?.user?.role ?? 'Unknown'}</p>
+            <div className="eyebrow">Up next</div>
+            <div className="stack" style={{ gap: 12 }}>
+              <div
+                style={{
+                  paddingBottom: 12,
+                  borderBottom: '1px solid #e8efea',
+                }}
+              >
+                <strong>Archer Hall</strong>
+                <p style={{ margin: '6px 0 0' }}>04/05/26 · 2:00PM</p>
+              </div>
+              <div>
+                <strong>Ava Johnson</strong>
+                <p style={{ margin: '6px 0 0' }}>04/06/26 · 9:00AM</p>
+              </div>
+            </div>
+            <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 18 }}>
+              <Link href="/calendar" className="button button-ghost">Open calendar</Link>
+            </div>
           </article>
         </section>
 
