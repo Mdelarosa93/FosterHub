@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AppShell } from '../../components/AppShell';
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -31,10 +31,11 @@ function buildCalendarDays(baseDate: Date) {
 }
 
 export default function CalendarPage() {
-  const today = useMemo(() => new Date(), []);
-  const monthDays = useMemo(() => buildCalendarDays(today), [today]);
-  const monthLabel = useMemo(() => formatMonthHeading(today), [today]);
-  const activeMonth = today.getMonth();
+  const [visibleDate, setVisibleDate] = useState(() => new Date());
+
+  const monthDays = useMemo(() => buildCalendarDays(visibleDate), [visibleDate]);
+  const monthLabel = useMemo(() => formatMonthHeading(visibleDate), [visibleDate]);
+  const activeMonth = visibleDate.getMonth();
 
   const appointmentMap = useMemo(() => {
     const map = new Map<string, typeof sampleAppointments>();
@@ -45,23 +46,62 @@ export default function CalendarPage() {
     return map;
   }, []);
 
+  function changeMonth(direction: number) {
+    setVisibleDate(current => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  }
+
   return (
     <AppShell title="Calendar">
       <main className="page-stack">
         <section className="card">
           <div className="section-title">
             <div>
-              <div className="eyebrow">Case scheduling</div>
-              <h2 style={{ marginBottom: 8 }}>{monthLabel}</h2>
-              <p style={{ marginBottom: 0 }}>
-                Central scheduling for child appointments, case meetings, home visits, and future work calendar sync.
-              </p>
+              <div className="eyebrow">Up next</div>
+              <h2 style={{ marginBottom: 0 }}>Upcoming appointments</h2>
             </div>
-            <button type="button" className="button button-primary">Add calendar event</button>
+          </div>
+
+          <div className="record-list">
+            {sampleAppointments.slice(0, 2).map(item => (
+              <article key={item.id} className="record-item">
+                <strong>{item.child}</strong>
+                <div className="record-meta">
+                  <span>{new Date(item.date).toLocaleDateString()}</span>
+                  <span>{item.time}</span>
+                  <span>{item.note}</span>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
         <section className="card">
+          <div className="section-title" style={{ alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                type="button"
+                className="button button-ghost"
+                style={{ minHeight: 42, minWidth: 42, padding: 0 }}
+                onClick={() => changeMonth(-1)}
+                aria-label="Previous month"
+              >
+                ←
+              </button>
+              <h2 style={{ marginBottom: 0 }}>{monthLabel}</h2>
+              <button
+                type="button"
+                className="button button-ghost"
+                style={{ minHeight: 42, minWidth: 42, padding: 0 }}
+                onClick={() => changeMonth(1)}
+                aria-label="Next month"
+              >
+                →
+              </button>
+            </div>
+
+            <button type="button" className="button button-primary">New Event</button>
+          </div>
+
           <div
             style={{
               display: 'grid',
@@ -79,7 +119,7 @@ export default function CalendarPage() {
               const isoDate = day.toISOString().slice(0, 10);
               const appointments = appointmentMap.get(isoDate) || [];
               const isCurrentMonth = day.getMonth() === activeMonth;
-              const isToday = day.toDateString() === today.toDateString();
+              const isToday = day.toDateString() === new Date().toDateString();
 
               return (
                 <div
@@ -124,32 +164,6 @@ export default function CalendarPage() {
               );
             })}
           </div>
-        </section>
-
-        <section className="grid">
-          <article className="card">
-            <div className="eyebrow">Upcoming appointments</div>
-            <div className="record-list">
-              {sampleAppointments.slice(0, 2).map(item => (
-                <article key={item.id} className="record-item">
-                  <strong>{item.child}</strong>
-                  <div className="record-meta">
-                    <span>{item.date}</span>
-                    <span>{item.time}</span>
-                    <span>{item.note}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <article className="card card-muted">
-            <div className="eyebrow">Future direction</div>
-            <h3 style={{ marginBottom: 10 }}>Calendar integration path</h3>
-            <p style={{ marginBottom: 0 }}>
-              This page is ready to evolve into case-based scheduling with work calendar sync, likely through Microsoft or Google connections later.
-            </p>
-          </article>
         </section>
       </main>
     </AppShell>
