@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { authedGet } from '../../lib/api';
 import { AppShell } from '../../components/AppShell';
 
@@ -67,26 +67,14 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  return (
-    <AppShell title="Worker dashboard">
-      <main className="page-stack">
-        {state ? (
-          <section className="hero">
-            <span className="badge">Signed in as {state.user.email}</span>
-            <h2 style={{ fontSize: 38, marginTop: 18, marginBottom: 12 }}>
-              Welcome back{state.user.firstName ? `, ${state.user.firstName}` : ''}.
-            </h2>
-            <p style={{ fontSize: 17, maxWidth: 760 }}>
-              This dashboard is the control center for assigned cases, intake workload, and pending
-              decisions. The goal is quick orientation, not clutter.
-            </p>
-            <div className="actions-row">
-              <Link href="/intake" className="button button-primary">Open intake queue</Link>
-              <Link href="/cases" className="button button-ghost">View all cases</Link>
-            </div>
-          </section>
-        ) : null}
+  const title = useMemo(() => {
+    const firstName = state?.user?.firstName?.trim();
+    return firstName ? `Welcome back, ${firstName}.` : 'Welcome back.';
+  }, [state]);
 
+  return (
+    <AppShell title={title}>
+      <main className="page-stack">
         {error ? (
           <section className="notice notice-error">
             <strong>Dashboard problem</strong>
