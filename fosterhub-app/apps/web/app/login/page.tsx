@@ -31,7 +31,7 @@ export default function LoginPage() {
   return (
     <main className="login-screen">
       <section className="login-shell">
-        <div className="logo-panel" style={{ marginBottom: 22 }}>
+        <div className="logo-panel" style={{ marginBottom: 14 }}>
           <img
             src="/brand/fosterhub-logo.svg"
             alt="FosterHub logo"
