@@ -333,6 +333,42 @@ ul {
   align-items: stretch;
 }
 
+.login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top left, rgba(80, 196, 183, 0.18), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(255, 182, 193, 0.12), transparent 22%),
+    linear-gradient(135deg, rgba(15, 45, 28, 0.98), rgba(16, 88, 140, 0.94));
+}
+
+.login-shell {
+  width: min(100%, 520px);
+  background: var(--fh-surface);
+  border-radius: 28px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 24px 70px rgba(5, 18, 27, 0.24);
+}
+
+.login-heading {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.login-heading h1 {
+  color: var(--fh-green-dark);
+  font-size: 34px;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+
+.login-heading p {
+  margin-bottom: 0;
+}
+
 .info-panel {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -387,6 +423,15 @@ ul {
 .sso-card {
   border: 1px solid rgba(16, 88, 140, 0.14);
   background: linear-gradient(180deg, #f8fbff 0%, #f4f8ff 100%);
+}
+
+.sso-card h3 {
+  color: var(--fh-green-dark);
+}
+
+.sso-card p,
+.sso-card strong {
+  color: var(--fh-text-muted);
 }
 
 .sso-button {
