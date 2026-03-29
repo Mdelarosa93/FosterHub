@@ -107,8 +107,8 @@ export default function CalendarPage() {
   const [locationChosen, setLocationChosen] = useState(false);
   const [showMoreLocationSuggestions, setShowMoreLocationSuggestions] = useState(false);
   const [eventDate, setEventDate] = useState('2026-04-05');
-  const [eventTime, setEventTime] = useState('14:00');
-  const [duration, setDuration] = useState('60');
+  const [startTime, setStartTime] = useState('14:00');
+  const [endTime, setEndTime] = useState('15:00');
   const [notes, setNotes] = useState('');
 
   const monthDays = useMemo(() => buildCalendarDays(visibleDate), [visibleDate]);
@@ -529,17 +529,12 @@ export default function CalendarPage() {
                     <input id="event-date" className="input" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
                   </div>
                   <div className="field">
-                    <label htmlFor="event-time">Time</label>
-                    <input id="event-time" className="input" type="time" value={eventTime} onChange={e => setEventTime(e.target.value)} />
+                    <label htmlFor="event-start-time">Start time</label>
+                    <input id="event-start-time" className="input" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
                   </div>
                   <div className="field">
-                    <label htmlFor="event-duration">Duration</label>
-                    <select id="event-duration" className="select" value={duration} onChange={e => setDuration(e.target.value)}>
-                      <option value="30">30 min</option>
-                      <option value="60">60 min</option>
-                      <option value="90">90 min</option>
-                      <option value="120">120 min</option>
-                    </select>
+                    <label htmlFor="event-end-time">End time</label>
+                    <input id="event-end-time" className="input" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
                   </div>
                 </div>
 
