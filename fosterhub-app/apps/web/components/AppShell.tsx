@@ -85,12 +85,11 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
                 style={{ width: 34, height: 34, display: 'block' }}
               />
             ) : (
-              <>
-                <div style={{ fontWeight: 900, fontSize: 28, letterSpacing: '-0.03em' }}>FosterHub</div>
-                <div style={{ opacity: 0.78, marginTop: 8, lineHeight: 1.5 }}>
-                  Simplifying Foster Care, Empowering Families
-                </div>
-              </>
+              <img
+                src="/brand/fosterhub-sidebar-logo.svg"
+                alt="FosterHub logo"
+                style={{ width: 178, height: 'auto', display: 'block' }}
+              />
             )}
           </div>
 
