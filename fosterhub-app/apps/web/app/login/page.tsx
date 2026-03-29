@@ -31,42 +31,12 @@ export default function LoginPage() {
   return (
     <main className="login-screen">
       <section className="login-shell">
-        <div className="logo-panel" style={{ marginBottom: 10 }}>
+        <div className="logo-panel" style={{ marginBottom: 22 }}>
           <img
             src="/brand/fosterhub-logo.svg"
             alt="FosterHub logo"
             className="logo-image"
           />
-        </div>
-
-        <div className="login-heading">
-          <h1>Sign in to FosterHub</h1>
-          <p>Secure access for agency staff, partners, and approved FosterHub users.</p>
-        </div>
-
-        <div className="card sso-card" style={{ padding: 18, marginBottom: 18 }}>
-          <h3 style={{ marginBottom: 8 }}>Sign in with Microsoft</h3>
-          <p style={{ marginBottom: 16 }}>
-            Recommended sign-in path for organizations using Microsoft 365 and Entra ID.
-          </p>
-
-          <button type="button" className="button sso-button" disabled>
-            <span className="microsoft-mark" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
-            </span>
-            Continue with Microsoft
-          </button>
-
-          <p style={{ marginTop: 12, marginBottom: 0, fontSize: 14 }}>
-            <strong>Coming soon:</strong> SSO will be connected once the backend identity flow is ready.
-          </p>
-        </div>
-
-        <div className="login-divider" style={{ marginBottom: 18 }}>
-          <span>or use development credentials</span>
         </div>
 
         <form onSubmit={handleSubmit} className="form-grid">
@@ -96,6 +66,16 @@ export default function LoginPage() {
 
           <button type="submit" disabled={loading} className="button button-primary">
             {loading ? 'Signing in...' : 'Sign in to workspace'}
+          </button>
+
+          <button type="button" className="button sso-button" disabled>
+            <span className="microsoft-mark" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+            Continue with Microsoft
           </button>
         </form>
 
