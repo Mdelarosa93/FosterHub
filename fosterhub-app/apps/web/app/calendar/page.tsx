@@ -104,6 +104,8 @@ export default function CalendarPage() {
   const [userQuery, setUserQuery] = useState('');
   const [showMoreInviteSuggestions, setShowMoreInviteSuggestions] = useState(false);
   const [locationQuery, setLocationQuery] = useState('');
+  const [locationChosen, setLocationChosen] = useState(false);
+  const [showMoreLocationSuggestions, setShowMoreLocationSuggestions] = useState(false);
   const [eventDate, setEventDate] = useState('2026-04-05');
   const [eventTime, setEventTime] = useState('14:00');
   const [duration, setDuration] = useState('60');
@@ -472,27 +474,53 @@ export default function CalendarPage() {
                     id="location-input"
                     className="input"
                     value={locationQuery}
-                    onChange={e => setLocationQuery(e.target.value)}
+                    onChange={e => {
+                      setLocationQuery(e.target.value);
+                      setLocationChosen(false);
+                    }}
                     placeholder="Search address or place"
                   />
-                  <div className="card card-muted" style={{ padding: 14 }}>
-                    <div className="eyebrow" style={{ marginBottom: 10 }}>
-                      {locationQuery.trim() ? 'Suggested results' : 'Recommended locations'}
-                    </div>
-                    <div className="stack" style={{ gap: 8 }}>
-                      {filteredSuggestions.map(place => (
+                  {!locationChosen ? (
+                    <div className="card card-muted" style={{ padding: 14 }}>
+                      <div className="eyebrow" style={{ marginBottom: 10 }}>
+                        {locationQuery.trim() ? 'Suggested results' : 'Recommended locations'}
+                      </div>
+                      <div className="stack" style={{ gap: 8 }}>
+                        {filteredSuggestions.slice(0, showMoreLocationSuggestions ? filteredSuggestions.length : 3).map(place => (
+                          <button
+                            key={place}
+                            type="button"
+                            className="button button-ghost"
+                            style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                            onClick={() => {
+                              setLocationQuery(place);
+                              setLocationChosen(true);
+                              setShowMoreLocationSuggestions(false);
+                            }}
+                          >
+                            {place}
+                          </button>
+                        ))}
+                      </div>
+                      {filteredSuggestions.length > 3 ? (
                         <button
-                          key={place}
                           type="button"
-                          className="button button-ghost"
-                          style={{ justifyContent: 'flex-start', textAlign: 'left' }}
-                          onClick={() => setLocationQuery(place)}
+                          onClick={() => setShowMoreLocationSuggestions(current => !current)}
+                          style={{
+                            marginTop: 14,
+                            border: 'none',
+                            background: 'transparent',
+                            padding: 0,
+                            color: '#10588c',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                          }}
                         >
-                          {place}
+                          {showMoreLocationSuggestions ? '▾' : '▸'} View more locations
                         </button>
-                      ))}
+                      ) : null}
                     </div>
-                  </div>
+                  ) : null}
                 </div>
 
                 <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
