@@ -37,6 +37,9 @@ const eventTypeOptions = [
   'Home Visit',
 ];
 const placeSuggestions = [
+  '126 Ridgewood Ave, Orlando, FL 32801',
+  '126 Ridgewood St, Winter Park, FL 32789',
+  '126 Ridgewood Dr, Kissimmee, FL 34744',
   'Orange County Courthouse, 425 N Orange Ave, Orlando, FL',
   'Arnold Palmer Hospital for Children, 92 W Miller St, Orlando, FL',
   'Lake Nona Medical Center, 6718 Lake Nona Blvd, Orlando, FL',
@@ -134,7 +137,22 @@ export default function CalendarPage() {
   const filteredSuggestions = useMemo(() => {
     const pool = Array.from(new Set([...recommendedLocations, ...placeSuggestions]));
     if (!locationQuery.trim()) return pool.slice(0, 5);
-    return pool.filter(place => place.toLowerCase().includes(locationQuery.toLowerCase())).slice(0, 5);
+
+    const query = locationQuery.toLowerCase().trim();
+    return pool
+      .map(place => {
+        const normalized = place.toLowerCase();
+        let score = 0;
+        if (normalized.startsWith(query)) score += 5;
+        if (normalized.includes(query)) score += 3;
+        const queryParts = query.split(/\s+/).filter(Boolean);
+        score += queryParts.filter(part => normalized.includes(part)).length;
+        return { place, score };
+      })
+      .filter(entry => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(entry => entry.place)
+      .slice(0, 6);
   }, [recommendedLocations, locationQuery]);
 
   function changeMonth(direction: number) {
@@ -458,7 +476,9 @@ export default function CalendarPage() {
                     placeholder="Search address or place"
                   />
                   <div className="card card-muted" style={{ padding: 14 }}>
-                    <div className="eyebrow" style={{ marginBottom: 10 }}>Recommended locations</div>
+                    <div className="eyebrow" style={{ marginBottom: 10 }}>
+                      {locationQuery.trim() ? 'Suggested results' : 'Recommended locations'}
+                    </div>
                     <div className="stack" style={{ gap: 8 }}>
                       {filteredSuggestions.map(place => (
                         <button
