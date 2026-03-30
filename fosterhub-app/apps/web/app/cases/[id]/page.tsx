@@ -182,6 +182,15 @@ export default function CaseDetailPage() {
   }, [data?.child?.lastName]);
 
   useEffect(() => {
+    if (!activeChildId) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [activeChildId]);
+
+  useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as HTMLElement | null;
       if (!target?.closest('[data-picker-field="true"]')) {
