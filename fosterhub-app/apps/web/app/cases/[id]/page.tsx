@@ -389,6 +389,15 @@ export default function CaseDetailPage() {
         : item,
     );
     localStorage.setItem('fosterhub.createdCases', JSON.stringify(nextCreatedCases));
+
+    const overrideRaw = localStorage.getItem('fosterhub.caseMetaOverrides');
+    const overrides = overrideRaw ? JSON.parse(overrideRaw) : {};
+    overrides[caseId || caseLabel] = {
+      status: data?.status,
+      openedAt: data?.openedAt,
+    };
+    localStorage.setItem('fosterhub.caseMetaOverrides', JSON.stringify(overrides));
+
     setCaseDirty(false);
   }
 

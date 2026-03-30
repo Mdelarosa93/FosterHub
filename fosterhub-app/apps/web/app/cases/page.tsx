@@ -62,6 +62,7 @@ export default function CasesPage() {
   const [query, setQuery] = useState('');
   const [showAllCases, setShowAllCases] = useState(false);
   const [storedChildCounts, setStoredChildCounts] = useState<Record<string, number>>({});
+  const [caseMetaOverrides, setCaseMetaOverrides] = useState<Record<string, { status?: string; openedAt?: string }>>({});
   const [error, setError] = useState<string | null>(null);
   const [addCaseModalOpen, setAddCaseModalOpen] = useState(false);
   const [caseNameDraft, setCaseNameDraft] = useState('');
@@ -86,6 +87,9 @@ export default function CasesPage() {
   useEffect(() => {
     const countsRaw = localStorage.getItem('fosterhub.caseChildCounts');
     setStoredChildCounts(countsRaw ? JSON.parse(countsRaw) : {});
+
+    const overridesRaw = localStorage.getItem('fosterhub.caseMetaOverrides');
+    setCaseMetaOverrides(overridesRaw ? JSON.parse(overridesRaw) : {});
 
     const createdRaw = localStorage.getItem('fosterhub.createdCases');
     setCreatedCases(createdRaw ? JSON.parse(createdRaw) : []);
@@ -122,14 +126,17 @@ export default function CasesPage() {
         supervisor: 'Unassigned',
       };
       const childCount = storedChildCounts[caseLabel] ?? meta.childCount;
-      return { ...item, caseNumber, caseLabel, ...meta, childCount };
+      const override = caseMetaOverrides[item.id] || caseMetaOverrides[caseLabel] || {};
+      return { ...item, caseNumber, caseLabel, ...meta, childCount, status: override.status || item.status, createdAt: override.openedAt || item.createdAt };
     });
-  }, [cases, storedChildCounts]);
+  }, [cases, storedChildCounts, caseMetaOverrides]);
 
   const displayCases = useMemo(() => [...mappedApiCases, ...createdCases.map(item => ({
     ...item,
     childCount: storedChildCounts[item.caseLabel] ?? item.childCount,
-  }))], [mappedApiCases, createdCases, storedChildCounts]);
+    status: caseMetaOverrides[item.id]?.status || item.status,
+    createdAt: caseMetaOverrides[item.id]?.openedAt || item.createdAt,
+  }))], [mappedApiCases, createdCases, storedChildCounts, caseMetaOverrides]);
 
   const searchMatches = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
