@@ -23,6 +23,9 @@ export default function CaseDetailPage() {
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [childDraft, setChildDraft] = useState<any | null>(null);
   const [childDirty, setChildDirty] = useState(false);
+  const [caseWorkerQuery, setCaseWorkerQuery] = useState('');
+  const [placementQuery, setPlacementQuery] = useState('');
+  const [supervisorQuery, setSupervisorQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -189,26 +192,32 @@ export default function CaseDetailPage() {
   const activeChild = childProfiles.find((child: any) => child.id === activeChildId) || null;
   const systemUserOptions = ['Taylor Reed', 'Jordan Kim', 'Monica Alvarez', 'Sarah Hall', 'David Hall', 'Ava Johnson Foster Home'];
 
-  const caseWorkerSuggestions = childDraft
-    ? systemUserOptions.filter(option => option.toLowerCase().includes((childDraft.caseWorker || '').toLowerCase())).slice(0, 5)
+  const caseWorkerSuggestions = caseWorkerQuery
+    ? systemUserOptions.filter(option => option.toLowerCase().includes(caseWorkerQuery.toLowerCase())).slice(0, 5)
     : [];
-  const supervisorSuggestions = childDraft
-    ? systemUserOptions.filter(option => option.toLowerCase().includes((childDraft.supervisor || '').toLowerCase())).slice(0, 5)
+  const supervisorSuggestions = supervisorQuery
+    ? systemUserOptions.filter(option => option.toLowerCase().includes(supervisorQuery.toLowerCase())).slice(0, 5)
     : [];
-  const placementSuggestions = childDraft
-    ? systemUserOptions.filter(option => option.toLowerCase().includes((childDraft.placement || '').toLowerCase())).slice(0, 5)
+  const placementSuggestions = placementQuery
+    ? systemUserOptions.filter(option => option.toLowerCase().includes(placementQuery.toLowerCase())).slice(0, 5)
     : [];
 
   function openChildModal(child: any) {
     setActiveChildId(child.id);
     setChildDraft({ ...child });
     setChildDirty(false);
+    setCaseWorkerQuery('');
+    setPlacementQuery('');
+    setSupervisorQuery('');
   }
 
   function closeChildModal() {
     setActiveChildId(null);
     setChildDraft(null);
     setChildDirty(false);
+    setCaseWorkerQuery('');
+    setPlacementQuery('');
+    setSupervisorQuery('');
   }
 
   function updateChildDraft(field: string, value: string) {
@@ -383,10 +392,22 @@ export default function CaseDetailPage() {
                 </div>
                 <div className="field">
                   <label>Case Worker</label>
-                  <input className="input" value={childDraft.caseWorker} onChange={e => updateChildDraft('caseWorker', e.target.value)} placeholder="Search case worker" />
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {childDraft.caseWorker ? (
+                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('caseWorker', '')}>
+                        {childDraft.caseWorker} ×
+                      </button>
+                    ) : null}
+                    <input
+                      value={caseWorkerQuery}
+                      onChange={e => setCaseWorkerQuery(e.target.value)}
+                      placeholder={childDraft.caseWorker ? 'Search another case worker' : 'Search case worker'}
+                      style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                    />
+                  </div>
                   <div className="stack" style={{ gap: 8 }}>
                     {caseWorkerSuggestions.map((option: string) => (
-                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => updateChildDraft('caseWorker', option)}>
+                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('caseWorker', option); setCaseWorkerQuery(''); }}>
                         {option}
                       </button>
                     ))}
@@ -394,26 +415,50 @@ export default function CaseDetailPage() {
                 </div>
                 <div className="field">
                   <label>Placement</label>
-                  <input className="input" value={childDraft.placement || ''} onChange={e => updateChildDraft('placement', e.target.value)} placeholder="Search FosterHub users for placement" />
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {childDraft.placement ? (
+                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('placement', '')}>
+                        {childDraft.placement} ×
+                      </button>
+                    ) : null}
+                    <input
+                      value={placementQuery}
+                      onChange={e => setPlacementQuery(e.target.value)}
+                      placeholder={childDraft.placement ? 'Search another placement' : 'Search FosterHub users for placement'}
+                      style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                    />
+                  </div>
                   <div className="stack" style={{ gap: 8 }}>
                     {placementSuggestions.map((option: string) => (
-                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => updateChildDraft('placement', option)}>
+                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('placement', option); setPlacementQuery(''); }}>
                         {option}
                       </button>
                     ))}
                   </div>
-                  {childDraft.placement && !systemUserOptions.some(option => option.toLowerCase() === childDraft.placement.toLowerCase()) ? (
+                  {placementQuery && !systemUserOptions.some(option => option.toLowerCase() === placementQuery.toLowerCase()) ? (
                     <button type="button" className="button button-secondary">
-                      Invite placement to FosterHub
+                      Invite {placementQuery} to FosterHub
                     </button>
                   ) : null}
                 </div>
                 <div className="field">
                   <label>Supervisor</label>
-                  <input className="input" value={childDraft.supervisor} onChange={e => updateChildDraft('supervisor', e.target.value)} placeholder="Search supervisor" />
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {childDraft.supervisor ? (
+                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('supervisor', '')}>
+                        {childDraft.supervisor} ×
+                      </button>
+                    ) : null}
+                    <input
+                      value={supervisorQuery}
+                      onChange={e => setSupervisorQuery(e.target.value)}
+                      placeholder={childDraft.supervisor ? 'Search another supervisor' : 'Search supervisor'}
+                      style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                    />
+                  </div>
                   <div className="stack" style={{ gap: 8 }}>
                     {supervisorSuggestions.map((option: string) => (
-                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => updateChildDraft('supervisor', option)}>
+                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('supervisor', option); setSupervisorQuery(''); }}>
                         {option}
                       </button>
                     ))}
