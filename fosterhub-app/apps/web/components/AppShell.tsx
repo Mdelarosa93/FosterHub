@@ -188,7 +188,7 @@ export function AppShell({ title, headerActions, children }: { title: ReactNode;
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, minWidth: 0, flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: 32, letterSpacing: '-0.03em', flexShrink: 0 }}>{title}</h1>
+            <div style={{ margin: 0, fontSize: 32, letterSpacing: '-0.03em', flexShrink: 0, fontWeight: 800 }}>{title}</div>
             {headerActions ? <div style={{ minWidth: 0, flex: 1 }}>{headerActions}</div> : null}
           </div>
 

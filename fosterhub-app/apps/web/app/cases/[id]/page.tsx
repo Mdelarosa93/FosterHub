@@ -183,21 +183,21 @@ export default function CaseDetailPage() {
   }
 
   const childName = data ? `${data.child.firstName} ${data.child.lastName}` : 'Case detail';
+  const caseNumberMap: Record<string, string> = {
+    Hall: '123456',
+    Johnson: '234567',
+    Carter: '345678',
+    Lewis: '456789',
+  };
+  const caseLabel = data?.child?.lastName
+    ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}`
+    : 'Case detail';
 
   return (
-    <AppShell title="Case detail">
+    <AppShell title={<Link href="/cases" className="button button-ghost">Back to Cases</Link>}>
       <main className="page-stack">
-        <section className="hero">
-          <span className="badge">Case workspace</span>
-          <h2 style={{ fontSize: 38, marginTop: 18, marginBottom: 12 }}>{childName}</h2>
-          <p style={{ fontSize: 17, maxWidth: 760 }}>
-            Use this workspace to manage assignments, supporting documents, and approval requests
-            for a single child case.
-          </p>
-          <div className="actions-row">
-            <Link href="/cases" className="button button-ghost">Back to cases</Link>
-            <Link href="/dashboard" className="button button-primary">Open dashboard</Link>
-          </div>
+        <section className="hero" style={{ padding: '28px 32px' }}>
+          <h2 style={{ fontSize: 34, margin: 0 }}>{caseLabel}</h2>
         </section>
 
         {error ? (
@@ -289,6 +289,10 @@ export default function CaseDetailPage() {
               </div>
             </div>
             <div className="stack">
+              <div>
+                <strong>Case</strong>
+                <p style={{ marginBottom: 0 }}>{caseLabel}</p>
+              </div>
               <div>
                 <strong>Child</strong>
                 <p style={{ marginBottom: 0 }}>{childName}</p>
