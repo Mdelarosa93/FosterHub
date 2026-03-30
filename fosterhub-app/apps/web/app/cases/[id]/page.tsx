@@ -35,6 +35,7 @@ export default function CaseDetailPage() {
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [childDraft, setChildDraft] = useState<any | null>(null);
   const [childDirty, setChildDirty] = useState(false);
+  const [caseDirty, setCaseDirty] = useState(false);
   const [caseWorkerQuery, setCaseWorkerQuery] = useState('');
   const [placementQuery, setPlacementQuery] = useState('');
   const [supervisorQuery, setSupervisorQuery] = useState('');
@@ -202,7 +203,7 @@ export default function CaseDetailPage() {
   const caseNumberMap: Record<string, string> = { Hall: '123456', Johnson: '234567', Carter: '345678', Lewis: '456789' };
   const caseLabel = data?.caseLabel || (data?.child?.lastName ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}` : 'Case detail');
   const childCountMap: Record<string, number> = { Hall: 2, Johnson: 1, Carter: 2, Lewis: 1 };
-  const childCount = childProfiles.length || (data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0);
+  const childCount = childProfiles.length > 0 ? childProfiles.length : (data?.id?.startsWith('local-') ? 0 : (data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0));
   const openRequestCount = data?.requests?.filter((request: any) => request.status === 'SUBMITTED').length ?? 0;
 
   const childProfileMap: Record<string, any[]> = {
@@ -371,17 +372,38 @@ export default function CaseDetailPage() {
 
   function updateCaseStatus(status: string) {
     setData((current: any) => ({ ...current, status }));
+    setCaseDirty(true);
+  }
+
+  function updateOpenedDate(value: string) {
+    setData((current: any) => ({ ...current, openedAt: `${value}T09:00:00.000Z` }));
+    setCaseDirty(true);
+  }
+
+  function saveCaseMeta() {
     const createdCasesRaw = localStorage.getItem('fosterhub.createdCases');
     const createdCases = createdCasesRaw ? JSON.parse(createdCasesRaw) : [];
-    const nextCreatedCases = createdCases.map((item: any) => (item.id === caseId ? { ...item, status } : item));
+    const nextCreatedCases = createdCases.map((item: any) =>
+      item.id === caseId
+        ? { ...item, status: data?.status, createdAt: data?.openedAt }
+        : item,
+    );
     localStorage.setItem('fosterhub.createdCases', JSON.stringify(nextCreatedCases));
+    setCaseDirty(false);
   }
 
   return (
     <AppShell title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
       <main className="page-stack">
         <section className="hero" style={{ padding: '28px 32px' }}>
-          <h2 style={{ fontSize: 34, margin: 0 }}>{caseLabel}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <h2 style={{ fontSize: 34, margin: 0 }}>{caseLabel}</h2>
+            {caseDirty ? (
+              <button type="button" className="button button-primary" onClick={saveCaseMeta}>
+                Save
+              </button>
+            ) : null}
+          </div>
         </section>
 
         {error ? (
@@ -410,9 +432,12 @@ export default function CaseDetailPage() {
           </article>
           <article className="card kpi">
             <span className="kpi-label">Opened</span>
-            <span className="kpi-value" style={{ fontSize: 22 }}>
-              {data?.openedAt ? new Date(data.openedAt).toLocaleDateString() : loading ? 'Loading...' : 'Unknown'}
-            </span>
+            <input
+              className="input"
+              type="date"
+              value={data?.openedAt ? new Date(new Date(data.openedAt).getTime() - new Date(data.openedAt).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ''}
+              onChange={e => updateOpenedDate(e.target.value)}
+            />
           </article>
         </section>
 
