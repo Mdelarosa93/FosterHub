@@ -17,6 +17,28 @@ type StoredUser = {
   email?: string;
 };
 
+function HeaderIconButton({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      style={{
+        width: 46,
+        height: 46,
+        borderRadius: 14,
+        border: '1px solid #d9e5dd',
+        background: 'white',
+        color: '#123122',
+        display: 'grid',
+        placeItems: 'center',
+        boxShadow: '0 8px 18px rgba(15, 23, 42, 0.05)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function AppShell({ title, children }: { title: ReactNode; children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -167,99 +189,129 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
         >
           <h1 style={{ margin: 0, fontSize: 32, letterSpacing: '-0.03em' }}>{title}</h1>
 
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={() => setMenuOpen(current => !current)}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 999,
-                border: '1px solid #d9e5dd',
-                background: 'linear-gradient(135deg, #10588c 0%, #046307 100%)',
-                color: 'white',
-                fontWeight: 800,
-                fontSize: 16,
-                boxShadow: '0 8px 18px rgba(16, 88, 140, 0.18)',
-              }}
-              aria-label="Open profile menu"
-            >
-              {initials}
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <HeaderIconButton label="View messages">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 5.5C4 4.67 4.67 4 5.5 4H18.5C19.33 4 20 4.67 20 5.5V14.5C20 15.33 19.33 16 18.5 16H9L4 20V5.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+              </svg>
+            </HeaderIconButton>
 
-            {menuOpen ? (
-              <div
+            <div style={{ position: 'relative' }}>
+              <HeaderIconButton label="View notifications">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 4.5C9.93 4.5 8.25 6.18 8.25 8.25V10.11C8.25 10.67 8.08 11.22 7.77 11.68L6.58 13.46C5.93 14.44 6.63 15.75 7.79 15.75H16.21C17.37 15.75 18.07 14.44 17.42 13.46L16.23 11.68C15.92 11.22 15.75 10.67 15.75 10.11V8.25C15.75 6.18 14.07 4.5 12 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                  <path d="M10 18C10.37 19.05 11.12 19.5 12 19.5C12.88 19.5 13.63 19.05 14 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </HeaderIconButton>
+              <span
+                aria-hidden="true"
                 style={{
                   position: 'absolute',
-                  top: 56,
-                  right: 0,
-                  width: 220,
-                  background: 'white',
-                  border: '1px solid #d9e5dd',
-                  borderRadius: 18,
-                  boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12)',
-                  padding: 10,
+                  top: 9,
+                  right: 10,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  background: '#d96c3c',
+                  border: '2px solid white',
                 }}
-              >
-                <div style={{ padding: '8px 10px 12px', borderBottom: '1px solid #eef3ef', marginBottom: 8 }}>
-                  <div style={{ fontWeight: 800, color: '#123122' }}>
-                    {user?.firstName || user?.lastName
-                      ? `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
-                      : 'FosterHub User'}
-                  </div>
-                  {user?.email ? (
-                    <div style={{ fontSize: 13, color: '#567060', marginTop: 4 }}>{user.email}</div>
-                  ) : null}
-                </div>
+              />
+            </div>
 
-                <button
-                  type="button"
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(current => !current)}
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 999,
+                  border: '1px solid #d9e5dd',
+                  background: 'linear-gradient(135deg, #10588c 0%, #046307 100%)',
+                  color: 'white',
+                  fontWeight: 800,
+                  fontSize: 16,
+                  boxShadow: '0 8px 18px rgba(16, 88, 140, 0.18)',
+                }}
+                aria-label="Open profile menu"
+              >
+                {initials}
+              </button>
+
+              {menuOpen ? (
+                <div
                   style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '10px 12px',
-                    borderRadius: 12,
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#123122',
-                    fontWeight: 700,
+                    position: 'absolute',
+                    top: 56,
+                    right: 0,
+                    width: 220,
+                    background: 'white',
+                    border: '1px solid #d9e5dd',
+                    borderRadius: 18,
+                    boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12)',
+                    padding: 10,
                   }}
                 >
-                  Settings
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '10px 12px',
-                    borderRadius: 12,
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#123122',
-                    fontWeight: 700,
-                  }}
-                >
-                  Profile
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '10px 12px',
-                    borderRadius: 12,
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#b42318',
-                    fontWeight: 700,
-                  }}
-                  onClick={handleSignOut}
-                >
-                  Logout
-                </button>
-              </div>
-            ) : null}
+                  <div style={{ padding: '8px 10px 12px', borderBottom: '1px solid #eef3ef', marginBottom: 8 }}>
+                    <div style={{ fontWeight: 800, color: '#123122' }}>
+                      {user?.firstName || user?.lastName
+                        ? `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
+                        : 'FosterHub User'}
+                    </div>
+                    {user?.email ? (
+                      <div style={{ fontSize: 13, color: '#567060', marginTop: 4 }}>{user.email}</div>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#123122',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Settings
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#123122',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Profile
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#b42318',
+                      fontWeight: 700,
+                    }}
+                    onClick={handleSignOut}
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
         <div>{children}</div>
