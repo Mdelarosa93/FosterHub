@@ -194,6 +194,7 @@ export default function CalendarPage() {
   const [selectedCase, setSelectedCase] = useState(caseOptions[0]);
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
   const [selectedEventType, setSelectedEventType] = useState(eventTypeOptions[0]);
+  const [eventTypeMenuOpen, setEventTypeMenuOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userQuery, setUserQuery] = useState('');
   const [showMoreInviteSuggestions, setShowMoreInviteSuggestions] = useState(false);
@@ -301,6 +302,7 @@ export default function CalendarPage() {
     setSelectedCase(caseOptions[0]);
     setSelectedChildren([]);
     setSelectedEventType(eventTypeOptions[0]);
+    setEventTypeMenuOpen(false);
     setSelectedUsers([]);
     setUserQuery('');
     setShowMoreInviteSuggestions(false);
@@ -603,19 +605,100 @@ export default function CalendarPage() {
                   </div>
                 </div>
 
-                <div className="field">
-                  <label htmlFor="event-type-select">Event type</label>
-                  <select
-                    id="event-type-select"
-                    className="select"
-                    value={selectedEventType}
-                    onChange={e => setSelectedEventType(e.target.value)}
-                    disabled={formDisabled}
-                  >
-                    {eventTypeOptions.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
+                <div className="field" style={{ position: 'relative' }}>
+                  <label htmlFor="event-type-trigger">Event type</label>
+                  {formDisabled ? (
+                    <div className="input" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 999,
+                          background: eventTypeColors[selectedEventType] || '#10588c',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span>{selectedEventType}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        id="event-type-trigger"
+                        type="button"
+                        className="input"
+                        onClick={() => setEventTypeMenuOpen(current => !current)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: 999,
+                              background: eventTypeColors[selectedEventType] || '#10588c',
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {selectedEventType}
+                          </span>
+                        </span>
+                        <span aria-hidden="true">▾</span>
+                      </button>
+
+                      {eventTypeMenuOpen ? (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 8px)',
+                            left: 0,
+                            right: 0,
+                            zIndex: 20,
+                            background: 'white',
+                            border: '1px solid #d9e5dd',
+                            borderRadius: 18,
+                            boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)',
+                            padding: 10,
+                            display: 'grid',
+                            gap: 6,
+                          }}
+                        >
+                          {eventTypeOptions.map(option => (
+                            <button
+                              key={option}
+                              type="button"
+                              className="button button-ghost"
+                              style={{ justifyContent: 'flex-start' }}
+                              onClick={() => {
+                                setSelectedEventType(option);
+                                setEventTypeMenuOpen(false);
+                              }}
+                            >
+                              <span
+                                aria-hidden="true"
+                                style={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: 999,
+                                  background: eventTypeColors[option] || '#10588c',
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span>{option}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                 </div>
 
                 <div className="field">
