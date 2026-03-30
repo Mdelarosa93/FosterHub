@@ -181,6 +181,18 @@ export default function CaseDetailPage() {
     setChildProfiles(childProfileMap[data.child.lastName] || []);
   }, [data?.child?.lastName]);
 
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest('[data-picker-field="true"]')) {
+        setActivePicker(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, []);
+
   const assignedStaff = Array.from(
     new Map(
       childProfiles.flatMap((child: any) => [
@@ -387,7 +399,7 @@ export default function CaseDetailPage() {
                     </select>
                   </div>
                 </div>
-                <div className="field" style={{ position: 'relative' }}>
+                <div className="field" style={{ position: 'relative' }} data-picker-field="true">
                   <label>Case Worker</label>
                   <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('caseWorker')}>
                     {childDraft.caseWorker ? (
@@ -415,7 +427,7 @@ export default function CaseDetailPage() {
                     </div>
                   ) : null}
                 </div>
-                <div className="field" style={{ position: 'relative' }}>
+                <div className="field" style={{ position: 'relative' }} data-picker-field="true">
                   <label>Placement</label>
                   <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('placement')}>
                     {childDraft.placement ? (
@@ -448,7 +460,7 @@ export default function CaseDetailPage() {
                     </button>
                   ) : null}
                 </div>
-                <div className="field" style={{ position: 'relative' }}>
+                <div className="field" style={{ position: 'relative' }} data-picker-field="true">
                   <label>Supervisor</label>
                   <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('supervisor')}>
                     {childDraft.supervisor ? (
