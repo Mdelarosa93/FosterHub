@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { API_BASE, authedGet } from '../../../lib/api';
@@ -15,13 +15,14 @@ export default function CaseDetailPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [workerEmail, setWorkerEmail] = useState('mikeorlando.delarosafisher@gmail.com');
   const [docTitle, setDocTitle] = useState('');
   const [docFileName, setDocFileName] = useState('');
   const [docNotes, setDocNotes] = useState('');
   const [decisionNotes, setDecisionNotes] = useState<RequestDecisionState>({});
   const [childProfiles, setChildProfiles] = useState<any[]>([]);
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
+  const [childDraft, setChildDraft] = useState<any | null>(null);
+  const [childDirty, setChildDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -81,36 +82,6 @@ export default function CaseDetailPage() {
       await load();
     } catch (err: any) {
       setError(err?.message || 'Failed to create request');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleAssignWorker(event: FormEvent) {
-    event.preventDefault();
-    const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token || !caseId) {
-      setError('No token or case id found. Please log in first.');
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const response = await fetch(`${API_BASE}/cases/${caseId}/assign-worker`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ email: workerEmail }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body?.message || 'Failed to assign worker');
-      await load();
-      setError(null);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to assign worker');
     } finally {
       setSaving(false);
     }
@@ -185,57 +156,19 @@ export default function CaseDetailPage() {
   }
 
   const childName = data ? `${data.child.firstName} ${data.child.lastName}` : 'Case detail';
-  const caseNumberMap: Record<string, string> = {
-    Hall: '123456',
-    Johnson: '234567',
-    Carter: '345678',
-    Lewis: '456789',
-  };
-  const caseLabel = data?.child?.lastName
-    ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}`
-    : 'Case detail';
-  const childCountMap: Record<string, number> = {
-    Hall: 2,
-    Johnson: 1,
-    Carter: 2,
-    Lewis: 1,
-  };
+  const caseNumberMap: Record<string, string> = { Hall: '123456', Johnson: '234567', Carter: '345678', Lewis: '456789' };
+  const caseLabel = data?.child?.lastName ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}` : 'Case detail';
+  const childCountMap: Record<string, number> = { Hall: 2, Johnson: 1, Carter: 2, Lewis: 1 };
   const childCount = data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0;
   const openRequestCount = data?.requests?.filter((request: any) => request.status === 'SUBMITTED').length ?? 0;
+
   const childProfileMap: Record<string, any[]> = {
     Hall: [
-      {
-        id: 'archer-hall',
-        name: 'Archer Hall',
-        age: 4,
-        birthday: '04/11/2021',
-        status: 'Placed',
-        caseWorker: 'Taylor Reed',
-        supervisor: 'Monica Alvarez',
-        placement: 'Sarah Hall',
-      },
-      {
-        id: 'mia-hall',
-        name: 'Mia Hall',
-        age: 7,
-        birthday: '09/02/2018',
-        status: 'Pending Placement',
-        caseWorker: 'Jordan Kim',
-        supervisor: 'Monica Alvarez',
-        placement: '',
-      },
+      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', supervisor: 'Monica Alvarez', placement: 'Sarah Hall' },
+      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', supervisor: 'Monica Alvarez', placement: '' },
     ],
     Johnson: [
-      {
-        id: 'ava-johnson',
-        name: 'Ava Johnson',
-        age: 9,
-        birthday: '01/14/2017',
-        status: 'Placed',
-        caseWorker: 'Taylor Reed',
-        supervisor: 'Monica Alvarez',
-        placement: 'Ava Johnson Foster Home',
-      },
+      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', supervisor: 'Monica Alvarez', placement: 'Ava Johnson Foster Home' },
     ],
   };
 
@@ -254,14 +187,39 @@ export default function CaseDetailPage() {
   );
 
   const activeChild = childProfiles.find((child: any) => child.id === activeChildId) || null;
-  const placementOptions = ['Sarah Hall', 'David Hall', 'Ava Johnson Foster Home', 'Monica Alvarez'];
-  const placementSuggestions = activeChild
-    ? placementOptions.filter(option => option.toLowerCase().includes((activeChild.placement || '').toLowerCase())).slice(0, 4)
+  const systemUserOptions = ['Taylor Reed', 'Jordan Kim', 'Monica Alvarez', 'Sarah Hall', 'David Hall', 'Ava Johnson Foster Home'];
+
+  const caseWorkerSuggestions = childDraft
+    ? systemUserOptions.filter(option => option.toLowerCase().includes((childDraft.caseWorker || '').toLowerCase())).slice(0, 5)
+    : [];
+  const supervisorSuggestions = childDraft
+    ? systemUserOptions.filter(option => option.toLowerCase().includes((childDraft.supervisor || '').toLowerCase())).slice(0, 5)
+    : [];
+  const placementSuggestions = childDraft
+    ? systemUserOptions.filter(option => option.toLowerCase().includes((childDraft.placement || '').toLowerCase())).slice(0, 5)
     : [];
 
-  function updateActiveChild(field: string, value: string) {
-    if (!activeChildId) return;
-    setChildProfiles(current => current.map(child => (child.id === activeChildId ? { ...child, [field]: value } : child)));
+  function openChildModal(child: any) {
+    setActiveChildId(child.id);
+    setChildDraft({ ...child });
+    setChildDirty(false);
+  }
+
+  function closeChildModal() {
+    setActiveChildId(null);
+    setChildDraft(null);
+    setChildDirty(false);
+  }
+
+  function updateChildDraft(field: string, value: string) {
+    setChildDraft((current: any) => ({ ...current, [field]: value }));
+    setChildDirty(true);
+  }
+
+  function saveChildChanges() {
+    if (!activeChildId || !childDraft) return;
+    setChildProfiles(current => current.map(child => (child.id === activeChildId ? { ...childDraft } : child)));
+    closeChildModal();
   }
 
   return (
@@ -321,14 +279,14 @@ export default function CaseDetailPage() {
                     key={child.id}
                     type="button"
                     className="record-item clickable-card"
-                    onClick={() => setActiveChildId(child.id)}
+                    onClick={() => openChildModal(child)}
                     style={{ textAlign: 'left', cursor: 'pointer', width: '100%' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
                       <div>
                         <strong className="clickable-card-title">{child.name} - {child.age} years old</strong>
                         <div className="record-meta" style={{ marginTop: 8 }}>
-                          <span>Birthday: {child.birthday}</span>
+                          <span>Birthday: {new Date(child.birthday).toLocaleDateString()}</span>
                         </div>
                       </div>
                       <span className="status-pill">{child.status}</span>
@@ -369,6 +327,102 @@ export default function CaseDetailPage() {
             )}
           </section>
         </section>
+
+        {activeChild && childDraft ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 24,
+              zIndex: 50,
+            }}
+            onClick={closeChildModal}
+          >
+            <section
+              className="card"
+              style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">Child details</div>
+                </div>
+                <div className="actions-row" style={{ marginTop: 0 }}>
+                  {childDirty ? (
+                    <button type="button" className="button button-primary" onClick={saveChildChanges}>
+                      Save
+                    </button>
+                  ) : null}
+                  <button type="button" className="button button-ghost" onClick={closeChildModal}>
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="field">
+                  <label>Name</label>
+                  <input className="input" value={childDraft.name} onChange={e => updateChildDraft('name', e.target.value)} />
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                  <div className="field">
+                    <label>Birthday</label>
+                    <input className="input" type="date" value={childDraft.birthday} onChange={e => updateChildDraft('birthday', e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>Status</label>
+                    <select className="select" value={childDraft.status} onChange={e => updateChildDraft('status', e.target.value)}>
+                      <option>Pending Placement</option>
+                      <option>Placed</option>
+                      <option>In Transition</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Case Worker</label>
+                  <input className="input" value={childDraft.caseWorker} onChange={e => updateChildDraft('caseWorker', e.target.value)} placeholder="Search case worker" />
+                  <div className="stack" style={{ gap: 8 }}>
+                    {caseWorkerSuggestions.map((option: string) => (
+                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => updateChildDraft('caseWorker', option)}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Placement</label>
+                  <input className="input" value={childDraft.placement || ''} onChange={e => updateChildDraft('placement', e.target.value)} placeholder="Search FosterHub users for placement" />
+                  <div className="stack" style={{ gap: 8 }}>
+                    {placementSuggestions.map((option: string) => (
+                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => updateChildDraft('placement', option)}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                  {childDraft.placement && !systemUserOptions.some(option => option.toLowerCase() === childDraft.placement.toLowerCase()) ? (
+                    <button type="button" className="button button-secondary">
+                      Invite placement to FosterHub
+                    </button>
+                  ) : null}
+                </div>
+                <div className="field">
+                  <label>Supervisor</label>
+                  <input className="input" value={childDraft.supervisor} onChange={e => updateChildDraft('supervisor', e.target.value)} placeholder="Search supervisor" />
+                  <div className="stack" style={{ gap: 8 }}>
+                    {supervisorSuggestions.map((option: string) => (
+                      <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => updateChildDraft('supervisor', option)}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : null}
 
         <section className="grid" style={{ alignItems: 'start' }}>
           <section className="card">
@@ -445,91 +499,6 @@ export default function CaseDetailPage() {
             </form>
           </section>
         </section>
-
-        {activeChild ? (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(15, 23, 42, 0.35)',
-              display: 'grid',
-              placeItems: 'center',
-              padding: 24,
-              zIndex: 50,
-            }}
-            onClick={() => setActiveChildId(null)}
-          >
-            <section
-              className="card"
-              style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
-              onClick={event => event.stopPropagation()}
-            >
-              <div className="section-title">
-                <div>
-                  <div className="eyebrow">Child details</div>
-                  <h3>{activeChild.name}</h3>
-                </div>
-                <button type="button" className="button button-ghost" onClick={() => setActiveChildId(null)}>
-                  Close
-                </button>
-              </div>
-
-              <div className="form-grid">
-                <div className="field">
-                  <label>Name</label>
-                  <input className="input" value={activeChild.name} onChange={e => updateActiveChild('name', e.target.value)} />
-                </div>
-                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-                  <div className="field">
-                    <label>Birthday</label>
-                    <input className="input" value={activeChild.birthday} onChange={e => updateActiveChild('birthday', e.target.value)} />
-                  </div>
-                  <div className="field">
-                    <label>Status</label>
-                    <select className="select" value={activeChild.status} onChange={e => updateActiveChild('status', e.target.value)}>
-                      <option>Pending Placement</option>
-                      <option>Placed</option>
-                      <option>In Transition</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Case Worker</label>
-                  <input className="input" value={activeChild.caseWorker} onChange={e => updateActiveChild('caseWorker', e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>Placement</label>
-                  <input className="input" value={activeChild.placement || ''} onChange={e => updateActiveChild('placement', e.target.value)} placeholder="Search FosterHub users for placement" />
-                  <div className="card card-muted" style={{ padding: 14 }}>
-                    <div className="eyebrow" style={{ marginBottom: 10 }}>Placement suggestions</div>
-                    <div className="stack" style={{ gap: 8 }}>
-                      {placementSuggestions.map((option: string) => (
-                        <button
-                          key={option}
-                          type="button"
-                          className="button button-ghost"
-                          style={{ justifyContent: 'flex-start' }}
-                          onClick={() => updateActiveChild('placement', option)}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                    {activeChild.placement && !placementOptions.some(option => option.toLowerCase() === activeChild.placement.toLowerCase()) ? (
-                      <button type="button" className="button button-secondary" style={{ marginTop: 14 }}>
-                        Invite placement to FosterHub
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Supervisor</label>
-                  <input className="input" value={activeChild.supervisor} onChange={e => updateActiveChild('supervisor', e.target.value)} />
-                </div>
-              </div>
-            </section>
-          </div>
-        ) : null}
 
         <section className="card">
           <div className="section-title">
