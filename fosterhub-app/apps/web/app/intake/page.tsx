@@ -1,198 +1,263 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
-import { API_BASE, authedGet } from '../../lib/api';
+import { useMemo, useState } from 'react';
 import { AppShell } from '../../components/AppShell';
 
-type IntakeRecord = {
+type UserRecord = {
   id: string;
-  childFirstName: string;
-  childLastName: string;
-  status: string;
-  notes?: string | null;
-  createdAt: string;
+  name: string;
+  email: string;
+  role: string;
+  status: 'Active' | 'Invited' | 'Suspended';
+  permissions: string[];
 };
 
+const initialUsers: UserRecord[] = [
+  {
+    id: 'u1',
+    name: 'Mike De La Rosa Garcia',
+    email: 'mike@fosterhub.biz',
+    role: 'Admin',
+    status: 'Active',
+    permissions: ['Manage users', 'Manage roles', 'View all cases', 'Edit cases'],
+  },
+  {
+    id: 'u2',
+    name: 'Taylor Reed',
+    email: 'taylor.reed@fosterhub.biz',
+    role: 'Case Worker',
+    status: 'Active',
+    permissions: ['View assigned cases', 'Edit assigned cases', 'Schedule case events'],
+  },
+  {
+    id: 'u3',
+    name: 'Monica Alvarez',
+    email: 'monica.alvarez@fosterhub.biz',
+    role: 'Supervisor',
+    status: 'Active',
+    permissions: ['View team cases', 'Approve requests', 'Manage staff assignments'],
+  },
+  {
+    id: 'u4',
+    name: 'Sarah Hall',
+    email: 'sarah.hall@example.com',
+    role: 'Foster Parent',
+    status: 'Invited',
+    permissions: ['View child updates', 'View calendar events'],
+  },
+];
+
+const permissionOptions = [
+  'Manage users',
+  'Manage roles',
+  'View all cases',
+  'Edit cases',
+  'View assigned cases',
+  'Schedule case events',
+  'Approve requests',
+  'Manage staff assignments',
+  'View child updates',
+  'View calendar events',
+];
+
 export default function IntakePage() {
-  const [records, setRecords] = useState<IntakeRecord[]>([]);
-  const [childFirstName, setChildFirstName] = useState('');
-  const [childLastName, setChildLastName] = useState('');
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<UserRecord[]>(initialUsers);
+  const [query, setQuery] = useState('');
+  const [addUserModalOpen, setAddUserModalOpen] = useState(false);
+  const [activeUserId, setActiveUserId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const [draftEmail, setDraftEmail] = useState('');
+  const [draftRole, setDraftRole] = useState('Case Worker');
 
-  async function loadRecords() {
-    const authToken = localStorage.getItem('fosterhub.dev.token') ?? '';
-    if (!authToken) {
-      setError('No token found. Please log in first.');
-      return;
-    }
+  const filteredUsers = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return users;
+    return users.filter(user =>
+      user.name.toLowerCase().includes(normalized) ||
+      user.email.toLowerCase().includes(normalized) ||
+      user.role.toLowerCase().includes(normalized),
+    );
+  }, [users, query]);
 
-    try {
-      const result = await authedGet('/intake-records', authToken);
-      setRecords(result.data || []);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load intake records');
-    }
+  const activeUser = users.find(user => user.id === activeUserId) || null;
+
+  function handleAddUser() {
+    setUsers(current => [
+      {
+        id: `u-${Date.now()}`,
+        name: draftName || 'New User',
+        email: draftEmail,
+        role: draftRole,
+        status: 'Invited',
+        permissions: draftRole === 'Admin' ? ['Manage users', 'Manage roles', 'View all cases', 'Edit cases'] : ['View assigned cases'],
+      },
+      ...current,
+    ]);
+    setDraftName('');
+    setDraftEmail('');
+    setDraftRole('Case Worker');
+    setAddUserModalOpen(false);
   }
 
-  useEffect(() => {
-    loadRecords();
-  }, []);
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
-      setError('No token found. Please log in first.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`${API_BASE}/intake-records`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ childFirstName, childLastName, notes }),
-      });
-
-      const body = await response.json();
-      if (!response.ok) throw new Error(body?.message || 'Failed to create intake record');
-
-      setChildFirstName('');
-      setChildLastName('');
-      setNotes('');
-      await loadRecords();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to create intake record');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleConvertToCase(intakeId: string) {
-    const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token) {
-      setError('No token found. Please log in first.');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/intake-records/${intakeId}/convert-to-case`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body?.message || 'Failed to convert intake record');
-      await loadRecords();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to convert intake record');
-    }
+  function togglePermission(permission: string) {
+    if (!activeUserId) return;
+    setUsers(current => current.map(user => {
+      if (user.id !== activeUserId) return user;
+      const alreadyHas = user.permissions.includes(permission);
+      return {
+        ...user,
+        permissions: alreadyHas ? user.permissions.filter(item => item !== permission) : [...user.permissions, permission],
+      };
+    }));
   }
 
   return (
-    <AppShell title="Intake queue">
+    <AppShell title="User management">
       <main className="page-stack">
+        <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <button type="button" className="button button-primary" onClick={() => setAddUserModalOpen(true)}>
+            Add user
+          </button>
+          <input
+            className="input"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by name, email, or role"
+            style={{ maxWidth: 360 }}
+          />
+        </section>
+
         <section className="grid" style={{ alignItems: 'start' }}>
-          <div className="card">
+          <section className="card">
             <div className="section-title">
               <div>
-                <div className="eyebrow">New intake</div>
-                <h2>Create intake record</h2>
-                <p>Capture an incoming child record and move it into the formal intake queue.</p>
+                <div className="eyebrow">People</div>
+                <h2>Users</h2>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="form-grid">
-              <div className="field">
-                <label htmlFor="childFirstName">Child first name</label>
-                <input id="childFirstName" className="input" value={childFirstName} onChange={e => setChildFirstName(e.target.value)} required />
-              </div>
-              <div className="field">
-                <label htmlFor="childLastName">Child last name</label>
-                <input id="childLastName" className="input" value={childLastName} onChange={e => setChildLastName(e.target.value)} required />
-              </div>
-              <div className="field">
-                <label htmlFor="notes">Notes</label>
-                <textarea id="notes" className="textarea" value={notes} onChange={e => setNotes(e.target.value)} rows={4} />
-              </div>
-              <button type="submit" disabled={loading} className="button button-primary">
-                {loading ? 'Saving intake record...' : 'Create intake record'}
-              </button>
-            </form>
-
-            {error ? (
-              <div className="notice notice-error" style={{ marginTop: 16 }}>
-                <strong>Intake problem</strong>
-                <p style={{ marginBottom: 0 }}>{error}</p>
-              </div>
-            ) : null}
-          </div>
-
-          <aside className="card card-muted">
-            <div className="eyebrow">Workflow</div>
-            <h3 style={{ marginBottom: 12 }}>Expected path</h3>
-            <div className="stack">
-              <div>
-                <strong>1. Capture intake</strong>
-                <p style={{ marginBottom: 0 }}>Create a clean intake record with basic child information and notes.</p>
-              </div>
-              <div>
-                <strong>2. Review queue</strong>
-                <p style={{ marginBottom: 0 }}>Confirm details and validate that the record is ready for case creation.</p>
-              </div>
-              <div>
-                <strong>3. Convert to case</strong>
-                <p style={{ marginBottom: 0 }}>Promote the record into a real case when the next workflow stage begins.</p>
-              </div>
-            </div>
-          </aside>
-        </section>
-
-        <section className="card">
-          <div className="section-title">
-            <div>
-              <div className="eyebrow">Current workload</div>
-              <h3>Intake queue</h3>
-            </div>
-          </div>
-
-          {records.length === 0 ? (
-            <div className="empty-state">
-              <strong>No intake records yet.</strong>
-              <p style={{ marginBottom: 0 }}>Create the first intake record to begin the workflow.</p>
-            </div>
-          ) : (
             <div className="record-list">
-              {records.map(record => (
-                <article key={record.id} className="record-item">
-                  <strong>{record.childFirstName} {record.childLastName}</strong>
-                  <div className="record-meta">
-                    <span className="status-pill">{record.status}</span>
-                    <span>Created: {new Date(record.createdAt).toLocaleString()}</span>
+              {filteredUsers.map(user => (
+                <button
+                  key={user.id}
+                  type="button"
+                  className="record-item clickable-card"
+                  onClick={() => setActiveUserId(user.id)}
+                  style={{ textAlign: 'left', cursor: 'pointer', width: '100%' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                    <div>
+                      <strong className="clickable-card-title">{user.name}</strong>
+                      <div className="record-meta" style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+                        <span>{user.email}</span>
+                        <span>{user.role}</span>
+                      </div>
+                    </div>
+                    <span className="status-pill">{user.status}</span>
                   </div>
-                  {record.notes ? <p style={{ marginTop: 12, marginBottom: 0 }}>{record.notes}</p> : null}
-                  <div className="actions-row">
-                    {record.status !== 'CONVERTED' ? (
-                      <button onClick={() => handleConvertToCase(record.id)} className="button button-secondary">
-                        Convert to case
-                      </button>
-                    ) : (
-                      <span className="status-pill">Converted to case</span>
-                    )}
-                  </div>
-                </article>
+                </button>
               ))}
             </div>
-          )}
+          </section>
+
+          <section className="card card-muted">
+            <div className="section-title">
+              <div>
+                <div className="eyebrow">Permissions</div>
+                <h2>{activeUser ? activeUser.name : 'Select a user'}</h2>
+              </div>
+            </div>
+
+            {activeUser ? (
+              <div className="stack">
+                <div>
+                  <strong>Role</strong>
+                  <p style={{ marginBottom: 0 }}>{activeUser.role}</p>
+                </div>
+                <div className="record-list">
+                  {permissionOptions.map(permission => {
+                    const enabled = activeUser.permissions.includes(permission);
+                    return (
+                      <button
+                        key={permission}
+                        type="button"
+                        className="button button-ghost"
+                        style={{ justifyContent: 'space-between', opacity: enabled ? 1 : 0.65 }}
+                        onClick={() => togglePermission(permission)}
+                      >
+                        <span>{permission}</span>
+                        <span>{enabled ? 'On' : 'Off'}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <strong>No user selected.</strong>
+                <p style={{ marginBottom: 0 }}>Choose a user to review or edit permissions.</p>
+              </div>
+            )}
+          </section>
         </section>
+
+        {addUserModalOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 24,
+              zIndex: 50,
+            }}
+            onClick={() => setAddUserModalOpen(false)}
+          >
+            <section
+              className="card"
+              style={{ width: 'min(100%, 720px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">User management</div>
+                  <h2 style={{ marginBottom: 0 }}>Add user</h2>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="field">
+                  <label>Name</label>
+                  <input className="input" value={draftName} onChange={e => setDraftName(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Email</label>
+                  <input className="input" type="email" value={draftEmail} onChange={e => setDraftEmail(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Role</label>
+                  <select className="select" value={draftRole} onChange={e => setDraftRole(e.target.value)}>
+                    <option>Admin</option>
+                    <option>Supervisor</option>
+                    <option>Case Worker</option>
+                    <option>Foster Parent</option>
+                    <option>Attorney</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 22 }}>
+                <button type="button" className="button button-ghost" onClick={() => setAddUserModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="button button-primary" onClick={handleAddUser}>
+                  Send invite
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </main>
     </AppShell>
   );
