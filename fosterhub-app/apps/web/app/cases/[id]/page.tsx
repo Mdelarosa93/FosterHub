@@ -20,6 +20,8 @@ export default function CaseDetailPage() {
   const [docFileName, setDocFileName] = useState('');
   const [docNotes, setDocNotes] = useState('');
   const [decisionNotes, setDecisionNotes] = useState<RequestDecisionState>({});
+  const [childProfiles, setChildProfiles] = useState<any[]>([]);
+  const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -200,6 +202,60 @@ export default function CaseDetailPage() {
   };
   const childCount = data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0;
   const openRequestCount = data?.requests?.filter((request: any) => request.status === 'SUBMITTED').length ?? 0;
+  const childProfileMap: Record<string, any[]> = {
+    Hall: [
+      {
+        id: 'archer-hall',
+        name: 'Archer Hall',
+        age: 4,
+        birthday: '04/11/2021',
+        status: 'Placed',
+        caseWorker: 'Taylor Reed',
+        supervisor: 'Monica Alvarez',
+      },
+      {
+        id: 'mia-hall',
+        name: 'Mia Hall',
+        age: 7,
+        birthday: '09/02/2018',
+        status: 'Pending Placement',
+        caseWorker: 'Jordan Kim',
+        supervisor: 'Monica Alvarez',
+      },
+    ],
+    Johnson: [
+      {
+        id: 'ava-johnson',
+        name: 'Ava Johnson',
+        age: 9,
+        birthday: '01/14/2017',
+        status: 'Placed',
+        caseWorker: 'Taylor Reed',
+        supervisor: 'Monica Alvarez',
+      },
+    ],
+  };
+
+  useEffect(() => {
+    if (!data?.child?.lastName) return;
+    setChildProfiles(childProfileMap[data.child.lastName] || []);
+  }, [data?.child?.lastName]);
+
+  const assignedStaff = Array.from(
+    new Map(
+      childProfiles.flatMap((child: any) => [
+        [`cw-${child.caseWorker}`, { name: child.caseWorker, role: 'Case Worker' }],
+        [`sup-${child.supervisor}`, { name: child.supervisor, role: 'Supervisor' }],
+      ]),
+    ).values(),
+  );
+
+  const activeChild = childProfiles.find((child: any) => child.id === activeChildId) || null;
+
+  function updateActiveChild(field: string, value: string) {
+    if (!activeChildId) return;
+    setChildProfiles(current => current.map(child => (child.id === activeChildId ? { ...child, [field]: value } : child)));
+  }
 
   return (
     <AppShell title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
@@ -247,75 +303,65 @@ export default function CaseDetailPage() {
           <section className="card">
             <div className="section-title">
               <div>
-                <div className="eyebrow">Team coverage</div>
-                <h3>Assignments</h3>
+                <div className="eyebrow">Children</div>
+                <h3>Children</h3>
               </div>
             </div>
 
-            {data?.assignments?.length ? (
+            {childProfiles.length ? (
               <div className="record-list">
-                {data.assignments.map((assignment: any) => (
-                  <article key={assignment.id} className="record-item">
-                    <strong>{assignment.user.firstName} {assignment.user.lastName}</strong>
+                {childProfiles.map((child: any) => (
+                  <button
+                    key={child.id}
+                    type="button"
+                    className="record-item"
+                    onClick={() => setActiveChildId(child.id)}
+                    style={{ textAlign: 'left', cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                      <div>
+                        <strong>{child.name} - {child.age} years old</strong>
+                        <div className="record-meta" style={{ marginTop: 8 }}>
+                          <span>Birthday: {child.birthday}</span>
+                        </div>
+                      </div>
+                      <span className="status-pill">{child.status}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <strong>No children loaded yet.</strong>
+                <p style={{ marginBottom: 0 }}>Children attached to this case will appear here.</p>
+              </div>
+            )}
+          </section>
+
+          <section className="card card-muted">
+            <div className="section-title">
+              <div>
+                <div className="eyebrow">Assigned staff</div>
+                <h3>Assigned Staff</h3>
+              </div>
+            </div>
+            {assignedStaff.length ? (
+              <div className="record-list">
+                {assignedStaff.map((staff: any) => (
+                  <article key={`${staff.role}-${staff.name}`} className="record-item">
+                    <strong>{staff.name}</strong>
                     <div className="record-meta">
-                      <span>{assignment.user.email}</span>
-                      <span className="status-pill">{assignment.roleLabel}</span>
+                      <span>{staff.role}</span>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
               <div className="empty-state">
-                <strong>No assignments yet.</strong>
-                <p style={{ marginBottom: 0 }}>Assign a worker to start the case team structure.</p>
+                <strong>No staff assigned yet.</strong>
+                <p style={{ marginBottom: 0 }}>Assigned case workers and supervisors will appear here.</p>
               </div>
             )}
-
-            <form onSubmit={handleAssignWorker} className="form-grid" style={{ marginTop: 18 }}>
-              <div className="field">
-                <label htmlFor="workerEmail">Assign worker by email</label>
-                <input
-                  id="workerEmail"
-                  className="input"
-                  value={workerEmail}
-                  onChange={e => setWorkerEmail(e.target.value)}
-                  type="email"
-                  required
-                />
-              </div>
-              <button type="submit" className="button button-secondary" disabled={saving}>
-                {saving ? 'Saving...' : 'Assign worker'}
-              </button>
-            </form>
-          </section>
-
-          <section className="card card-muted">
-            <div className="section-title">
-              <div>
-                <div className="eyebrow">Case summary</div>
-                <h3>Current snapshot</h3>
-              </div>
-            </div>
-            <div className="stack">
-              <div>
-                <strong>Case</strong>
-                <p style={{ marginBottom: 0 }}>{caseLabel}</p>
-              </div>
-              <div>
-                <strong>Child</strong>
-                <p style={{ marginBottom: 0 }}>{childName}</p>
-              </div>
-              <div>
-                <strong>Status</strong>
-                <p style={{ marginBottom: 0 }}>{data?.status ?? 'Not loaded yet'}</p>
-              </div>
-              <div>
-                <strong>Opened at</strong>
-                <p style={{ marginBottom: 0 }}>
-                  {data?.openedAt ? new Date(data.openedAt).toLocaleString() : 'Not loaded yet'}
-                </p>
-              </div>
-            </div>
           </section>
         </section>
 
@@ -394,6 +440,51 @@ export default function CaseDetailPage() {
             </form>
           </section>
         </section>
+
+        {activeChild ? (
+          <section className="card">
+            <div className="section-title">
+              <div>
+                <div className="eyebrow">Child details</div>
+                <h3>{activeChild.name}</h3>
+              </div>
+              <button type="button" className="button button-ghost" onClick={() => setActiveChildId(null)}>
+                Close
+              </button>
+            </div>
+
+            <div className="grid" style={{ alignItems: 'start' }}>
+              <div className="stack">
+                <div className="field">
+                  <label>Name</label>
+                  <input className="input" value={activeChild.name} onChange={e => updateActiveChild('name', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Birthday</label>
+                  <input className="input" value={activeChild.birthday} onChange={e => updateActiveChild('birthday', e.target.value)} />
+                </div>
+              </div>
+              <div className="stack">
+                <div className="field">
+                  <label>Status</label>
+                  <select className="select" value={activeChild.status} onChange={e => updateActiveChild('status', e.target.value)}>
+                    <option>Pending Placement</option>
+                    <option>Placed</option>
+                    <option>In Transition</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Case Worker</label>
+                  <input className="input" value={activeChild.caseWorker} onChange={e => updateActiveChild('caseWorker', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Supervisor</label>
+                  <input className="input" value={activeChild.supervisor} onChange={e => updateActiveChild('supervisor', e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="card">
           <div className="section-title">
