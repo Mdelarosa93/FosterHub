@@ -8,6 +8,18 @@ import { AppShell } from '../../../components/AppShell';
 
 type RequestDecisionState = Record<string, string>;
 
+function calculateAgeFromBirthday(birthday: string) {
+  if (!birthday) return 0;
+  const birthDate = new Date(birthday);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
 export default function CaseDetailPage() {
   const params = useParams<{ id: string }>();
   const caseId = Array.isArray(params?.id) ? params.id[0] : params?.id;
@@ -253,6 +265,24 @@ export default function CaseDetailPage() {
     setActivePicker(null);
   }
 
+  function openAddChildModal() {
+    setActiveChildId('new');
+    setChildDraft({
+      id: 'new',
+      name: '',
+      birthday: '',
+      status: 'Pending Placement',
+      caseWorker: '',
+      supervisor: '',
+      placement: '',
+    });
+    setChildDirty(true);
+    setCaseWorkerQuery('');
+    setPlacementQuery('');
+    setSupervisorQuery('');
+    setActivePicker(null);
+  }
+
   function closeChildModal() {
     setActiveChildId(null);
     setChildDraft(null);
@@ -270,7 +300,11 @@ export default function CaseDetailPage() {
 
   function saveChildChanges() {
     if (!activeChildId || !childDraft) return;
-    setChildProfiles(current => current.map(child => (child.id === activeChildId ? { ...childDraft } : child)));
+    if (activeChildId === 'new') {
+      setChildProfiles(current => [...current, { ...childDraft, id: `${Date.now()}` }]);
+    } else {
+      setChildProfiles(current => current.map(child => (child.id === activeChildId ? { ...childDraft } : child)));
+    }
     closeChildModal();
   }
 
@@ -322,6 +356,9 @@ export default function CaseDetailPage() {
               <div>
                 <div className="eyebrow">Children</div>
               </div>
+              <button type="button" className="button button-ghost" onClick={openAddChildModal}>
+                Add Child
+              </button>
             </div>
 
             {childProfiles.length ? (
@@ -336,7 +373,7 @@ export default function CaseDetailPage() {
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
                       <div>
-                        <strong className="clickable-card-title">{child.name} - {child.age} years old</strong>
+                        <strong className="clickable-card-title">{child.name} - {calculateAgeFromBirthday(child.birthday)} years old</strong>
                         <div className="record-meta" style={{ marginTop: 8 }}>
                           <span>Birthday: {new Date(child.birthday).toLocaleDateString()}</span>
                         </div>
@@ -387,7 +424,7 @@ export default function CaseDetailPage() {
           </section>
         </section>
 
-        {activeChild && childDraft ? (
+        {childDraft ? (
           <div
             style={{
               position: 'fixed',
@@ -407,10 +444,10 @@ export default function CaseDetailPage() {
             >
               <div className="section-title">
                 <div>
-                  <div className="eyebrow">Child details</div>
+                  <div className="eyebrow">{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
                 </div>
                 <div className="actions-row" style={{ marginTop: 0 }}>
-                  {childDirty ? (
+                  {childDirty || activeChildId === 'new' ? (
                     <button type="button" className="button button-primary" onClick={saveChildChanges}>
                       Save
                     </button>
