@@ -202,14 +202,39 @@ export default function CaseDetailPage() {
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, []);
 
-  const assignedStaff = Array.from(
+  const caseWorkers = Array.from(
     new Map(
-      childProfiles.flatMap((child: any) => [
-        [`cw-${child.caseWorker}`, { name: child.caseWorker, role: 'Case Worker' }],
-        [`sup-${child.supervisor}`, { name: child.supervisor, role: 'Supervisor' }],
+      childProfiles.map((child: any) => [
+        child.caseWorker,
+        {
+          name: child.caseWorker,
+          role: 'Case Worker',
+          assignedNames: childProfiles.filter((entry: any) => entry.caseWorker === child.caseWorker).map((entry: any) => entry.name),
+        },
       ]),
     ).values(),
   );
+
+  const supervisors = Array.from(
+    new Map(
+      childProfiles.map((child: any) => [
+        child.supervisor,
+        {
+          name: child.supervisor,
+          role: 'Supervisor',
+          assignedNames: Array.from(
+            new Set(
+              childProfiles
+                .filter((entry: any) => entry.supervisor === child.supervisor)
+                .map((entry: any) => entry.caseWorker),
+            ),
+          ),
+        },
+      ]),
+    ).values(),
+  );
+
+  const assignedStaff = [...caseWorkers, ...supervisors];
 
   const activeChild = childProfiles.find((child: any) => child.id === activeChildId) || null;
   const systemUserOptions = ['Taylor Reed', 'Jordan Kim', 'Monica Alvarez', 'Sarah Hall', 'David Hall', 'Ava Johnson Foster Home'];
@@ -340,8 +365,15 @@ export default function CaseDetailPage() {
                 {assignedStaff.map((staff: any) => (
                   <article key={`${staff.role}-${staff.name}`} className="record-item">
                     <strong>{staff.name}</strong>
-                    <div className="record-meta">
+                    <div className="record-meta" style={{ display: 'grid', gap: 8 }}>
                       <span>{staff.role}</span>
+                      {staff.assignedNames?.length ? (
+                        <div style={{ paddingLeft: 14, display: 'grid', gap: 6 }}>
+                          {staff.assignedNames.map((name: string) => (
+                            <span key={name} style={{ color: '#123122' }}>{name}</span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </article>
                 ))}
