@@ -8,9 +8,12 @@ type UserRecord = {
   name: string;
   email: string;
   role: string;
+  type: 'Staff' | 'Legal' | 'Vendors' | 'Foster Parents' | 'Biological Parents';
   status: 'Active' | 'Invited' | 'Suspended';
   permissions: string[];
 };
+
+const userTypeOptions: UserRecord['type'][] = ['Staff', 'Legal', 'Vendors', 'Foster Parents', 'Biological Parents'];
 
 const initialUsers: UserRecord[] = [
   {
@@ -18,6 +21,7 @@ const initialUsers: UserRecord[] = [
     name: 'Mike De La Rosa Garcia',
     email: 'mike@fosterhub.biz',
     role: 'Admin',
+    type: 'Staff',
     status: 'Active',
     permissions: ['Manage users', 'Manage roles', 'View all cases', 'Edit cases'],
   },
@@ -26,6 +30,7 @@ const initialUsers: UserRecord[] = [
     name: 'Taylor Reed',
     email: 'taylor.reed@fosterhub.biz',
     role: 'Case Worker',
+    type: 'Staff',
     status: 'Active',
     permissions: ['View assigned cases', 'Edit assigned cases', 'Schedule case events'],
   },
@@ -34,6 +39,7 @@ const initialUsers: UserRecord[] = [
     name: 'Monica Alvarez',
     email: 'monica.alvarez@fosterhub.biz',
     role: 'Supervisor',
+    type: 'Staff',
     status: 'Active',
     permissions: ['View team cases', 'Approve requests', 'Manage staff assignments'],
   },
@@ -42,8 +48,36 @@ const initialUsers: UserRecord[] = [
     name: 'Sarah Hall',
     email: 'sarah.hall@example.com',
     role: 'Foster Parent',
+    type: 'Foster Parents',
     status: 'Invited',
     permissions: ['View child updates', 'View calendar events'],
+  },
+  {
+    id: 'u5',
+    name: 'Attorney Maria Lopez',
+    email: 'maria.lopez@example.com',
+    role: 'Attorney',
+    type: 'Legal',
+    status: 'Active',
+    permissions: ['View court documents', 'View case milestones'],
+  },
+  {
+    id: 'u6',
+    name: 'Sunrise Family Services',
+    email: 'intake@sunrisefamilyservices.org',
+    role: 'Vendor',
+    type: 'Vendors',
+    status: 'Active',
+    permissions: ['View assigned service requests'],
+  },
+  {
+    id: 'u7',
+    name: 'Janelle Hall',
+    email: 'janelle.hall@example.com',
+    role: 'Biological Parent',
+    type: 'Biological Parents',
+    status: 'Invited',
+    permissions: ['View approved visitation events'],
   },
 ];
 
@@ -58,11 +92,16 @@ const permissionOptions = [
   'Manage staff assignments',
   'View child updates',
   'View calendar events',
+  'View court documents',
+  'View case milestones',
+  'View assigned service requests',
+  'View approved visitation events',
 ];
 
 export default function IntakePage() {
   const [users, setUsers] = useState<UserRecord[]>(initialUsers);
   const [query, setQuery] = useState('');
+  const [selectedType, setSelectedType] = useState<UserRecord['type']>('Staff');
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
@@ -71,13 +110,12 @@ export default function IntakePage() {
 
   const filteredUsers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return users;
-    return users.filter(user =>
-      user.name.toLowerCase().includes(normalized) ||
-      user.email.toLowerCase().includes(normalized) ||
-      user.role.toLowerCase().includes(normalized),
-    );
-  }, [users, query]);
+    return users.filter(user => {
+      if (user.type !== selectedType) return false;
+      if (!normalized) return true;
+      return user.name.toLowerCase().includes(normalized) || user.email.toLowerCase().includes(normalized) || user.role.toLowerCase().includes(normalized);
+    });
+  }, [users, query, selectedType]);
 
   const activeUser = users.find(user => user.id === activeUserId) || null;
 
@@ -88,6 +126,7 @@ export default function IntakePage() {
         name: draftName || 'New User',
         email: draftEmail,
         role: draftRole,
+        type: selectedType,
         status: 'Invited',
         permissions: draftRole === 'Admin' ? ['Manage users', 'Manage roles', 'View all cases', 'Edit cases'] : ['View assigned cases'],
       },
@@ -112,7 +151,16 @@ export default function IntakePage() {
   }
 
   return (
-    <AppShell title="User management">
+    <AppShell
+      title="User management :"
+      headerActions={
+        <select className="select" value={selectedType} onChange={e => setSelectedType(e.target.value as UserRecord['type'])} style={{ maxWidth: 260 }}>
+          {userTypeOptions.map(option => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+      }
+    >
       <main className="page-stack">
         <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <button type="button" className="button button-primary" onClick={() => setAddUserModalOpen(true)}>
@@ -131,8 +179,8 @@ export default function IntakePage() {
           <section className="card">
             <div className="section-title">
               <div>
-                <div className="eyebrow">People</div>
-                <h2>Users</h2>
+                <div className="eyebrow">{selectedType}</div>
+                <h2>{selectedType}</h2>
               </div>
             </div>
 
@@ -243,6 +291,8 @@ export default function IntakePage() {
                     <option>Case Worker</option>
                     <option>Foster Parent</option>
                     <option>Attorney</option>
+                    <option>Vendor</option>
+                    <option>Biological Parent</option>
                   </select>
                 </div>
               </div>
