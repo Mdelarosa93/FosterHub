@@ -304,7 +304,6 @@ export default function CaseDetailPage() {
             <div className="section-title">
               <div>
                 <div className="eyebrow">Children</div>
-                <h3>Children</h3>
               </div>
             </div>
 
@@ -314,13 +313,13 @@ export default function CaseDetailPage() {
                   <button
                     key={child.id}
                     type="button"
-                    className="record-item"
+                    className="record-item clickable-card"
                     onClick={() => setActiveChildId(child.id)}
-                    style={{ textAlign: 'left', cursor: 'pointer' }}
+                    style={{ textAlign: 'left', cursor: 'pointer', width: '100%' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
                       <div>
-                        <strong>{child.name} - {child.age} years old</strong>
+                        <strong className="clickable-card-title">{child.name} - {child.age} years old</strong>
                         <div className="record-meta" style={{ marginTop: 8 }}>
                           <span>Birthday: {child.birthday}</span>
                         </div>
@@ -342,7 +341,6 @@ export default function CaseDetailPage() {
             <div className="section-title">
               <div>
                 <div className="eyebrow">Assigned staff</div>
-                <h3>Assigned Staff</h3>
               </div>
             </div>
             {assignedStaff.length ? (
