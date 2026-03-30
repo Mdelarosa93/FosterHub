@@ -15,6 +15,10 @@ type CaseRecord = {
   createdAt: string;
 };
 
+type AssignedCaseRecord = {
+  caseId: string;
+};
+
 type DisplayCase = CaseRecord & {
   caseNumber: string;
   caseLabel: string;
@@ -22,6 +26,7 @@ type DisplayCase = CaseRecord & {
 
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
+  const [assignedCaseIds, setAssignedCaseIds] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -34,8 +39,12 @@ export default function CasesPage() {
 
     async function load() {
       try {
-        const result = await authedGet('/cases', authToken);
-        setCases(result.data || []);
+        const [casesResult, myCasesResult] = await Promise.all([
+          authedGet('/cases', authToken),
+          authedGet('/worker-dashboard/my-cases', authToken),
+        ]);
+        setCases(casesResult.data || []);
+        setAssignedCaseIds((myCasesResult.data || []).map((item: AssignedCaseRecord) => item.caseId));
       } catch (err: any) {
         setError(err?.message || 'Failed to load cases');
       }
@@ -52,27 +61,65 @@ export default function CasesPage() {
     });
   }, [cases]);
 
-  const filteredCases = useMemo(() => {
+  const searchMatches = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return displayCases;
+    if (!normalizedQuery) return [];
 
     return displayCases.filter(item => {
       const fullName = `${item.child.firstName} ${item.child.lastName}`.toLowerCase();
       return fullName.includes(normalizedQuery) || item.caseNumber.includes(normalizedQuery) || item.caseLabel.toLowerCase().includes(normalizedQuery);
-    });
+    }).slice(0, 6);
   }, [displayCases, query]);
+
+  const myCases = useMemo(() => {
+    return displayCases.filter(item => assignedCaseIds.includes(item.id));
+  }, [displayCases, assignedCaseIds]);
 
   return (
     <AppShell
       title="Cases"
       headerActions={
-        <input
-          className="input"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search by case name or number"
-          style={{ maxWidth: 360 }}
-        />
+        <div style={{ position: 'relative', maxWidth: 360 }}>
+          <input
+            className="input"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by case name or number"
+          />
+
+          {query.trim() && searchMatches.length ? (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                left: 0,
+                right: 0,
+                background: 'white',
+                border: '1px solid #d9e5dd',
+                borderRadius: 18,
+                boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)',
+                padding: 10,
+                display: 'grid',
+                gap: 8,
+                zIndex: 20,
+              }}
+            >
+              {searchMatches.map(item => (
+                <Link
+                  key={item.id}
+                  href={`/cases/${item.id}`}
+                  className="button button-ghost"
+                  style={{ justifyContent: 'flex-start' }}
+                >
+                  <span style={{ display: 'grid', textAlign: 'left' }}>
+                    <strong>{item.caseLabel}</strong>
+                    <span className="muted">Child: {item.child.firstName} {item.child.lastName}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
       }
     >
       <main className="page-stack">
@@ -80,8 +127,8 @@ export default function CasesPage() {
           <div className="section-title">
             <div>
               <div className="eyebrow">Case management</div>
-              <h2>Current cases</h2>
-              <p>Browse all cases and quickly pull up the right case by name or case number.</p>
+              <h2>My cases</h2>
+              <p>These are the cases currently assigned to this user.</p>
             </div>
             <Link href="/intake" className="button button-ghost">Go to intake</Link>
           </div>
@@ -93,16 +140,16 @@ export default function CasesPage() {
             </div>
           ) : null}
 
-          {filteredCases.length === 0 ? (
+          {myCases.length === 0 ? (
             <div className="empty-state">
-              <strong>No cases match that search.</strong>
+              <strong>No assigned cases yet.</strong>
               <p style={{ marginBottom: 0 }}>
-                Try a child name, family name, or case number.
+                Cases assigned to this user will appear here.
               </p>
             </div>
           ) : (
             <div className="record-list">
-              {filteredCases.map(item => (
+              {myCases.map(item => (
                 <article key={item.id} className="record-item">
                   <strong>{item.caseLabel}</strong>
                   <div className="record-meta">
