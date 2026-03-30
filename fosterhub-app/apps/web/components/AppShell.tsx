@@ -39,7 +39,7 @@ function HeaderIconButton({ label, children }: { label: string; children: ReactN
   );
 }
 
-export function AppShell({ title, children }: { title: ReactNode; children: ReactNode }) {
+export function AppShell({ title, headerActions, children }: { title: ReactNode; headerActions?: ReactNode; children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -187,7 +187,10 @@ export function AppShell({ title, children }: { title: ReactNode; children: Reac
             gap: 20,
           }}
         >
-          <h1 style={{ margin: 0, fontSize: 32, letterSpacing: '-0.03em' }}>{title}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, minWidth: 0, flex: 1 }}>
+            <h1 style={{ margin: 0, fontSize: 32, letterSpacing: '-0.03em', flexShrink: 0 }}>{title}</h1>
+            {headerActions ? <div style={{ minWidth: 0, flex: 1 }}>{headerActions}</div> : null}
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <HeaderIconButton label="View messages">
