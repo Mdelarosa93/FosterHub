@@ -194,7 +194,7 @@ export default function CaseDetailPage() {
     : 'Case detail';
 
   return (
-    <AppShell title={<Link href="/cases" className="button button-ghost">Back to Cases</Link>}>
+    <AppShell title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
       <main className="page-stack">
         <section className="hero" style={{ padding: '28px 32px' }}>
           <h2 style={{ fontSize: 34, margin: 0 }}>{caseLabel}</h2>
