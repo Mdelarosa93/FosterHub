@@ -192,6 +192,14 @@ export default function CaseDetailPage() {
   const caseLabel = data?.child?.lastName
     ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}`
     : 'Case detail';
+  const childCountMap: Record<string, number> = {
+    Hall: 2,
+    Johnson: 1,
+    Carter: 2,
+    Lewis: 1,
+  };
+  const childCount = data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0;
+  const openRequestCount = data?.requests?.filter((request: any) => request.status === 'SUBMITTED').length ?? 0;
 
   return (
     <AppShell title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
@@ -213,18 +221,18 @@ export default function CaseDetailPage() {
             <span className="kpi-value" style={{ fontSize: 24 }}>{data?.status ?? (loading ? 'Loading...' : 'Unknown')}</span>
           </article>
           <article className="card kpi">
+            <span className="kpi-label">Children</span>
+            <span className="kpi-value">{childCount}</span>
+          </article>
+          <article className="card kpi">
+            <span className="kpi-label">Open Requests</span>
+            <span className="kpi-value">{openRequestCount}</span>
+          </article>
+          <article className="card kpi">
             <span className="kpi-label">Opened</span>
             <span className="kpi-value" style={{ fontSize: 22 }}>
               {data?.openedAt ? new Date(data.openedAt).toLocaleDateString() : loading ? 'Loading...' : 'Unknown'}
             </span>
-          </article>
-          <article className="card kpi">
-            <span className="kpi-label">Assignments</span>
-            <span className="kpi-value">{data?.assignments?.length ?? 0}</span>
-          </article>
-          <article className="card kpi">
-            <span className="kpi-label">Requests</span>
-            <span className="kpi-value">{data?.requests?.length ?? 0}</span>
           </article>
         </section>
 
