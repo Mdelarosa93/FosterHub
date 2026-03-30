@@ -212,6 +212,7 @@ export default function CaseDetailPage() {
         status: 'Placed',
         caseWorker: 'Taylor Reed',
         supervisor: 'Monica Alvarez',
+        placement: 'Sarah Hall',
       },
       {
         id: 'mia-hall',
@@ -221,6 +222,7 @@ export default function CaseDetailPage() {
         status: 'Pending Placement',
         caseWorker: 'Jordan Kim',
         supervisor: 'Monica Alvarez',
+        placement: '',
       },
     ],
     Johnson: [
@@ -232,6 +234,7 @@ export default function CaseDetailPage() {
         status: 'Placed',
         caseWorker: 'Taylor Reed',
         supervisor: 'Monica Alvarez',
+        placement: 'Ava Johnson Foster Home',
       },
     ],
   };
@@ -251,6 +254,10 @@ export default function CaseDetailPage() {
   );
 
   const activeChild = childProfiles.find((child: any) => child.id === activeChildId) || null;
+  const placementOptions = ['Sarah Hall', 'David Hall', 'Ava Johnson Foster Home', 'Monica Alvarez'];
+  const placementSuggestions = activeChild
+    ? placementOptions.filter(option => option.toLowerCase().includes((activeChild.placement || '').toLowerCase())).slice(0, 4)
+    : [];
 
   function updateActiveChild(field: string, value: string) {
     if (!activeChildId) return;
@@ -440,48 +447,88 @@ export default function CaseDetailPage() {
         </section>
 
         {activeChild ? (
-          <section className="card">
-            <div className="section-title">
-              <div>
-                <div className="eyebrow">Child details</div>
-                <h3>{activeChild.name}</h3>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 24,
+              zIndex: 50,
+            }}
+            onClick={() => setActiveChildId(null)}
+          >
+            <section
+              className="card"
+              style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">Child details</div>
+                  <h3>{activeChild.name}</h3>
+                </div>
+                <button type="button" className="button button-ghost" onClick={() => setActiveChildId(null)}>
+                  Close
+                </button>
               </div>
-              <button type="button" className="button button-ghost" onClick={() => setActiveChildId(null)}>
-                Close
-              </button>
-            </div>
 
-            <div className="grid" style={{ alignItems: 'start' }}>
-              <div className="stack">
+              <div className="form-grid">
                 <div className="field">
                   <label>Name</label>
                   <input className="input" value={activeChild.name} onChange={e => updateActiveChild('name', e.target.value)} />
                 </div>
-                <div className="field">
-                  <label>Birthday</label>
-                  <input className="input" value={activeChild.birthday} onChange={e => updateActiveChild('birthday', e.target.value)} />
-                </div>
-              </div>
-              <div className="stack">
-                <div className="field">
-                  <label>Status</label>
-                  <select className="select" value={activeChild.status} onChange={e => updateActiveChild('status', e.target.value)}>
-                    <option>Pending Placement</option>
-                    <option>Placed</option>
-                    <option>In Transition</option>
-                  </select>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                  <div className="field">
+                    <label>Birthday</label>
+                    <input className="input" value={activeChild.birthday} onChange={e => updateActiveChild('birthday', e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>Status</label>
+                    <select className="select" value={activeChild.status} onChange={e => updateActiveChild('status', e.target.value)}>
+                      <option>Pending Placement</option>
+                      <option>Placed</option>
+                      <option>In Transition</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="field">
                   <label>Case Worker</label>
                   <input className="input" value={activeChild.caseWorker} onChange={e => updateActiveChild('caseWorker', e.target.value)} />
                 </div>
                 <div className="field">
+                  <label>Placement</label>
+                  <input className="input" value={activeChild.placement || ''} onChange={e => updateActiveChild('placement', e.target.value)} placeholder="Search FosterHub users for placement" />
+                  <div className="card card-muted" style={{ padding: 14 }}>
+                    <div className="eyebrow" style={{ marginBottom: 10 }}>Placement suggestions</div>
+                    <div className="stack" style={{ gap: 8 }}>
+                      {placementSuggestions.map((option: string) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className="button button-ghost"
+                          style={{ justifyContent: 'flex-start' }}
+                          onClick={() => updateActiveChild('placement', option)}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                    {activeChild.placement && !placementOptions.some(option => option.toLowerCase() === activeChild.placement.toLowerCase()) ? (
+                      <button type="button" className="button button-secondary" style={{ marginTop: 14 }}>
+                        Invite placement to FosterHub
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="field">
                   <label>Supervisor</label>
                   <input className="input" value={activeChild.supervisor} onChange={e => updateActiveChild('supervisor', e.target.value)} />
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         ) : null}
 
         <section className="card">
