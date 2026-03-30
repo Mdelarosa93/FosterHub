@@ -153,18 +153,22 @@ export default function CasesPage() {
       }
     >
       <main className="page-stack">
+        <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <button type="button" className="button button-primary">Add a case</button>
+          <button
+            type="button"
+            className="button button-ghost"
+            onClick={() => setShowAllCases(current => !current)}
+          >
+            {showAllCases ? 'My cases' : 'See all cases'}
+          </button>
+        </section>
+
         <section className="card">
           <div className="section-title">
             <div>
               <h2>{showAllCases ? 'All cases' : 'My cases'}</h2>
             </div>
-            <button
-              type="button"
-              className="button button-ghost"
-              onClick={() => setShowAllCases(current => !current)}
-            >
-              {showAllCases ? 'My cases' : 'See all cases'}
-            </button>
           </div>
 
           {error ? (
