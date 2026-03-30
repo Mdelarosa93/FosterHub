@@ -39,9 +39,13 @@ export default function CasesPage() {
   const [assignedCaseIds, setAssignedCaseIds] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [showAllCases, setShowAllCases] = useState(false);
+  const [storedChildCounts, setStoredChildCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const countsRaw = localStorage.getItem('fosterhub.caseChildCounts');
+    setStoredChildCounts(countsRaw ? JSON.parse(countsRaw) : {});
+
     const authToken = localStorage.getItem('fosterhub.dev.token') ?? '';
     if (!authToken) {
       setError('No token found. Please log in first.');
@@ -73,9 +77,10 @@ export default function CasesPage() {
         caseWorker: 'Unassigned',
         supervisor: 'Unassigned',
       };
-      return { ...item, caseNumber, caseLabel, ...meta };
+      const childCount = storedChildCounts[caseLabel] || meta.childCount;
+      return { ...item, caseNumber, caseLabel, ...meta, childCount };
     });
-  }, [cases]);
+  }, [cases, storedChildCounts]);
 
   const searchMatches = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();

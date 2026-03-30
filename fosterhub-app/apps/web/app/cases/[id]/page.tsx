@@ -175,7 +175,7 @@ export default function CaseDetailPage() {
   const caseNumberMap: Record<string, string> = { Hall: '123456', Johnson: '234567', Carter: '345678', Lewis: '456789' };
   const caseLabel = data?.child?.lastName ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}` : 'Case detail';
   const childCountMap: Record<string, number> = { Hall: 2, Johnson: 1, Carter: 2, Lewis: 1 };
-  const childCount = data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0;
+  const childCount = childProfiles.length || (data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0);
   const openRequestCount = data?.requests?.filter((request: any) => request.status === 'SUBMITTED').length ?? 0;
 
   const childProfileMap: Record<string, any[]> = {
@@ -190,8 +190,36 @@ export default function CaseDetailPage() {
 
   useEffect(() => {
     if (!data?.child?.lastName) return;
-    setChildProfiles(childProfileMap[data.child.lastName] || []);
-  }, [data?.child?.lastName]);
+    const defaultChildren = childProfileMap[data.child.lastName] || [];
+    const storedCountsRaw = localStorage.getItem('fosterhub.caseChildCounts');
+    const storedCounts = storedCountsRaw ? JSON.parse(storedCountsRaw) : {};
+    const existingCount = storedCounts[caseLabel];
+    if (existingCount && existingCount > defaultChildren.length) {
+      const paddedChildren = [...defaultChildren];
+      while (paddedChildren.length < existingCount) {
+        paddedChildren.push({
+          id: `generated-${paddedChildren.length + 1}`,
+          name: `Child ${paddedChildren.length + 1}`,
+          birthday: '2020-01-01',
+          status: 'Pending Placement',
+          caseWorker: '',
+          supervisor: '',
+          placement: '',
+        });
+      }
+      setChildProfiles(paddedChildren);
+    } else {
+      setChildProfiles(defaultChildren);
+    }
+  }, [data?.child?.lastName, caseLabel]);
+
+  useEffect(() => {
+    if (!caseLabel || !childProfiles.length) return;
+    const storedCountsRaw = localStorage.getItem('fosterhub.caseChildCounts');
+    const storedCounts = storedCountsRaw ? JSON.parse(storedCountsRaw) : {};
+    storedCounts[caseLabel] = childProfiles.length;
+    localStorage.setItem('fosterhub.caseChildCounts', JSON.stringify(storedCounts));
+  }, [caseLabel, childProfiles]);
 
   useEffect(() => {
     if (!activeChildId) return;
