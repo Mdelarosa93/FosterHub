@@ -43,6 +43,12 @@ const caseNumberMap: Record<string, string> = {
 
 const workerOptions = ['Taylor Reed', 'Jordan Kim', 'Monica Alvarez', 'Marcus Green'];
 
+function getLocalDateInputValue() {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+}
+
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [assignedCaseIds, setAssignedCaseIds] = useState<string[]>([]);
@@ -55,7 +61,20 @@ export default function CasesPage() {
   const [caseNumberDraft, setCaseNumberDraft] = useState('');
   const [assignedWorkerDraft, setAssignedWorkerDraft] = useState('');
   const [assignedWorkerQuery, setAssignedWorkerQuery] = useState('');
-  const [caseOpenDateDraft, setCaseOpenDateDraft] = useState(() => new Date().toISOString().slice(0, 10));
+  const [workerPickerOpen, setWorkerPickerOpen] = useState(false);
+  const [caseOpenDateDraft, setCaseOpenDateDraft] = useState(() => getLocalDateInputValue());
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest('[data-worker-picker="true"]')) {
+        setWorkerPickerOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, []);
 
   useEffect(() => {
     const countsRaw = localStorage.getItem('fosterhub.caseChildCounts');
@@ -122,7 +141,8 @@ export default function CasesPage() {
     setCaseNumberDraft('');
     setAssignedWorkerDraft('');
     setAssignedWorkerQuery('');
-    setCaseOpenDateDraft(new Date().toISOString().slice(0, 10));
+    setWorkerPickerOpen(false);
+    setCaseOpenDateDraft(getLocalDateInputValue());
   }
 
   function handleSaveCase() {
@@ -290,9 +310,9 @@ export default function CasesPage() {
                   <input id="case-number" className="input" value={caseNumberDraft} onChange={e => setCaseNumberDraft(e.target.value)} />
                 </div>
 
-                <div className="field" style={{ position: 'relative' }}>
+                <div className="field" style={{ position: 'relative' }} data-worker-picker="true">
                   <label>Assign Worker</label>
-                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setWorkerPickerOpen(true)}>
                     {assignedWorkerDraft ? (
                       <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => setAssignedWorkerDraft('')}>
                         {assignedWorkerDraft} ×
@@ -300,20 +320,23 @@ export default function CasesPage() {
                     ) : null}
                     <input
                       value={assignedWorkerQuery}
+                      onFocus={() => setWorkerPickerOpen(true)}
                       onChange={e => setAssignedWorkerQuery(e.target.value)}
                       placeholder={assignedWorkerDraft ? 'Search another worker' : 'Search for a worker'}
                       style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
                     />
                   </div>
-                  <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
-                    <div className="stack" style={{ gap: 8 }}>
-                      {workerSuggestions.map(option => (
-                        <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { setAssignedWorkerDraft(option); setAssignedWorkerQuery(''); }}>
-                          {option}
-                        </button>
-                      ))}
+                  {workerPickerOpen ? (
+                    <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
+                      <div className="stack" style={{ gap: 8 }}>
+                        {workerSuggestions.map(option => (
+                          <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { setAssignedWorkerDraft(option); setAssignedWorkerQuery(''); setWorkerPickerOpen(false); }}>
+                            {option}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
 
                 <div className="field">
