@@ -219,6 +219,11 @@ export default function CaseDetailPage() {
     const storedCounts = storedCountsRaw ? JSON.parse(storedCountsRaw) : {};
     storedCounts[caseLabel] = childProfiles.length;
     localStorage.setItem('fosterhub.caseChildCounts', JSON.stringify(storedCounts));
+
+    const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
+    const storedChildren = storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {};
+    storedChildren[caseLabel] = childProfiles.map((child: any) => child.name);
+    localStorage.setItem('fosterhub.caseChildren', JSON.stringify(storedChildren));
   }, [caseLabel, childProfiles]);
 
   useEffect(() => {

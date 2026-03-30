@@ -193,6 +193,7 @@ export default function CalendarPage() {
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [selectedCase, setSelectedCase] = useState(caseOptions[0]);
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
+  const [storedChildrenByCase, setStoredChildrenByCase] = useState<Record<string, string[]>>({});
   const [selectedEventType, setSelectedEventType] = useState(eventTypeOptions[0]);
   const [eventTypeMenuOpen, setEventTypeMenuOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -233,7 +234,12 @@ export default function CalendarPage() {
       .slice(0, 2);
   }, [appointments]);
 
-  const childOptions = useMemo(() => childrenByCase[selectedCase] || [], [selectedCase]);
+  useEffect(() => {
+    const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
+    setStoredChildrenByCase(storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {});
+  }, []);
+
+  const childOptions = useMemo(() => storedChildrenByCase[selectedCase] || childrenByCase[selectedCase] || [], [selectedCase, storedChildrenByCase]);
   const recommendedUsers = useMemo(() => recommendedUsersByCase[selectedCase] || [], [selectedCase]);
 
   const filteredUserSuggestions = useMemo(() => {
