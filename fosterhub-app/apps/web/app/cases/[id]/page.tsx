@@ -191,23 +191,24 @@ export default function CaseDetailPage() {
   useEffect(() => {
     if (!data?.child?.lastName) return;
     const defaultChildren = childProfileMap[data.child.lastName] || [];
-    const storedCountsRaw = localStorage.getItem('fosterhub.caseChildCounts');
-    const storedCounts = storedCountsRaw ? JSON.parse(storedCountsRaw) : {};
-    const existingCount = storedCounts[caseLabel];
-    if (existingCount && existingCount > defaultChildren.length) {
-      const paddedChildren = [...defaultChildren];
-      while (paddedChildren.length < existingCount) {
-        paddedChildren.push({
-          id: `generated-${paddedChildren.length + 1}`,
-          name: `Child ${paddedChildren.length + 1}`,
+    const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
+    const storedChildren = storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {};
+    const savedNames: string[] = storedChildren[caseLabel] || [];
+
+    if (savedNames.length) {
+      const mergedChildren = savedNames.map((name, index) => {
+        const existing = defaultChildren.find((child: any) => child.name === name);
+        return existing || {
+          id: `generated-${index + 1}`,
+          name,
           birthday: '2020-01-01',
           status: 'Pending Placement',
           caseWorker: '',
           supervisor: '',
           placement: '',
-        });
-      }
-      setChildProfiles(paddedChildren);
+        };
+      });
+      setChildProfiles(mergedChildren);
     } else {
       setChildProfiles(defaultChildren);
     }
