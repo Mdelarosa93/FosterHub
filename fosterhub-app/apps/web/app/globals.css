@@ -184,6 +184,25 @@ ul {
   background: linear-gradient(180deg, #fff 0%, #fbfdfb 100%);
 }
 
+.clickable-card {
+  display: block;
+  transition: transform 0.14s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.clickable-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(16, 88, 140, 0.24);
+  box-shadow: 0 16px 36px rgba(16, 88, 140, 0.08);
+}
+
+.clickable-card-title {
+  transition: color 0.2s ease;
+}
+
+.clickable-card:hover .clickable-card-title {
+  color: var(--fh-blue);
+}
+
 .record-meta {
   display: flex;
   flex-wrap: wrap;

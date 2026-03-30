@@ -22,6 +22,16 @@ type AssignedCaseRecord = {
 type DisplayCase = CaseRecord & {
   caseNumber: string;
   caseLabel: string;
+  childCount: number;
+  caseWorker: string;
+  supervisor: string;
+};
+
+const caseMetaByLastName: Record<string, { childCount: number; caseWorker: string; supervisor: string }> = {
+  Hall: { childCount: 2, caseWorker: 'Taylor Reed', supervisor: 'Monica Alvarez' },
+  Johnson: { childCount: 1, caseWorker: 'Taylor Reed', supervisor: 'Monica Alvarez' },
+  Carter: { childCount: 2, caseWorker: 'Jordan Kim', supervisor: 'Monica Alvarez' },
+  Lewis: { childCount: 1, caseWorker: 'Jordan Kim', supervisor: 'Monica Alvarez' },
 };
 
 export default function CasesPage() {
@@ -58,7 +68,12 @@ export default function CasesPage() {
     return cases.map((item, index) => {
       const caseNumber = String(123456 + index);
       const caseLabel = `${item.child.lastName} - ${caseNumber}`;
-      return { ...item, caseNumber, caseLabel };
+      const meta = caseMetaByLastName[item.child.lastName] || {
+        childCount: 1,
+        caseWorker: 'Unassigned',
+        supervisor: 'Unassigned',
+      };
+      return { ...item, caseNumber, caseLabel, ...meta };
     });
   }, [cases]);
 
@@ -129,13 +144,7 @@ export default function CasesPage() {
         <section className="card">
           <div className="section-title">
             <div>
-              <div className="eyebrow">Case management</div>
               <h2>{showAllCases ? 'All cases' : 'My cases'}</h2>
-              <p>
-                {showAllCases
-                  ? 'Browse every case currently in the system.'
-                  : 'These are the cases currently assigned to this user.'}
-              </p>
             </div>
             <button
               type="button"
@@ -165,17 +174,19 @@ export default function CasesPage() {
           ) : (
             <div className="record-list">
               {visibleCases.map(item => (
-                <article key={item.id} className="record-item">
-                  <strong>{item.caseLabel}</strong>
-                  <div className="record-meta">
+                <Link key={item.id} href={`/cases/${item.id}`} className="record-item clickable-card">
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                    <div>
+                      <strong className="clickable-card-title">{item.caseLabel}</strong>
+                      <div className="record-meta" style={{ marginTop: 8, display: 'grid', gap: 8 }}>
+                        <span>Children: {item.childCount}</span>
+                        <span>Case Worker: {item.caseWorker}</span>
+                        <span>Supervisor: {item.supervisor}</span>
+                      </div>
+                    </div>
                     <span className="status-pill">{item.status}</span>
-                    <span>Child: {item.child.firstName} {item.child.lastName}</span>
-                    <span>Created: {new Date(item.createdAt).toLocaleString()}</span>
                   </div>
-                  <div className="actions-row">
-                    <Link href={`/cases/${item.id}`} className="button button-secondary">Open case detail</Link>
-                  </div>
-                </article>
+                </Link>
               ))}
             </div>
           )}
