@@ -42,6 +42,12 @@ const caseNumberMap: Record<string, string> = {
 };
 
 const workerOptions = ['Taylor Reed', 'Jordan Kim', 'Monica Alvarez', 'Marcus Green'];
+const workerSupervisorMap: Record<string, string> = {
+  'Taylor Reed': 'Monica Alvarez',
+  'Jordan Kim': 'Monica Alvarez',
+  'Marcus Green': 'Monica Alvarez',
+  'Monica Alvarez': 'Monica Alvarez',
+};
 
 function getLocalDateInputValue() {
   const now = new Date();
@@ -51,6 +57,7 @@ function getLocalDateInputValue() {
 
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
+  const [createdCases, setCreatedCases] = useState<DisplayCase[]>([]);
   const [assignedCaseIds, setAssignedCaseIds] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [showAllCases, setShowAllCases] = useState(false);
@@ -80,6 +87,9 @@ export default function CasesPage() {
     const countsRaw = localStorage.getItem('fosterhub.caseChildCounts');
     setStoredChildCounts(countsRaw ? JSON.parse(countsRaw) : {});
 
+    const createdRaw = localStorage.getItem('fosterhub.createdCases');
+    setCreatedCases(createdRaw ? JSON.parse(createdRaw) : []);
+
     const authToken = localStorage.getItem('fosterhub.dev.token') ?? '';
     if (!authToken) {
       setError('No token found. Please log in first.');
@@ -102,7 +112,7 @@ export default function CasesPage() {
     load();
   }, []);
 
-  const displayCases = useMemo<DisplayCase[]>(() => {
+  const mappedApiCases = useMemo<DisplayCase[]>(() => {
     return cases.map(item => {
       const caseNumber = caseNumberMap[item.child.lastName] || '000000';
       const caseLabel = `${item.child.lastName} - ${caseNumber}`;
@@ -111,10 +121,15 @@ export default function CasesPage() {
         caseWorker: 'Unassigned',
         supervisor: 'Unassigned',
       };
-      const childCount = storedChildCounts[caseLabel] || meta.childCount;
+      const childCount = storedChildCounts[caseLabel] ?? meta.childCount;
       return { ...item, caseNumber, caseLabel, ...meta, childCount };
     });
   }, [cases, storedChildCounts]);
+
+  const displayCases = useMemo(() => [...mappedApiCases, ...createdCases.map(item => ({
+    ...item,
+    childCount: storedChildCounts[item.caseLabel] ?? item.childCount,
+  }))], [mappedApiCases, createdCases, storedChildCounts]);
 
   const searchMatches = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -127,8 +142,8 @@ export default function CasesPage() {
   }, [displayCases, query]);
 
   const myCases = useMemo(() => {
-    return displayCases.filter(item => assignedCaseIds.includes(item.id));
-  }, [displayCases, assignedCaseIds]);
+    return displayCases.filter(item => assignedCaseIds.includes(item.id) || createdCases.some(created => created.id === item.id));
+  }, [displayCases, assignedCaseIds, createdCases]);
 
   const visibleCases = showAllCases ? displayCases : myCases;
 
@@ -146,24 +161,42 @@ export default function CasesPage() {
   }
 
   function handleSaveCase() {
-    const lastName = caseNameDraft.trim() || 'New Case';
+    const caseName = caseNameDraft.trim() || 'New Case';
+    const caseNumber = caseNumberDraft.trim() || '000000';
     const generatedId = `local-${Date.now()}`;
-    const newCase: CaseRecord = {
+    const caseWorker = assignedWorkerDraft || 'Unassigned';
+    const supervisor = workerSupervisorMap[caseWorker] || 'Unassigned';
+    const newCase: DisplayCase = {
       id: generatedId,
-      status: 'OPEN',
+      status: 'INTAKE',
       child: {
         firstName: '',
-        lastName,
+        lastName: caseName,
       },
       createdAt: `${caseOpenDateDraft}T09:00:00.000Z`,
+      caseNumber,
+      caseLabel: `${caseName} - ${caseNumber}`,
+      childCount: 0,
+      caseWorker,
+      supervisor,
     };
 
-    setCases(current => [...current, newCase]);
-    setAssignedCaseIds(current => [...current, generatedId]);
-    setStoredChildCounts(current => ({
-      ...current,
-      [`${lastName} - ${caseNumberDraft || '000000'}`]: 0,
+    const nextCreatedCases = [...createdCases, newCase];
+    setCreatedCases(nextCreatedCases);
+    localStorage.setItem('fosterhub.createdCases', JSON.stringify(nextCreatedCases));
+
+    const nextChildCounts = {
+      ...storedChildCounts,
+      [newCase.caseLabel]: 0,
+    };
+    setStoredChildCounts(nextChildCounts);
+    localStorage.setItem('fosterhub.caseChildCounts', JSON.stringify(nextChildCounts));
+    localStorage.setItem('fosterhub.caseChildren', JSON.stringify({
+      ...(JSON.parse(localStorage.getItem('fosterhub.caseChildren') || '{}')),
+      [newCase.caseLabel]: [],
     }));
+
+    setAssignedCaseIds(current => [...current, generatedId]);
     setAddCaseModalOpen(false);
     resetAddCaseForm();
   }
@@ -206,7 +239,7 @@ export default function CasesPage() {
                 >
                   <span style={{ display: 'grid', textAlign: 'left' }}>
                     <strong>{item.caseLabel}</strong>
-                    <span className="muted">Child: {item.child.firstName} {item.child.lastName}</span>
+                    <span className="muted">Case Worker: {item.caseWorker}</span>
                   </span>
                 </Link>
               ))}

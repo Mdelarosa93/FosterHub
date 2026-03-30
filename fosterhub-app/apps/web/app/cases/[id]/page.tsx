@@ -45,8 +45,35 @@ export default function CaseDetailPage() {
 
   async function load() {
     const token = localStorage.getItem('fosterhub.dev.token');
-    if (!token || !caseId) {
-      setError('No token or case id found. Please log in first.');
+    if (!caseId) {
+      setError('No case id found. Please try again.');
+      return;
+    }
+
+    const createdCasesRaw = localStorage.getItem('fosterhub.createdCases');
+    const createdCases = createdCasesRaw ? JSON.parse(createdCasesRaw) : [];
+    const localCase = createdCases.find((item: any) => item.id === caseId);
+
+    if (localCase) {
+      setData({
+        id: localCase.id,
+        status: localCase.status,
+        openedAt: localCase.createdAt,
+        child: { firstName: '', lastName: localCase.child.lastName },
+        requests: [],
+        assignments: [],
+        caseLabel: localCase.caseLabel,
+        caseNumber: localCase.caseNumber,
+        caseWorker: localCase.caseWorker,
+        supervisor: localCase.supervisor,
+      });
+      setDocuments([]);
+      setError(null);
+      return;
+    }
+
+    if (!token) {
+      setError('No token found. Please log in first.');
       return;
     }
 
@@ -171,9 +198,9 @@ export default function CaseDetailPage() {
     }
   }
 
-  const childName = data ? `${data.child.firstName} ${data.child.lastName}` : 'Case detail';
+  const childName = data ? `${data.child.firstName} ${data.child.lastName}`.trim() : 'Case detail';
   const caseNumberMap: Record<string, string> = { Hall: '123456', Johnson: '234567', Carter: '345678', Lewis: '456789' };
-  const caseLabel = data?.child?.lastName ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}` : 'Case detail';
+  const caseLabel = data?.caseLabel || (data?.child?.lastName ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}` : 'Case detail');
   const childCountMap: Record<string, number> = { Hall: 2, Johnson: 1, Carter: 2, Lewis: 1 };
   const childCount = childProfiles.length || (data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0);
   const openRequestCount = data?.requests?.filter((request: any) => request.status === 'SUBMITTED').length ?? 0;
@@ -342,6 +369,14 @@ export default function CaseDetailPage() {
     closeChildModal();
   }
 
+  function updateCaseStatus(status: string) {
+    setData((current: any) => ({ ...current, status }));
+    const createdCasesRaw = localStorage.getItem('fosterhub.createdCases');
+    const createdCases = createdCasesRaw ? JSON.parse(createdCasesRaw) : [];
+    const nextCreatedCases = createdCases.map((item: any) => (item.id === caseId ? { ...item, status } : item));
+    localStorage.setItem('fosterhub.createdCases', JSON.stringify(nextCreatedCases));
+  }
+
   return (
     <AppShell title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
       <main className="page-stack">
@@ -359,7 +394,11 @@ export default function CaseDetailPage() {
         <section className="grid">
           <article className="card kpi">
             <span className="kpi-label">Case status</span>
-            <span className="kpi-value" style={{ fontSize: 24 }}>{data?.status ?? (loading ? 'Loading...' : 'Unknown')}</span>
+            <select className="select" value={data?.status ?? 'INTAKE'} onChange={e => updateCaseStatus(e.target.value)}>
+              <option value="INTAKE">Intake</option>
+              <option value="OPEN">Open</option>
+              <option value="CLOSED">Closed</option>
+            </select>
           </article>
           <article className="card kpi">
             <span className="kpi-label">Children</span>
