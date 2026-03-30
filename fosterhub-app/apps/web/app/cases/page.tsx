@@ -28,6 +28,7 @@ export default function CasesPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [assignedCaseIds, setAssignedCaseIds] = useState<string[]>([]);
   const [query, setQuery] = useState('');
+  const [showAllCases, setShowAllCases] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,6 +75,8 @@ export default function CasesPage() {
   const myCases = useMemo(() => {
     return displayCases.filter(item => assignedCaseIds.includes(item.id));
   }, [displayCases, assignedCaseIds]);
+
+  const visibleCases = showAllCases ? displayCases : myCases;
 
   return (
     <AppShell
@@ -127,10 +130,20 @@ export default function CasesPage() {
           <div className="section-title">
             <div>
               <div className="eyebrow">Case management</div>
-              <h2>My cases</h2>
-              <p>These are the cases currently assigned to this user.</p>
+              <h2>{showAllCases ? 'All cases' : 'My cases'}</h2>
+              <p>
+                {showAllCases
+                  ? 'Browse every case currently in the system.'
+                  : 'These are the cases currently assigned to this user.'}
+              </p>
             </div>
-            <Link href="/intake" className="button button-ghost">Go to intake</Link>
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={() => setShowAllCases(current => !current)}
+            >
+              {showAllCases ? 'My cases' : 'See all cases'}
+            </button>
           </div>
 
           {error ? (
@@ -140,16 +153,18 @@ export default function CasesPage() {
             </div>
           ) : null}
 
-          {myCases.length === 0 ? (
+          {visibleCases.length === 0 ? (
             <div className="empty-state">
-              <strong>No assigned cases yet.</strong>
+              <strong>{showAllCases ? 'No cases found in the system.' : 'No assigned cases yet.'}</strong>
               <p style={{ marginBottom: 0 }}>
-                Cases assigned to this user will appear here.
+                {showAllCases
+                  ? 'Cases will appear here once they exist in FosterHub.'
+                  : 'Cases assigned to this user will appear here.'}
               </p>
             </div>
           ) : (
             <div className="record-list">
-              {myCases.map(item => (
+              {visibleCases.map(item => (
                 <article key={item.id} className="record-item">
                   <strong>{item.caseLabel}</strong>
                   <div className="record-meta">
