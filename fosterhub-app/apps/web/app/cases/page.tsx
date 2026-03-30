@@ -34,6 +34,13 @@ const caseMetaByLastName: Record<string, { childCount: number; caseWorker: strin
   Lewis: { childCount: 1, caseWorker: 'Jordan Kim', supervisor: 'Monica Alvarez' },
 };
 
+const caseNumberMap: Record<string, string> = {
+  Hall: '123456',
+  Johnson: '234567',
+  Carter: '345678',
+  Lewis: '456789',
+};
+
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [assignedCaseIds, setAssignedCaseIds] = useState<string[]>([]);
@@ -69,8 +76,8 @@ export default function CasesPage() {
   }, []);
 
   const displayCases = useMemo<DisplayCase[]>(() => {
-    return cases.map((item, index) => {
-      const caseNumber = String(123456 + index);
+    return cases.map(item => {
+      const caseNumber = caseNumberMap[item.child.lastName] || '000000';
       const caseLabel = `${item.child.lastName} - ${caseNumber}`;
       const meta = caseMetaByLastName[item.child.lastName] || {
         childCount: 1,
