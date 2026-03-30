@@ -41,6 +41,8 @@ const caseNumberMap: Record<string, string> = {
   Lewis: '456789',
 };
 
+const workerOptions = ['Taylor Reed', 'Jordan Kim', 'Monica Alvarez', 'Marcus Green'];
+
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [assignedCaseIds, setAssignedCaseIds] = useState<string[]>([]);
@@ -48,6 +50,12 @@ export default function CasesPage() {
   const [showAllCases, setShowAllCases] = useState(false);
   const [storedChildCounts, setStoredChildCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
+  const [addCaseModalOpen, setAddCaseModalOpen] = useState(false);
+  const [caseNameDraft, setCaseNameDraft] = useState('');
+  const [caseNumberDraft, setCaseNumberDraft] = useState('');
+  const [assignedWorkerDraft, setAssignedWorkerDraft] = useState('');
+  const [assignedWorkerQuery, setAssignedWorkerQuery] = useState('');
+  const [caseOpenDateDraft, setCaseOpenDateDraft] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     const countsRaw = localStorage.getItem('fosterhub.caseChildCounts');
@@ -105,6 +113,41 @@ export default function CasesPage() {
 
   const visibleCases = showAllCases ? displayCases : myCases;
 
+  const workerSuggestions = useMemo(() => {
+    return (assignedWorkerQuery ? workerOptions.filter(option => option.toLowerCase().includes(assignedWorkerQuery.toLowerCase())) : workerOptions).slice(0, 8);
+  }, [assignedWorkerQuery]);
+
+  function resetAddCaseForm() {
+    setCaseNameDraft('');
+    setCaseNumberDraft('');
+    setAssignedWorkerDraft('');
+    setAssignedWorkerQuery('');
+    setCaseOpenDateDraft(new Date().toISOString().slice(0, 10));
+  }
+
+  function handleSaveCase() {
+    const lastName = caseNameDraft.trim() || 'New Case';
+    const generatedId = `local-${Date.now()}`;
+    const newCase: CaseRecord = {
+      id: generatedId,
+      status: 'OPEN',
+      child: {
+        firstName: '',
+        lastName,
+      },
+      createdAt: `${caseOpenDateDraft}T09:00:00.000Z`,
+    };
+
+    setCases(current => [...current, newCase]);
+    setAssignedCaseIds(current => [...current, generatedId]);
+    setStoredChildCounts(current => ({
+      ...current,
+      [`${lastName} - ${caseNumberDraft || '000000'}`]: 0,
+    }));
+    setAddCaseModalOpen(false);
+    resetAddCaseForm();
+  }
+
   return (
     <AppShell
       title="Cases"
@@ -154,7 +197,7 @@ export default function CasesPage() {
     >
       <main className="page-stack">
         <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <button type="button" className="button button-primary">Add a case</button>
+          <button type="button" className="button button-primary" onClick={() => setAddCaseModalOpen(true)}>Add a case</button>
           <button
             type="button"
             className="button button-ghost"
@@ -207,6 +250,89 @@ export default function CasesPage() {
             </div>
           )}
         </section>
+
+        {addCaseModalOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 24,
+              zIndex: 50,
+            }}
+            onClick={() => {
+              setAddCaseModalOpen(false);
+              resetAddCaseForm();
+            }}
+          >
+            <section
+              className="card"
+              style={{ width: 'min(100%, 720px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">New case</div>
+                  <h2 style={{ marginBottom: 0 }}>Add a case</h2>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="field">
+                  <label htmlFor="case-name">Case Name</label>
+                  <input id="case-name" className="input" value={caseNameDraft} onChange={e => setCaseNameDraft(e.target.value)} />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="case-number">Case Number</label>
+                  <input id="case-number" className="input" value={caseNumberDraft} onChange={e => setCaseNumberDraft(e.target.value)} />
+                </div>
+
+                <div className="field" style={{ position: 'relative' }}>
+                  <label>Assign Worker</label>
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {assignedWorkerDraft ? (
+                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => setAssignedWorkerDraft('')}>
+                        {assignedWorkerDraft} ×
+                      </button>
+                    ) : null}
+                    <input
+                      value={assignedWorkerQuery}
+                      onChange={e => setAssignedWorkerQuery(e.target.value)}
+                      placeholder={assignedWorkerDraft ? 'Search another worker' : 'Search for a worker'}
+                      style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                    />
+                  </div>
+                  <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
+                    <div className="stack" style={{ gap: 8 }}>
+                      {workerSuggestions.map(option => (
+                        <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { setAssignedWorkerDraft(option); setAssignedWorkerQuery(''); }}>
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="case-open-date">Case Open Date</label>
+                  <input id="case-open-date" className="input" type="date" value={caseOpenDateDraft} onChange={e => setCaseOpenDateDraft(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 22 }}>
+                <button type="button" className="button button-ghost" onClick={() => { setAddCaseModalOpen(false); resetAddCaseForm(); }}>
+                  Cancel
+                </button>
+                <button type="button" className="button button-primary" onClick={handleSaveCase}>
+                  Save case
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </main>
     </AppShell>
   );
