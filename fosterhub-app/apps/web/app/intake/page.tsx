@@ -136,6 +136,12 @@ export default function IntakePage() {
   const activeUser = users.find(user => user.id === activeUserId) || null;
 
   useEffect(() => {
+    if (activeUser && activeUser.type !== selectedType) {
+      setActiveUserId(null);
+    }
+  }, [selectedType, activeUser]);
+
+  useEffect(() => {
     if (!activeUser) {
       setDraftUser(null);
       setEditMode(false);
@@ -143,7 +149,7 @@ export default function IntakePage() {
     }
     setDraftUser({ ...activeUser });
     setEditMode(false);
-  }, [activeUserId]);
+  }, [activeUser]);
 
   function handleAddUser() {
     setUsers(current => [
@@ -221,15 +227,15 @@ export default function IntakePage() {
           />
         </section>
 
-        <section className="grid" style={{ alignItems: 'start' }}>
-          <section className="card">
-            <div className="section-title">
-              <div>
-                <div className="eyebrow">People</div>
-                <h2>{leftTitle}</h2>
-              </div>
+        <section className="card">
+          <div className="section-title">
+            <div>
+              <div className="eyebrow">People</div>
+              <h2>{leftTitle}</h2>
             </div>
+          </div>
 
+          {filteredUsers.length ? (
             <div className="record-list">
               {filteredUsers.map(user => (
                 <button
@@ -252,111 +258,165 @@ export default function IntakePage() {
                 </button>
               ))}
             </div>
-          </section>
+          ) : (
+            <div className="empty-state">
+              <strong>No users found.</strong>
+              <p style={{ marginBottom: 0 }}>Try a different search or switch to another user type.</p>
+            </div>
+          )}
+        </section>
 
-          <section className="card card-muted">
-            <div className="section-title">
-              <div>
-                <div className="eyebrow">People</div>
-                <h2>{draftUser ? draftUser.name : 'Select a user'}</h2>
-              </div>
-              {draftUser ? (
-                <div className="actions-row" style={{ marginTop: 0 }}>
+        {draftUser ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 24,
+              zIndex: 50,
+            }}
+            onClick={() => {
+              setActiveUserId(null);
+              setEditMode(false);
+            }}
+          >
+            <section
+              className="card"
+              style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
+              onClick={event => event.stopPropagation()}
+            >
+              <div className="section-title" style={{ alignItems: 'flex-start' }}>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <div>
+                    <div className="eyebrow">People</div>
+                    <h2 style={{ marginBottom: 0 }}>{draftUser.name}</h2>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <span className="status-pill">{draftUser.status}</span>
+                    <span className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', cursor: 'default' }}>{draftUser.type}</span>
+                    {draftUser.roles.map(role => (
+                      <span key={role} className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', cursor: 'default' }}>{role}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="actions-row" style={{ marginTop: 0, justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      setActiveUserId(null);
+                      setEditMode(false);
+                    }}
+                  >
+                    Close
+                  </button>
                   {editMode ? (
                     <button type="button" className="button button-primary" onClick={saveUserChanges}>Save</button>
                   ) : (
                     <button type="button" className="button button-ghost" onClick={() => setEditMode(true)}>Edit</button>
                   )}
                 </div>
-              ) : null}
-            </div>
+              </div>
 
-            {draftUser ? (
-              <div className="form-grid">
-                <div className="field">
-                  <label>Name</label>
-                  <input className="input" value={draftUser.name} onChange={e => setDraftUser({ ...draftUser, name: e.target.value })} disabled={!editMode} />
-                </div>
+              <div className="form-grid" style={{ gap: 20 }}>
+                <section className="card card-muted" style={{ padding: 18 }}>
+                  <div className="form-grid" style={{ gap: 16 }}>
+                    <div className="field">
+                      <label>Name</label>
+                      <input className="input" value={draftUser.name} onChange={e => setDraftUser({ ...draftUser, name: e.target.value })} disabled={!editMode} />
+                    </div>
 
-                <div className="field">
-                  <label>Email</label>
-                  <input className="input" value={draftUser.email} onChange={e => setDraftUser({ ...draftUser, email: e.target.value })} disabled={!editMode} />
-                </div>
+                    <div className="field">
+                      <label>Email</label>
+                      <input className="input" value={draftUser.email} onChange={e => setDraftUser({ ...draftUser, email: e.target.value })} disabled={!editMode} />
+                    </div>
 
-                <div className="field">
-                  <label>Role</label>
-                  {selectedType === 'Staff' ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {staffRoleOptions.map(role => {
-                        const selected = draftUser.roles.includes(role);
+                    <div className="field">
+                      <label>Role</label>
+                      {draftUser.type === 'Staff' ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {staffRoleOptions.map(role => {
+                            const selected = draftUser.roles.includes(role);
+                            return (
+                              <button
+                                key={role}
+                                type="button"
+                                className="button button-ghost"
+                                style={{
+                                  minHeight: 36,
+                                  opacity: selected ? 1 : 0.65,
+                                  borderColor: selected ? 'rgba(16, 88, 140, 0.32)' : undefined,
+                                  background: selected ? 'rgba(16, 88, 140, 0.08)' : undefined,
+                                  color: selected ? '#10588c' : undefined,
+                                }}
+                                onClick={() => editMode && toggleRole(role)}
+                                disabled={!editMode}
+                              >
+                                {role}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : draftUser.type === 'Legal' ? (
+                        <div className="input">Attorney</div>
+                      ) : (
+                        <div className="input">{userTypeRoleMap[draftUser.type as Exclude<UserType, 'Staff' | 'Legal'>]}</div>
+                      )}
+                    </div>
+
+                    {draftUser.type === 'Staff' ? (
+                      <div className="field">
+                        <label>Supervisor</label>
+                        <select
+                          className="select"
+                          value={draftUser.supervisor || ''}
+                          onChange={e => setDraftUser({ ...draftUser, supervisor: e.target.value })}
+                          disabled={!editMode}
+                        >
+                          <option value="">Select supervisor</option>
+                          {supervisorOptions.map(option => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+
+                <section className="card card-muted" style={{ padding: 18 }}>
+                  <div className="field">
+                    <label>Permissions</label>
+                    <div className="record-list">
+                      {permissionOptions.map(permission => {
+                        const enabled = draftUser.permissions.includes(permission);
                         return (
                           <button
-                            key={role}
+                            key={permission}
                             type="button"
                             className="button button-ghost"
-                            style={{ minHeight: 36, opacity: selected ? 1 : 0.65 }}
-                            onClick={() => editMode && toggleRole(role)}
+                            style={{
+                              justifyContent: 'space-between',
+                              opacity: enabled ? 1 : 0.7,
+                              borderColor: enabled ? 'rgba(28, 139, 91, 0.24)' : undefined,
+                              background: enabled ? 'rgba(233, 246, 239, 0.75)' : undefined,
+                            }}
+                            onClick={() => editMode && togglePermission(permission)}
                             disabled={!editMode}
                           >
-                            {role}
+                            <span>{permission}</span>
+                            <span style={{ color: enabled ? 'var(--fh-green)' : 'var(--fh-text-muted)', fontWeight: 700 }}>{enabled ? 'On' : 'Off'}</span>
                           </button>
                         );
                       })}
                     </div>
-                  ) : selectedType === 'Legal' ? (
-                    <div className="input">Attorney</div>
-                  ) : (
-                    <div className="input">{userTypeRoleMap[selectedType as Exclude<UserType, 'Staff' | 'Legal'>]}</div>
-                  )}
-                </div>
-
-                {selectedType === 'Staff' ? (
-                  <div className="field">
-                    <label>Supervisor</label>
-                    <select
-                      className="select"
-                      value={draftUser.supervisor || ''}
-                      onChange={e => setDraftUser({ ...draftUser, supervisor: e.target.value })}
-                      disabled={!editMode}
-                    >
-                      <option value="">Select supervisor</option>
-                      {supervisorOptions.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
                   </div>
-                ) : null}
-
-                <div className="field">
-                  <label>Permissions</label>
-                  <div className="record-list">
-                    {permissionOptions.map(permission => {
-                      const enabled = draftUser.permissions.includes(permission);
-                      return (
-                        <button
-                          key={permission}
-                          type="button"
-                          className="button button-ghost"
-                          style={{ justifyContent: 'space-between', opacity: enabled ? 1 : 0.65 }}
-                          onClick={() => editMode && togglePermission(permission)}
-                          disabled={!editMode}
-                        >
-                          <span>{permission}</span>
-                          <span>{enabled ? 'On' : 'Off'}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                </section>
               </div>
-            ) : (
-              <div className="empty-state">
-                <strong>No user selected.</strong>
-                <p style={{ marginBottom: 0 }}>Choose a user to review or edit details and permissions.</p>
-              </div>
-            )}
-          </section>
-        </section>
+            </section>
+          </div>
+        ) : null}
 
         {addUserModalOpen ? (
           <div
