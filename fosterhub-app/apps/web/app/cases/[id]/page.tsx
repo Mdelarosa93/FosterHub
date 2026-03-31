@@ -58,7 +58,7 @@ export default function CaseDetailPage() {
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null);
-  const [activityDraft, setActivityDraft] = useState({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [] as string[], invitees: [] as string[], addToCalendar: true });
+  const [activityDraft, setActivityDraft] = useState({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [] as string[], invitees: [] as string[], documents: [] as any[], photos: [] as any[], addToCalendar: true });
   const [activityStartDate, setActivityStartDate] = useState(() => getDaysAgoDateValue(30));
   const [activityEndDate, setActivityEndDate] = useState(() => getLocalDateValue());
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
@@ -461,6 +461,12 @@ export default function CaseDetailPage() {
     return true;
   });
 
+  const activityDocuments = activities.flatMap((activity: any) => (activity.documents || []).map((document: any) => ({
+    ...document,
+    activityType: activity.type,
+    activityDate: activity.date,
+  })));
+
   function openAddActivityModal(activity?: any) {
     if (activity) {
       setActiveActivityId(activity.id);
@@ -473,11 +479,13 @@ export default function CaseDetailPage() {
         notes: activity.notes || '',
         assignees: activity.assignees || [],
         invitees: activity.invitees || [],
+        documents: activity.documents || [],
+        photos: activity.photos || [],
         addToCalendar: activity.addToCalendar ?? true,
       });
     } else {
       setActiveActivityId(null);
-      setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], addToCalendar: true });
+      setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], documents: [], photos: [], addToCalendar: true });
     }
     setActivityPanelOpen(false);
     setActivityModalOpen(true);
@@ -555,6 +563,35 @@ export default function CaseDetailPage() {
       reader.onerror = () => reject(new Error('Unable to read selected image.'));
       reader.readAsDataURL(file);
     });
+  }
+
+  async function handleActivityPhotoUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const preparedPhotos = await Promise.all(files.map(async file => ({
+      id: `${Date.now()}-${Math.random()}`,
+      name: file.name,
+      url: await compressImage(file),
+    })));
+
+    setActivityDraft(current => ({ ...current, photos: [...current.photos, ...preparedPhotos] }));
+    event.target.value = '';
+  }
+
+  async function handleActivityDocumentUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const preparedDocuments = await Promise.all(files.map(file => new Promise<any>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ id: `${Date.now()}-${Math.random()}`, name: file.name, url: String(reader.result || ''), contentType: file.type });
+      reader.onerror = () => reject(new Error('Unable to read selected document.'));
+      reader.readAsDataURL(file);
+    })));
+
+    setActivityDraft(current => ({ ...current, documents: [...current.documents, ...preparedDocuments] }));
+    event.target.value = '';
   }
 
   async function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -683,33 +720,58 @@ export default function CaseDetailPage() {
     }
     localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(storedCalendarEvents));
 
-    setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], addToCalendar: true });
+    setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], documents: [], photos: [], addToCalendar: true });
     setActiveActivityId(null);
     setActivityModalOpen(false);
   }
 
   function downloadActivityReport() {
-    const lines = [
-      `Activity Report - ${caseLabel}`,
-      `Date range: ${activityStartDate || 'Beginning'} to ${activityEndDate || 'Today'}`,
-      '',
-      ...filteredActivities.flatMap((activity: any) => [
-        `${activity.date} | ${activity.type}`,
-        `Assigned: ${(activity.assignees || []).join(', ') || 'None'}`,
-        activity.notes || '',
+    const pages: string[][] = [
+      [
+        `Activity Report - ${caseLabel}`,
+        `Date range: ${activityStartDate || 'Beginning'} to ${activityEndDate || 'Today'}`,
         '',
-      ]),
+        ...filteredActivities.flatMap((activity: any) => [
+          `${activity.date} | ${activity.type}`,
+          `Assigned: ${(activity.assignees || []).join(', ') || 'None'}`,
+          `Invitees: ${(activity.invitees || []).join(', ') || 'None'}`,
+          activity.location ? `Location: ${activity.location}` : '',
+          activity.notes || '',
+          '',
+        ]),
+      ],
+      ...filteredActivities
+        .filter((activity: any) => (activity.documents?.length || activity.photos?.length))
+        .map((activity: any) => [
+          `Activity Addendum - ${activity.type}`,
+          `Date: ${activity.date}`,
+          '',
+          ...(activity.documents?.length ? ['Documents:', ...activity.documents.map((doc: any) => `- ${doc.name}`), ''] : []),
+          ...(activity.photos?.length ? ['Photos:', ...activity.photos.map((photo: any) => `- ${photo.name}`)] : []),
+        ]),
     ];
 
     const escapePdfText = (text: string) => text.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-    const contentStream = lines.map((line, index) => `BT /F1 12 Tf 50 ${760 - index * 18} Td (${escapePdfText(line)}) Tj ET`).join('\n');
-    const objects = [
-      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
-      '2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj',
-      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj',
-      `4 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj`,
-      '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
-    ];
+    const pageContents = pages.map(lines => lines.map((line, index) => `BT /F1 12 Tf 50 ${760 - index * 18} Td (${escapePdfText(line)}) Tj ET`).join('\n'));
+
+    const objects: string[] = [];
+    let objectNumber = 1;
+
+    objects.push(`${objectNumber} 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj`);
+    objectNumber += 1;
+
+    const kidsRefs = pageContents.map((_, index) => `${3 + index * 2} 0 R`).join(' ');
+    objects.push(`2 0 obj\n<< /Type /Pages /Count ${pageContents.length} /Kids [${kidsRefs}] >>\nendobj`);
+
+    pageContents.forEach(content => {
+      const pageNumber = objectNumber;
+      const contentNumber = objectNumber + 1;
+      objects.push(`${pageNumber} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${3 + pageContents.length * 2} 0 R >> >> /Contents ${contentNumber} 0 R >>\nendobj`);
+      objects.push(`${contentNumber} 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj`);
+      objectNumber += 2;
+    });
+
+    objects.push(`${objectNumber} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj`);
 
     let pdf = '%PDF-1.4\n';
     const offsets = [0];
@@ -1008,8 +1070,8 @@ export default function CaseDetailPage() {
                 <div className="field">
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <span>Assign to</span>
-                    <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }} onClick={() => setActivityDraft(current => ({ ...current, assignees: activityAssigneeOptions }))}>
-                      Select all
+                    <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }} onClick={() => setActivityDraft(current => ({ ...current, assignees: current.assignees.length === activityAssigneeOptions.length ? [] : activityAssigneeOptions }))}>
+                      {activityDraft.assignees.length === activityAssigneeOptions.length ? 'Deselect all' : 'Select all'}
                     </button>
                   </label>
                   <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1026,8 +1088,8 @@ export default function CaseDetailPage() {
                 <div className="field">
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <span>Invite others</span>
-                    <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }} onClick={() => setActivityDraft(current => ({ ...current, invitees: activityInviteeOptions }))}>
-                      Select all
+                    <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }} onClick={() => setActivityDraft(current => ({ ...current, invitees: current.invitees.length === activityInviteeOptions.length ? [] : activityInviteeOptions }))}>
+                      {activityDraft.invitees.length === activityInviteeOptions.length ? 'Deselect all' : 'Select all'}
                     </button>
                   </label>
                   <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1040,6 +1102,16 @@ export default function CaseDetailPage() {
                       );
                     })}
                   </div>
+                </div>
+                <div className="field">
+                  <label>Attach documents</label>
+                  <input className="input" type="file" multiple onChange={handleActivityDocumentUpload} />
+                  {activityDraft.documents.length ? <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>{activityDraft.documents.map(item => item.name).join(', ')}</p> : null}
+                </div>
+                <div className="field">
+                  <label>Attach photos</label>
+                  <input className="input" type="file" accept="image/*" multiple onChange={handleActivityPhotoUpload} />
+                  {activityDraft.photos.length ? <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>{activityDraft.photos.length} photo(s) attached</p> : null}
                 </div>
                 <div className="field">
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1585,7 +1657,7 @@ export default function CaseDetailPage() {
             </form>
 
             <div style={{ marginTop: 18 }}>
-              {documents.length ? (
+              {documents.length || activityDocuments.length ? (
                 <div className="record-list">
                   {documents.map(doc => (
                     <article key={doc.id} className="record-item">
@@ -1595,6 +1667,21 @@ export default function CaseDetailPage() {
                         {doc.contentType ? <span>{doc.contentType}</span> : null}
                       </div>
                       {doc.notes ? <p style={{ marginTop: 12, marginBottom: 0 }}>{doc.notes}</p> : null}
+                    </article>
+                  ))}
+                  {activityDocuments.map(doc => (
+                    <article key={doc.id} className="record-item">
+                      <strong>{doc.name}</strong>
+                      <div className="record-meta">
+                        <span>{doc.contentType || 'Attached document'}</span>
+                        <span>Activity: {doc.activityType}</span>
+                        {doc.activityDate ? <span>{new Date(doc.activityDate).toLocaleDateString()}</span> : null}
+                      </div>
+                      <div className="actions-row" style={{ marginTop: 10 }}>
+                        <a className="button button-ghost" style={{ textDecoration: 'none' }} href={doc.url} download={doc.name}>
+                          Download
+                        </a>
+                      </div>
                     </article>
                   ))}
                 </div>
