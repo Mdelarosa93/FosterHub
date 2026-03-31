@@ -8,6 +8,17 @@ import { AppShell } from '../../../components/AppShell';
 
 type RequestDecisionState = Record<string, string>;
 
+const activityTypeColors: Record<string, string> = {
+  'Home Visit': '#046307',
+  'Clothes Voucher': '#d96c3c',
+  Court: '#10588c',
+  School: '#ff6fa7',
+  Medical: '#50c4b7',
+  Placement: '#8a5cf6',
+  ISP: '#10588c',
+  'Drug Test': '#d96c3c',
+};
+
 function calculateAgeFromBirthday(birthday: string) {
   if (!birthday) return 0;
   const birthDate = new Date(birthday);
@@ -46,7 +57,8 @@ export default function CaseDetailPage() {
   const [activities, setActivities] = useState<any[]>([]);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
-  const [activityDraft, setActivityDraft] = useState({ title: '', type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [] as string[], invitees: [] as string[], addToCalendar: true });
+  const [activeActivityId, setActiveActivityId] = useState<string | null>(null);
+  const [activityDraft, setActivityDraft] = useState({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [] as string[], invitees: [] as string[], addToCalendar: true });
   const [activityStartDate, setActivityStartDate] = useState(() => getDaysAgoDateValue(30));
   const [activityEndDate, setActivityEndDate] = useState(() => getLocalDateValue());
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
@@ -449,6 +461,28 @@ export default function CaseDetailPage() {
     return true;
   });
 
+  function openAddActivityModal(activity?: any) {
+    if (activity) {
+      setActiveActivityId(activity.id);
+      setActivityDraft({
+        type: activity.type,
+        date: activity.date,
+        startTime: activity.startTime,
+        endTime: activity.endTime,
+        location: activity.location || '',
+        notes: activity.notes || '',
+        assignees: activity.assignees || [],
+        invitees: activity.invitees || [],
+        addToCalendar: activity.addToCalendar ?? true,
+      });
+    } else {
+      setActiveActivityId(null);
+      setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], addToCalendar: true });
+    }
+    setActivityPanelOpen(false);
+    setActivityModalOpen(true);
+  }
+
   function openAddChildModal() {
     setActiveChildId('new');
     setChildDraft({
@@ -618,18 +652,20 @@ export default function CaseDetailPage() {
   }
 
   function handleAddActivity() {
-    if (!activityDraft.title.trim() || !activityDraft.date) return;
+    if (!activityDraft.date) return;
 
     const nextActivity = {
-      id: `${Date.now()}`,
+      id: activeActivityId || `${Date.now()}`,
       ...activityDraft,
     };
 
-    setActivities(current => [nextActivity, ...current]);
+    setActivities(current => activeActivityId ? current.map(activity => (activity.id === activeActivityId ? nextActivity : activity)) : [nextActivity, ...current]);
+
+    const storedCalendarRaw = localStorage.getItem('fosterhub.calendarEvents');
+    let storedCalendarEvents = storedCalendarRaw ? JSON.parse(storedCalendarRaw) : [];
+    storedCalendarEvents = storedCalendarEvents.filter((event: any) => event.id !== `activity-${nextActivity.id}`);
 
     if (activityDraft.addToCalendar) {
-      const storedCalendarRaw = localStorage.getItem('fosterhub.calendarEvents');
-      const storedCalendarEvents = storedCalendarRaw ? JSON.parse(storedCalendarRaw) : [];
       storedCalendarEvents.push({
         id: `activity-${nextActivity.id}`,
         caseLabel,
@@ -642,12 +678,13 @@ export default function CaseDetailPage() {
         notes: nextActivity.notes,
         location: nextActivity.location,
         invitees: nextActivity.invitees,
-        color: '#10588c',
+        color: activityTypeColors[nextActivity.type] || '#10588c',
       });
-      localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(storedCalendarEvents));
     }
+    localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(storedCalendarEvents));
 
-    setActivityDraft({ title: '', type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], addToCalendar: true });
+    setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], addToCalendar: true });
+    setActiveActivityId(null);
     setActivityModalOpen(false);
   }
 
@@ -658,7 +695,7 @@ export default function CaseDetailPage() {
       '',
       ...filteredActivities.flatMap((activity: any) => [
         `${activity.date} | ${activity.type}`,
-        activity.title,
+        `Assigned: ${(activity.assignees || []).join(', ') || 'None'}`,
         activity.notes || '',
         '',
       ]),
@@ -839,7 +876,7 @@ export default function CaseDetailPage() {
                   <div className="eyebrow">Activity log</div>
                 </div>
                 <div className="actions-row" style={{ marginTop: 0 }}>
-                  <button type="button" className="button button-ghost" onClick={() => setActivityModalOpen(true)}>
+                  <button type="button" className="button button-ghost" onClick={() => openAddActivityModal()}>
                     Add Activity
                   </button>
                   <button type="button" className="button button-ghost" onClick={() => setActivityPanelOpen(true)}>
@@ -851,16 +888,15 @@ export default function CaseDetailPage() {
               {activities.length ? (
                 <div className="record-list">
                   {activities.slice(0, 3).map((activity: any) => (
-                    <article key={activity.id} className="record-item">
-                      <strong>{activity.title}</strong>
+                    <button key={activity.id} type="button" className="record-item clickable-card" style={{ textAlign: 'left', width: '100%' }} onClick={() => openAddActivityModal(activity)}>
+                      <strong className="clickable-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: activityTypeColors[activity.type] || '#10588c', display: 'inline-block' }} />{activity.type}</strong>
                       <div className="record-meta">
-                        <span>{activity.type}</span>
                         <span>{new Date(activity.date).toLocaleDateString()}</span>
                         <span>{activity.startTime} - {activity.endTime}</span>
                       </div>
                       {activity.location ? <p style={{ marginTop: 10, marginBottom: 0 }}><strong>Location:</strong> {activity.location}</p> : null}
                       {activity.assignees?.length ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Assigned:</strong> {activity.assignees.join(', ')}</p> : null}
-                    </article>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -929,17 +965,13 @@ export default function CaseDetailPage() {
               <div className="section-title">
                 <div>
                   <div className="eyebrow">Activity log</div>
-                  <h3>Add activity</h3>
+                  <h3>{activeActivityId ? 'Edit activity' : 'Add activity'}</h3>
                 </div>
                 <button type="button" className="button button-ghost" onClick={() => setActivityModalOpen(false)}>
                   Close
                 </button>
               </div>
               <div className="form-grid">
-                <div className="field">
-                  <label>Activity title</label>
-                  <input className="input" value={activityDraft.title} onChange={e => setActivityDraft(current => ({ ...current, title: e.target.value }))} />
-                </div>
                 <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
                   <div className="field">
                     <label>Type</label>
@@ -974,7 +1006,12 @@ export default function CaseDetailPage() {
                   <input className="input" value={activityDraft.location} onChange={e => setActivityDraft(current => ({ ...current, location: e.target.value }))} />
                 </div>
                 <div className="field">
-                  <label>Assign to</label>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <span>Assign to</span>
+                    <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }} onClick={() => setActivityDraft(current => ({ ...current, assignees: activityAssigneeOptions }))}>
+                      Select all
+                    </button>
+                  </label>
                   <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {activityAssigneeOptions.map(option => {
                       const selected = activityDraft.assignees.includes(option);
@@ -987,7 +1024,12 @@ export default function CaseDetailPage() {
                   </div>
                 </div>
                 <div className="field">
-                  <label>Invite others</label>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <span>Invite others</span>
+                    <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }} onClick={() => setActivityDraft(current => ({ ...current, invitees: activityInviteeOptions }))}>
+                      Select all
+                    </button>
+                  </label>
                   <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {activityInviteeOptions.map(option => {
                       const selected = activityDraft.invitees.includes(option);
@@ -1014,7 +1056,7 @@ export default function CaseDetailPage() {
                     Cancel
                   </button>
                   <button type="button" className="button button-primary" onClick={handleAddActivity}>
-                    Save Activity
+                    {activeActivityId ? 'Save Changes' : 'Save Activity'}
                   </button>
                 </div>
               </div>
@@ -1075,10 +1117,9 @@ export default function CaseDetailPage() {
                 {filteredActivities.length ? (
                   <div className="record-list">
                     {filteredActivities.map((activity: any) => (
-                      <article key={activity.id} className="record-item">
-                        <strong>{activity.title}</strong>
+                      <button key={activity.id} type="button" className="record-item clickable-card" style={{ textAlign: 'left', width: '100%' }} onClick={() => openAddActivityModal(activity)}>
+                        <strong className="clickable-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: activityTypeColors[activity.type] || '#10588c', display: 'inline-block' }} />{activity.type}</strong>
                         <div className="record-meta">
-                          <span>{activity.type}</span>
                           <span>{new Date(activity.date).toLocaleDateString()}</span>
                           <span>{activity.startTime} - {activity.endTime}</span>
                         </div>
@@ -1086,7 +1127,7 @@ export default function CaseDetailPage() {
                         {activity.assignees?.length ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Assigned:</strong> {activity.assignees.join(', ')}</p> : null}
                         {activity.invitees?.length ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Invitees:</strong> {activity.invitees.join(', ')}</p> : null}
                         {activity.notes ? <p style={{ marginTop: 8, marginBottom: 0 }}>{activity.notes}</p> : null}
-                      </article>
+                      </button>
                     ))}
                   </div>
                 ) : (
