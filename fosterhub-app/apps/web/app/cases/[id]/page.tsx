@@ -32,6 +32,12 @@ export default function CaseDetailPage() {
   const [docNotes, setDocNotes] = useState('');
   const [decisionNotes, setDecisionNotes] = useState<RequestDecisionState>({});
   const [childProfiles, setChildProfiles] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [activityPanelOpen, setActivityPanelOpen] = useState(false);
+  const [activityDraft, setActivityDraft] = useState({ title: '', type: 'Home Visit', date: '', notes: '' });
+  const [activityStartDate, setActivityStartDate] = useState('');
+  const [activityEndDate, setActivityEndDate] = useState('');
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [childDraft, setChildDraft] = useState<any | null>(null);
   const [childDirty, setChildDirty] = useState(false);
@@ -268,6 +274,13 @@ export default function CaseDetailPage() {
   }, [data?.child?.lastName, caseLabel]);
 
   useEffect(() => {
+    if (!caseLabel) return;
+    const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
+    const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
+    setActivities(storedActivities[caseLabel] || []);
+  }, [caseLabel]);
+
+  useEffect(() => {
     if (!caseLabel || !childProfiles.length) return;
 
     try {
@@ -307,6 +320,14 @@ export default function CaseDetailPage() {
     const target = document.getElementById(`gallery-photo-${activePhoto.id}`);
     target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [photoGalleryOpen, selectedPhotoIndex, childDraft]);
+
+  useEffect(() => {
+    if (!caseLabel) return;
+    const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
+    const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
+    storedActivities[caseLabel] = activities;
+    localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
+  }, [caseLabel, activities]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -403,6 +424,12 @@ export default function CaseDetailPage() {
     setGuardianAdLitemQuery('');
     setActivePicker(null);
   }
+
+  const filteredActivities = activities.filter((activity: any) => {
+    if (activityStartDate && activity.date < activityStartDate) return false;
+    if (activityEndDate && activity.date > activityEndDate) return false;
+    return true;
+  });
 
   function openAddChildModal() {
     setActiveChildId('new');
@@ -572,6 +599,64 @@ export default function CaseDetailPage() {
     closeChildModal();
   }
 
+  function handleAddActivity() {
+    if (!activityDraft.title.trim() || !activityDraft.date) return;
+    setActivities(current => [
+      {
+        id: `${Date.now()}`,
+        ...activityDraft,
+      },
+      ...current,
+    ]);
+    setActivityDraft({ title: '', type: 'Home Visit', date: '', notes: '' });
+    setActivityModalOpen(false);
+  }
+
+  function downloadActivityReport() {
+    const lines = [
+      `Activity Report - ${caseLabel}`,
+      `Date range: ${activityStartDate || 'Beginning'} to ${activityEndDate || 'Today'}`,
+      '',
+      ...filteredActivities.flatMap((activity: any) => [
+        `${activity.date} | ${activity.type}`,
+        activity.title,
+        activity.notes || '',
+        '',
+      ]),
+    ];
+
+    const escapePdfText = (text: string) => text.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+    const contentStream = lines.map((line, index) => `BT /F1 12 Tf 50 ${760 - index * 18} Td (${escapePdfText(line)}) Tj ET`).join('\n');
+    const objects = [
+      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
+      '2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj',
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj',
+      `4 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj`,
+      '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
+    ];
+
+    let pdf = '%PDF-1.4\n';
+    const offsets = [0];
+    objects.forEach(object => {
+      offsets.push(pdf.length);
+      pdf += `${object}\n`;
+    });
+    const xrefStart = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n`;
+    pdf += '0000000000 65535 f \n';
+    offsets.slice(1).forEach(offset => {
+      pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+    });
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+    const blob = new Blob([pdf], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${caseLabel || 'activity-report'}.pdf`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   function updateCaseStatus(status: string) {
     setData((current: any) => ({ ...current, status }));
     setCaseDirty(true);
@@ -604,7 +689,7 @@ export default function CaseDetailPage() {
   }
 
   return (
-    <AppShell forceSidebarCollapsed={!!childDraft} title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
+    <AppShell forceSidebarCollapsed={!!childDraft || activityPanelOpen} title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
       <main className="page-stack">
         <section className="hero" style={{ padding: '28px 32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
@@ -660,15 +745,16 @@ export default function CaseDetailPage() {
         ) : null}
 
         <section className="grid" style={{ alignItems: 'start' }}>
-          <section className="card">
-            <div className="section-title">
-              <div>
-                <div className="eyebrow">Children</div>
+          <div className="stack" style={{ gap: 24 }}>
+            <section className="card">
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">Children</div>
+                </div>
+                <button type="button" className="button button-ghost" onClick={openAddChildModal}>
+                  Add Child
+                </button>
               </div>
-              <button type="button" className="button button-ghost" onClick={openAddChildModal}>
-                Add Child
-              </button>
-            </div>
 
             {childProfiles.length ? (
               <div className="record-list">
@@ -701,7 +787,44 @@ export default function CaseDetailPage() {
                 <p style={{ marginBottom: 0 }}>Children attached to this case will appear here.</p>
               </div>
             )}
-          </section>
+            </section>
+
+            <section className="card card-muted">
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">Activity log</div>
+                </div>
+                <div className="actions-row" style={{ marginTop: 0 }}>
+                  <button type="button" className="button button-ghost" onClick={() => setActivityModalOpen(true)}>
+                    Add Activity
+                  </button>
+                  <button type="button" className="button button-ghost" onClick={() => setActivityPanelOpen(true)}>
+                    View All Activities
+                  </button>
+                </div>
+              </div>
+
+              {activities.length ? (
+                <div className="record-list">
+                  {activities.slice(0, 3).map((activity: any) => (
+                    <article key={activity.id} className="record-item">
+                      <strong>{activity.title}</strong>
+                      <div className="record-meta">
+                        <span>{activity.type}</span>
+                        <span>{new Date(activity.date).toLocaleDateString()}</span>
+                      </div>
+                      {activity.notes ? <p style={{ marginTop: 10, marginBottom: 0 }}>{activity.notes}</p> : null}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <strong>No activities recorded yet.</strong>
+                  <p style={{ marginBottom: 0 }}>Add case activities here to build a running activity log.</p>
+                </div>
+              )}
+            </section>
+          </div>
 
           <section className="card card-muted">
             <div className="section-title">
@@ -741,6 +864,128 @@ export default function CaseDetailPage() {
             )}
           </section>
         </section>
+
+        {activityModalOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.35)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: 24,
+              zIndex: 55,
+            }}
+            onClick={() => setActivityModalOpen(false)}
+          >
+            <section className="card" style={{ width: 'min(100%, 620px)', padding: 24 }} onClick={event => event.stopPropagation()}>
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">Activity log</div>
+                  <h3>Add activity</h3>
+                </div>
+                <button type="button" className="button button-ghost" onClick={() => setActivityModalOpen(false)}>
+                  Close
+                </button>
+              </div>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Activity title</label>
+                  <input className="input" value={activityDraft.title} onChange={e => setActivityDraft(current => ({ ...current, title: e.target.value }))} />
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                  <div className="field">
+                    <label>Type</label>
+                    <select className="select" value={activityDraft.type} onChange={e => setActivityDraft(current => ({ ...current, type: e.target.value }))}>
+                      <option>Home Visit</option>
+                      <option>Clothes Voucher</option>
+                      <option>Court</option>
+                      <option>School</option>
+                      <option>Medical</option>
+                      <option>Placement</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Date</label>
+                    <input className="input" type="date" value={activityDraft.date} onChange={e => setActivityDraft(current => ({ ...current, date: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Notes</label>
+                  <textarea className="textarea" rows={4} value={activityDraft.notes} onChange={e => setActivityDraft(current => ({ ...current, notes: e.target.value }))} />
+                </div>
+                <div className="actions-row" style={{ justifyContent: 'flex-end' }}>
+                  <button type="button" className="button button-ghost" onClick={() => setActivityModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="button button-primary" onClick={handleAddActivity}>
+                    Save Activity
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {activityPanelOpen ? (
+          <>
+            <div
+              style={{ position: 'fixed', top: 89, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.2)', zIndex: 40 }}
+              onClick={() => setActivityPanelOpen(false)}
+            />
+            <section className="card" style={{ position: 'fixed', top: 89, right: 0, bottom: 0, width: 'min(100%, 44vw, 640px)', minWidth: 460, borderRadius: '24px 0 0 0', overflow: 'hidden', padding: 0, zIndex: 50, boxShadow: '-18px 0 40px rgba(15, 23, 42, 0.16)', display: 'grid', gridTemplateRows: 'auto 1fr' }}>
+              <div style={{ padding: '20px 24px 18px', borderBottom: '1px solid #eef3ef', background: 'white' }}>
+                <div className="section-title" style={{ marginBottom: 0 }}>
+                  <div>
+                    <div className="eyebrow">Activity log</div>
+                    <h2 style={{ marginBottom: 0 }}>All activities</h2>
+                  </div>
+                  <div className="actions-row" style={{ marginTop: 0 }}>
+                    <button type="button" className="button button-primary" onClick={downloadActivityReport}>
+                      Activity Report
+                    </button>
+                    <button type="button" className="button button-ghost" onClick={() => setActivityPanelOpen(false)}>
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div style={{ overflowY: 'auto', padding: 24, background: '#f7faf8' }}>
+                <div className="card card-muted" style={{ padding: 18, marginBottom: 18 }}>
+                  <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                    <div className="field">
+                      <label>Start date</label>
+                      <input className="input" type="date" value={activityStartDate} onChange={e => setActivityStartDate(e.target.value)} />
+                    </div>
+                    <div className="field">
+                      <label>End date</label>
+                      <input className="input" type="date" value={activityEndDate} onChange={e => setActivityEndDate(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+                {filteredActivities.length ? (
+                  <div className="record-list">
+                    {filteredActivities.map((activity: any) => (
+                      <article key={activity.id} className="record-item">
+                        <strong>{activity.title}</strong>
+                        <div className="record-meta">
+                          <span>{activity.type}</span>
+                          <span>{new Date(activity.date).toLocaleDateString()}</span>
+                        </div>
+                        {activity.notes ? <p style={{ marginTop: 10, marginBottom: 0 }}>{activity.notes}</p> : null}
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <strong>No activities found.</strong>
+                    <p style={{ marginBottom: 0 }}>Adjust the date range or add a new activity.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        ) : null}
 
         {childDraft ? (
           <>
