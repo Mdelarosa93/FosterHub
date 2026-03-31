@@ -41,6 +41,7 @@ export default function CaseDetailPage() {
   const [guardianAdLitemQuery, setGuardianAdLitemQuery] = useState('');
   const [activePicker, setActivePicker] = useState<'caseWorker' | 'fosterParent' | 'guardianAdLitem' | null>(null);
   const [photoGalleryOpen, setPhotoGalleryOpen] = useState(false);
+  const [profilePhotoHovered, setProfilePhotoHovered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -663,12 +664,22 @@ export default function CaseDetailPage() {
                 <div className="section-title" style={{ marginBottom: 0, alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     {childDraft.photos?.find((photo: any) => photo.id === childDraft.profilePhotoId)?.url ? (
-                      <button type="button" onClick={() => setPhotoGalleryOpen(true)} style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }} aria-label="Choose profile picture">
+                      <button type="button" onClick={() => setPhotoGalleryOpen(true)} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative', width: 56, height: 56 }} aria-label="Choose profile picture">
                         <img src={childDraft.photos.find((photo: any) => photo.id === childDraft.profilePhotoId).url} alt={childDraft.name || 'Child profile'} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid #d7e6dd' }} />
+                        <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.45 18.5 6.65L17.35 5.5C16.55 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
                       </button>
                     ) : (
-                      <button type="button" onClick={() => childDraft.photos?.length ? setPhotoGalleryOpen(true) : document.getElementById('child-photo-upload')?.click()} style={{ width: 56, height: 56, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18, border: 'none', cursor: 'pointer' }} aria-label="Choose profile picture">
+                      <button type="button" onClick={() => childDraft.photos?.length ? setPhotoGalleryOpen(true) : document.getElementById('child-photo-upload')?.click()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ width: 56, height: 56, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18, border: 'none', cursor: 'pointer', position: 'relative' }} aria-label="Choose profile picture">
                         {(childDraft.name || 'N').split(' ').map((part: string) => part[0]).slice(0, 2).join('').toUpperCase()}
+                        <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.45 18.5 6.65L17.35 5.5C16.55 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
                       </button>
                     )}
                     <div>
