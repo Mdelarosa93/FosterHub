@@ -20,6 +20,17 @@ function calculateAgeFromBirthday(birthday: string) {
   return age;
 }
 
+function getLocalDateValue(date = new Date()) {
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10);
+}
+
+function getDaysAgoDateValue(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return getLocalDateValue(date);
+}
+
 export default function CaseDetailPage() {
   const params = useParams<{ id: string }>();
   const caseId = Array.isArray(params?.id) ? params.id[0] : params?.id;
@@ -36,8 +47,8 @@ export default function CaseDetailPage() {
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [activityDraft, setActivityDraft] = useState({ title: '', type: 'Home Visit', date: '', notes: '' });
-  const [activityStartDate, setActivityStartDate] = useState('');
-  const [activityEndDate, setActivityEndDate] = useState('');
+  const [activityStartDate, setActivityStartDate] = useState(() => getDaysAgoDateValue(30));
+  const [activityEndDate, setActivityEndDate] = useState(() => getLocalDateValue());
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [childDraft, setChildDraft] = useState<any | null>(null);
   const [childDirty, setChildDirty] = useState(false);
@@ -657,6 +668,11 @@ export default function CaseDetailPage() {
     URL.revokeObjectURL(link.href);
   }
 
+  function applyActivityRange(days: number) {
+    setActivityStartDate(getDaysAgoDateValue(days));
+    setActivityEndDate(getLocalDateValue());
+  }
+
   function updateCaseStatus(status: string) {
     setData((current: any) => ({ ...current, status }));
     setCaseDirty(true);
@@ -961,6 +977,20 @@ export default function CaseDetailPage() {
                       <label>End date</label>
                       <input className="input" type="date" value={activityEndDate} onChange={e => setActivityEndDate(e.target.value)} />
                     </div>
+                  </div>
+                  <div className="actions-row" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+                    <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => applyActivityRange(30)}>
+                      30 Days
+                    </button>
+                    <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => applyActivityRange(90)}>
+                      90 Days
+                    </button>
+                    <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => applyActivityRange(182)}>
+                      6 Months
+                    </button>
+                    <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => applyActivityRange(365)}>
+                      12 Months
+                    </button>
                   </div>
                 </div>
                 {filteredActivities.length ? (
