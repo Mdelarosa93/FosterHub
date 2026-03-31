@@ -316,13 +316,13 @@ export default function CaseDetailPage() {
   }, [caseLabel, childProfiles]);
 
   useEffect(() => {
-    if (!activeChildId) return;
+    if (!activeChildId && !activityModalOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [activeChildId]);
+  }, [activeChildId, activityModalOpen]);
 
   useEffect(() => {
     if (!photoGalleryOpen || !childDraft?.photos?.length) return;
@@ -921,10 +921,11 @@ export default function CaseDetailPage() {
               placeItems: 'center',
               padding: 24,
               zIndex: 55,
+              overflowY: 'auto',
             }}
             onClick={() => setActivityModalOpen(false)}
           >
-            <section className="card" style={{ width: 'min(100%, 620px)', padding: 24 }} onClick={event => event.stopPropagation()}>
+            <section className="card" style={{ width: 'min(100%, 620px)', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', padding: 24 }} onClick={event => event.stopPropagation()}>
               <div className="section-title">
                 <div>
                   <div className="eyebrow">Activity log</div>
