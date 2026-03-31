@@ -5,10 +5,54 @@ import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', shortLabel: 'DB', description: 'Overview and workload' },
-  { href: '/calendar', label: 'Calendar', shortLabel: 'CL', description: 'Appointments and planning' },
-  { href: '/intake', label: 'Users', shortLabel: 'US', description: 'People and permissions' },
-  { href: '/cases', label: 'Cases', shortLabel: 'CA', description: 'Active case management' },
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    shortLabel: 'DB',
+    description: 'Overview and workload',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4.5 12.5L12 5l7.5 7.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M6.75 10.75V19.25H17.25V10.75" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/calendar',
+    label: 'Calendar',
+    shortLabel: 'CL',
+    description: 'Appointments and planning',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="4" y="5.5" width="16" height="14.5" rx="3" stroke="currentColor" strokeWidth="1.9" />
+        <path d="M8 3.75V7.25M16 3.75V7.25M4 9.25H20" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/intake',
+    label: 'Users',
+    shortLabel: 'US',
+    description: 'People and permissions',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 12.25A3.25 3.25 0 1 0 12 5.75A3.25 3.25 0 1 0 12 12.25Z" stroke="currentColor" strokeWidth="1.9" />
+        <path d="M5.5 18.75C6.4 16.7 8.45 15.25 12 15.25C15.55 15.25 17.6 16.7 18.5 18.75" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/cases',
+    label: 'Cases',
+    shortLabel: 'CA',
+    description: 'Active case management',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7 5.25H17C18.1 5.25 19 6.15 19 7.25V18.25L15.5 16.25L12 18.25L8.5 16.25L5 18.25V7.25C5 6.15 5.9 5.25 7 5.25Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+        <path d="M8.5 9H15.5M8.5 12H13.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
 type StoredUser = {
@@ -147,8 +191,14 @@ export function AppShell({ title, headerActions, children }: { title: ReactNode;
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    aria-label={item.label}
+                    title={sidebarCollapsed ? item.label : undefined}
                     style={{
-                      display: 'block',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                      gap: sidebarCollapsed ? 0 : 12,
+                      minHeight: 64,
                       padding: sidebarCollapsed ? '14px 10px' : '14px 14px',
                       borderRadius: 16,
                       background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
@@ -157,11 +207,26 @@ export function AppShell({ title, headerActions, children }: { title: ReactNode;
                       textAlign: sidebarCollapsed ? 'center' : 'left',
                     }}
                   >
-                    <div style={{ fontWeight: active ? 800 : 700 }}>
-                      {sidebarCollapsed ? item.shortLabel : item.label}
-                    </div>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: active ? '#ffffff' : 'rgba(255,255,255,0.92)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {item.icon}
+                    </span>
                     {!sidebarCollapsed ? (
-                      <div style={{ fontSize: 13, opacity: 0.78, marginTop: 4 }}>{item.description}</div>
+                      <span style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: active ? 800 : 700 }}>
+                          {item.label}
+                        </div>
+                        <div style={{ fontSize: 13, opacity: 0.78, marginTop: 4 }}>{item.description}</div>
+                      </span>
                     ) : null}
                   </Link>
                 </li>
