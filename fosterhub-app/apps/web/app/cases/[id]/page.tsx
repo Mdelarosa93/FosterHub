@@ -44,6 +44,7 @@ export default function CaseDetailPage() {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [photoMenuOpen, setPhotoMenuOpen] = useState<string | null>(null);
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  const [photoMenuHover, setPhotoMenuHover] = useState<string | null>(null);
   const [profilePhotoHovered, setProfilePhotoHovered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -1008,7 +1009,7 @@ export default function CaseDetailPage() {
                   <section className="card card-muted" style={{ padding: 18 }}>
                     <div className="section-title" style={{ marginBottom: 12 }}>
                       <div>
-                        <div className="eyebrow">Photos</div>
+                        <div className="eyebrow">Photos - {childDraft.photos?.length || 0}</div>
                       </div>
                     </div>
                     {childDraft.photos?.length ? (
@@ -1058,7 +1059,7 @@ export default function CaseDetailPage() {
                 <section className="card" style={{ width: 'min(100%, 980px)', maxHeight: '88vh', overflow: 'auto', padding: 20 }} onClick={event => event.stopPropagation()}>
                   <div className="section-title" style={{ marginBottom: 14 }}>
                     <div>
-                      <div className="eyebrow">Photos</div>
+                      <div className="eyebrow">Photos - {childDraft.photos?.length || 0}</div>
                     </div>
                     <div className="actions-row" style={{ marginTop: 0 }}>
                       <input id="child-photo-upload" type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display: 'none' }} />
@@ -1117,21 +1118,21 @@ export default function CaseDetailPage() {
                         ☰
                       </button>
                       {photoMenuOpen === 'viewer' ? (
-                        <div className="card" style={{ position: 'absolute', top: 42, right: 48, padding: 10, minWidth: 220, zIndex: 2 }}>
-                          <div className="stack" style={{ gap: 8 }}>
+                        <div className="card" style={{ position: 'absolute', top: 42, right: 48, padding: '10px 14px', minWidth: 220, zIndex: 2 }}>
+                          <div className="stack" style={{ gap: 6 }}>
                             {childDraft.photos[selectedPhotoIndex].id === childDraft.profilePhotoId ? (
-                              <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => setProfilePhoto('')}>
+                              <button type="button" onMouseEnter={() => setPhotoMenuHover('remove-profile')} onMouseLeave={() => setPhotoMenuHover(null)} style={{ border: 'none', background: 'transparent', padding: '4px 0', textAlign: 'left', fontSize: 14, fontWeight: 600, color: photoMenuHover === 'remove-profile' ? '#135c31' : '#254034', cursor: 'pointer' }} onClick={() => setProfilePhoto('')}>
                                 Remove profile picture
                               </button>
                             ) : (
-                              <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => setProfilePhoto(childDraft.photos[selectedPhotoIndex].id)}>
+                              <button type="button" onMouseEnter={() => setPhotoMenuHover('set-profile')} onMouseLeave={() => setPhotoMenuHover(null)} style={{ border: 'none', background: 'transparent', padding: '4px 0', textAlign: 'left', fontSize: 14, fontWeight: 600, color: photoMenuHover === 'set-profile' ? '#135c31' : '#254034', cursor: 'pointer' }} onClick={() => setProfilePhoto(childDraft.photos[selectedPhotoIndex].id)}>
                                 Set as profile picture
                               </button>
                             )}
-                            <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => removePhoto(childDraft.photos[selectedPhotoIndex].id)}>
+                            <button type="button" onMouseEnter={() => setPhotoMenuHover('delete')} onMouseLeave={() => setPhotoMenuHover(null)} style={{ border: 'none', background: 'transparent', padding: '4px 0', textAlign: 'left', fontSize: 14, fontWeight: 600, color: photoMenuHover === 'delete' ? '#135c31' : '#254034', cursor: 'pointer' }} onClick={() => removePhoto(childDraft.photos[selectedPhotoIndex].id)}>
                               Delete photo
                             </button>
-                            <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => downloadPhoto(childDraft.photos[selectedPhotoIndex])}>
+                            <button type="button" onMouseEnter={() => setPhotoMenuHover('download')} onMouseLeave={() => setPhotoMenuHover(null)} style={{ border: 'none', background: 'transparent', padding: '4px 0', textAlign: 'left', fontSize: 14, fontWeight: 600, color: photoMenuHover === 'download' ? '#135c31' : '#254034', cursor: 'pointer' }} onClick={() => downloadPhoto(childDraft.photos[selectedPhotoIndex])}>
                               Download photo
                             </button>
                           </div>
