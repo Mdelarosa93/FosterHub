@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { API_BASE, authedGet } from '../../../lib/api';
@@ -208,11 +208,11 @@ export default function CaseDetailPage() {
 
   const childProfileMap: Record<string, any[]> = {
     Hall: [
-      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: 'Sarah Hall' },
-      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '' },
+      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: 'Sarah Hall', schoolOrDaycare: 'Little Steps Academy', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-05', notes: '', photos: [] },
+      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', schoolOrDaycare: 'Maple Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '', notes: '', photos: [] },
     ],
     Johnson: [
-      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '' },
+      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', schoolOrDaycare: 'Northview Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-11', notes: '', photos: [] },
     ],
   };
 
@@ -243,6 +243,12 @@ export default function CaseDetailPage() {
           caseWorker: '',
           guardianAdLitem: '',
           fosterParent: '',
+          schoolOrDaycare: '',
+          medications: '',
+          medicalProviders: '',
+          lastMonthlyHomeVisit: '',
+          notes: '',
+          photos: [],
         };
       });
       setChildProfiles(mergedChildren);
@@ -368,6 +374,12 @@ export default function CaseDetailPage() {
       caseWorker: '',
       guardianAdLitem: '',
       fosterParent: '',
+      schoolOrDaycare: '',
+      medications: '',
+      medicalProviders: '',
+      lastMonthlyHomeVisit: '',
+      notes: '',
+      photos: [],
     });
     setChildDirty(true);
     setCaseWorkerQuery('');
@@ -388,6 +400,33 @@ export default function CaseDetailPage() {
 
   function updateChildDraft(field: string, value: string) {
     setChildDraft((current: any) => ({ ...current, [field]: value }));
+    setChildDirty(true);
+  }
+
+  function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setChildDraft((current: any) => ({
+          ...current,
+          photos: [...(current?.photos || []), { id: `${Date.now()}-${Math.random()}`, name: file.name, url: String(reader.result || '') }],
+        }));
+        setChildDirty(true);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    event.target.value = '';
+  }
+
+  function removePhoto(photoId: string) {
+    setChildDraft((current: any) => ({
+      ...current,
+      photos: (current?.photos || []).filter((photo: any) => photo.id !== photoId),
+    }));
     setChildDirty(true);
   }
 
@@ -433,7 +472,7 @@ export default function CaseDetailPage() {
   }
 
   return (
-    <AppShell title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
+    <AppShell forceSidebarCollapsed={!!childDraft} title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
       <main className="page-stack">
         <section className="hero" style={{ padding: '28px 32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
@@ -563,145 +602,233 @@ export default function CaseDetailPage() {
         </section>
 
         {childDraft ? (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(15, 23, 42, 0.35)',
-              display: 'grid',
-              placeItems: 'center',
-              padding: 24,
-              zIndex: 50,
-            }}
-            onClick={closeChildModal}
-          >
+          <>
+            <div
+              style={{
+                position: 'fixed',
+                top: 89,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(15, 23, 42, 0.2)',
+                zIndex: 40,
+              }}
+              onClick={closeChildModal}
+            />
             <section
               className="card"
-              style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
+              style={{
+                position: 'fixed',
+                top: 89,
+                right: 0,
+                bottom: 0,
+                width: 'min(100%, 860px)',
+                borderRadius: '24px 0 0 0',
+                overflow: 'hidden',
+                padding: 0,
+                zIndex: 50,
+                boxShadow: '-18px 0 40px rgba(15, 23, 42, 0.16)',
+                display: 'grid',
+                gridTemplateRows: 'auto 1fr',
+              }}
               onClick={event => event.stopPropagation()}
             >
-              <div className="section-title">
-                <div>
-                  <div className="eyebrow">{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
-                </div>
-                <div className="actions-row" style={{ marginTop: 0 }}>
-                  {childDirty || activeChildId === 'new' ? (
-                    <button type="button" className="button button-primary" onClick={saveChildChanges}>
-                      Save
+              <div style={{ padding: '24px 24px 18px', borderBottom: '1px solid #eef3ef', background: 'white' }}>
+                <div className="section-title" style={{ marginBottom: 0 }}>
+                  <div>
+                    <div className="eyebrow">{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
+                    <h2 style={{ marginBottom: 0 }}>{childDraft.name || 'New child'}</h2>
+                  </div>
+                  <div className="actions-row" style={{ marginTop: 0 }}>
+                    {childDirty || activeChildId === 'new' ? (
+                      <button type="button" className="button button-primary" onClick={saveChildChanges}>
+                        Save
+                      </button>
+                    ) : null}
+                    <button type="button" className="button button-ghost" onClick={closeChildModal}>
+                      Close
                     </button>
-                  ) : null}
-                  <button type="button" className="button button-ghost" onClick={closeChildModal}>
-                    Close
-                  </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="form-grid">
-                <div className="field">
-                  <label>Name</label>
-                  <input className="input" value={childDraft.name} onChange={e => updateChildDraft('name', e.target.value)} />
-                </div>
-                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-                  <div className="field">
-                    <label>Birthday</label>
-                    <input className="input" type="date" value={childDraft.birthday} onChange={e => updateChildDraft('birthday', e.target.value)} />
-                  </div>
-                  <div className="field">
-                    <label>Status</label>
-                    <select className="select" value={childDraft.status} onChange={e => updateChildDraft('status', e.target.value)}>
-                      <option>Pending Placement</option>
-                      <option>Placed</option>
-                      <option>In Transition</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="field" style={{ position: 'relative' }} data-picker-field="true">
-                  <label>Case Worker</label>
-                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('caseWorker')}>
-                    {childDraft.caseWorker ? (
-                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('caseWorker', '')}>
-                        {childDraft.caseWorker} ×
-                      </button>
-                    ) : null}
-                    <input
-                      value={caseWorkerQuery}
-                      onFocus={() => setActivePicker('caseWorker')}
-                      onChange={e => setCaseWorkerQuery(e.target.value)}
-                      placeholder={childDraft.caseWorker ? 'Search another case worker' : 'Search case worker'}
-                      style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
-                    />
-                  </div>
-                  {activePicker === 'caseWorker' ? (
-                    <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
-                      <div className="stack" style={{ gap: 8 }}>
-                        {caseWorkerSuggestions.map((option: string) => (
-                          <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('caseWorker', option); setCaseWorkerQuery(''); setActivePicker(null); }}>
-                            {option}
-                          </button>
+              <div style={{ overflowY: 'auto', padding: 24, background: '#f7faf8' }}>
+                <div className="form-grid" style={{ gap: 18 }}>
+                  <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="form-grid">
+                      <div className="field">
+                        <label>Name</label>
+                        <input className="input" value={childDraft.name} onChange={e => updateChildDraft('name', e.target.value)} />
+                      </div>
+                      <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                        <div className="field">
+                          <label>Birthday</label>
+                          <input className="input" type="date" value={childDraft.birthday} onChange={e => updateChildDraft('birthday', e.target.value)} />
+                        </div>
+                        <div className="field">
+                          <label>Status</label>
+                          <select className="select" value={childDraft.status} onChange={e => updateChildDraft('status', e.target.value)}>
+                            <option>Pending Placement</option>
+                            <option>Placed</option>
+                            <option>In Transition</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="form-grid">
+                      <div className="field" style={{ position: 'relative' }} data-picker-field="true">
+                        <label>Case Worker</label>
+                        <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('caseWorker')}>
+                          {childDraft.caseWorker ? (
+                            <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('caseWorker', '')}>
+                              {childDraft.caseWorker} ×
+                            </button>
+                          ) : null}
+                          <input
+                            value={caseWorkerQuery}
+                            onFocus={() => setActivePicker('caseWorker')}
+                            onChange={e => setCaseWorkerQuery(e.target.value)}
+                            placeholder={childDraft.caseWorker ? 'Search another case worker' : 'Search case worker'}
+                            style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                          />
+                        </div>
+                        {activePicker === 'caseWorker' ? (
+                          <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
+                            <div className="stack" style={{ gap: 8 }}>
+                              {caseWorkerSuggestions.length ? caseWorkerSuggestions.map((option: string) => (
+                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('caseWorker', option); setCaseWorkerQuery(''); setActivePicker(null); }}>
+                                  {option}
+                                </button>
+                              )) : <span className="muted">No case workers found.</span>}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="field" style={{ position: 'relative' }} data-picker-field="true">
+                        <label>Foster Parents</label>
+                        <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('fosterParent')}>
+                          {childDraft.fosterParent ? (
+                            <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('fosterParent', '')}>
+                              {childDraft.fosterParent} ×
+                            </button>
+                          ) : null}
+                          <input
+                            value={fosterParentQuery}
+                            onFocus={() => setActivePicker('fosterParent')}
+                            onChange={e => setFosterParentQuery(e.target.value)}
+                            placeholder={childDraft.fosterParent ? 'Search another foster parent' : 'Search foster parents'}
+                            style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                          />
+                        </div>
+                        {activePicker === 'fosterParent' ? (
+                          <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
+                            <div className="stack" style={{ gap: 8 }}>
+                              {fosterParentSuggestions.length ? fosterParentSuggestions.map((option: string) => (
+                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('fosterParent', option); setFosterParentQuery(''); setActivePicker(null); }}>
+                                  {option}
+                                </button>
+                              )) : <span className="muted">No foster parents found.</span>}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="field" style={{ position: 'relative' }} data-picker-field="true">
+                        <label>Guardian Ad Litem</label>
+                        <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('guardianAdLitem')}>
+                          {childDraft.guardianAdLitem ? (
+                            <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('guardianAdLitem', '')}>
+                              {childDraft.guardianAdLitem} ×
+                            </button>
+                          ) : null}
+                          <input
+                            value={guardianAdLitemQuery}
+                            onFocus={() => setActivePicker('guardianAdLitem')}
+                            onChange={e => setGuardianAdLitemQuery(e.target.value)}
+                            placeholder={childDraft.guardianAdLitem ? 'Search another attorney' : 'Search guardian ad litem'}
+                            style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                          />
+                        </div>
+                        {activePicker === 'guardianAdLitem' ? (
+                          <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
+                            <div className="stack" style={{ gap: 8 }}>
+                              {guardianAdLitemSuggestions.length ? guardianAdLitemSuggestions.map((option: string) => (
+                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('guardianAdLitem', option); setGuardianAdLitemQuery(''); setActivePicker(null); }}>
+                                  {option}
+                                </button>
+                              )) : <span className="muted">No attorneys found.</span>}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                      <div className="field">
+                        <label>School / Daycare</label>
+                        <input className="input" value={childDraft.schoolOrDaycare || ''} onChange={e => updateChildDraft('schoolOrDaycare', e.target.value)} />
+                      </div>
+                      <div className="field">
+                        <label>Last Monthly Home Visit</label>
+                        <input className="input" type="date" value={childDraft.lastMonthlyHomeVisit || ''} onChange={e => updateChildDraft('lastMonthlyHomeVisit', e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label>Medications</label>
+                      <textarea className="textarea" rows={3} value={childDraft.medications || ''} onChange={e => updateChildDraft('medications', e.target.value)} />
+                    </div>
+                    <div className="field">
+                      <label>Medical Providers</label>
+                      <textarea className="textarea" rows={4} value={childDraft.medicalProviders || ''} onChange={e => updateChildDraft('medicalProviders', e.target.value)} placeholder="Doctors, dentists, therapists, specialists..." />
+                    </div>
+                    <div className="field">
+                      <label>Notes</label>
+                      <textarea className="textarea" rows={5} value={childDraft.notes || ''} onChange={e => updateChildDraft('notes', e.target.value)} />
+                    </div>
+                  </section>
+
+                  <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="section-title" style={{ marginBottom: 12 }}>
+                      <div>
+                        <div className="eyebrow">Photos</div>
+                        <h3 style={{ marginBottom: 0 }}>Photo timeline</h3>
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label>Add pictures</label>
+                      <input className="input" type="file" accept="image/*" multiple onChange={handlePhotoUpload} />
+                    </div>
+                    {childDraft.photos?.length ? (
+                      <div className="record-list" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+                        {childDraft.photos.map((photo: any) => (
+                          <article key={photo.id} className="record-item" style={{ padding: 12 }}>
+                            <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 14, display: 'block', marginBottom: 10 }} />
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                              <span style={{ fontSize: 13, color: '#4f6b5b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.name}</span>
+                              <button type="button" className="button button-ghost" style={{ minHeight: 32, padding: '6px 10px' }} onClick={() => removePhoto(photo.id)}>
+                                Remove
+                              </button>
+                            </div>
+                          </article>
                         ))}
                       </div>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="field" style={{ position: 'relative' }} data-picker-field="true">
-                  <label>Foster Parents</label>
-                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('fosterParent')}>
-                    {childDraft.fosterParent ? (
-                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('fosterParent', '')}>
-                        {childDraft.fosterParent} ×
-                      </button>
-                    ) : null}
-                    <input
-                      value={fosterParentQuery}
-                      onFocus={() => setActivePicker('fosterParent')}
-                      onChange={e => setFosterParentQuery(e.target.value)}
-                      placeholder={childDraft.fosterParent ? 'Search another foster parent' : 'Search foster parents'}
-                      style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
-                    />
-                  </div>
-                  {activePicker === 'fosterParent' ? (
-                    <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
-                      <div className="stack" style={{ gap: 8 }}>
-                        {fosterParentSuggestions.length ? fosterParentSuggestions.map((option: string) => (
-                          <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('fosterParent', option); setFosterParentQuery(''); setActivePicker(null); }}>
-                            {option}
-                          </button>
-                        )) : <span className="muted">No foster parents found.</span>}
+                    ) : (
+                      <div className="empty-state" style={{ marginTop: 0 }}>
+                        <strong>No pictures yet.</strong>
+                        <p style={{ marginBottom: 0 }}>Case workers and foster parents can add photos here to preserve a visual history for the child.</p>
                       </div>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="field" style={{ position: 'relative' }} data-picker-field="true">
-                  <label>Guardian Ad Litem</label>
-                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('guardianAdLitem')}>
-                    {childDraft.guardianAdLitem ? (
-                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('guardianAdLitem', '')}>
-                        {childDraft.guardianAdLitem} ×
-                      </button>
-                    ) : null}
-                    <input
-                      value={guardianAdLitemQuery}
-                      onFocus={() => setActivePicker('guardianAdLitem')}
-                      onChange={e => setGuardianAdLitemQuery(e.target.value)}
-                      placeholder={childDraft.guardianAdLitem ? 'Search another attorney' : 'Search guardian ad litem'}
-                      style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
-                    />
-                  </div>
-                  {activePicker === 'guardianAdLitem' ? (
-                    <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
-                      <div className="stack" style={{ gap: 8 }}>
-                        {guardianAdLitemSuggestions.length ? guardianAdLitemSuggestions.map((option: string) => (
-                          <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('guardianAdLitem', option); setGuardianAdLitemQuery(''); setActivePicker(null); }}>
-                            {option}
-                          </button>
-                        )) : <span className="muted">No attorneys found.</span>}
-                      </div>
-                    </div>
-                  ) : null}
+                    )}
+                  </section>
                 </div>
               </div>
             </section>
-          </div>
+          </>
         ) : null}
 
         <section className="grid" style={{ alignItems: 'start' }}>

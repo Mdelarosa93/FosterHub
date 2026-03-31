@@ -83,7 +83,7 @@ function HeaderIconButton({ label, children }: { label: string; children: ReactN
   );
 }
 
-export function AppShell({ title, headerActions, children }: { title: ReactNode; headerActions?: ReactNode; children: ReactNode }) {
+export function AppShell({ title, headerActions, children, forceSidebarCollapsed = false }: { title: ReactNode; headerActions?: ReactNode; children: ReactNode; forceSidebarCollapsed?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -107,6 +107,12 @@ export function AppShell({ title, headerActions, children }: { title: ReactNode;
     const fallback = user?.email?.[0] ?? 'F';
     return `${first}${last}`.trim() || fallback.toUpperCase();
   }, [user]);
+
+  useEffect(() => {
+    if (forceSidebarCollapsed) {
+      setSidebarCollapsed(true);
+    }
+  }, [forceSidebarCollapsed]);
 
   function handleSignOut() {
     localStorage.removeItem('fosterhub.dev.token');
