@@ -46,7 +46,7 @@ export default function CaseDetailPage() {
   const [activities, setActivities] = useState<any[]>([]);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
-  const [activityDraft, setActivityDraft] = useState({ title: '', type: 'Home Visit', date: '', notes: '' });
+  const [activityDraft, setActivityDraft] = useState({ title: '', type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [] as string[], invitees: [] as string[], addToCalendar: true });
   const [activityStartDate, setActivityStartDate] = useState(() => getDaysAgoDateValue(30));
   const [activityEndDate, setActivityEndDate] = useState(() => getLocalDateValue());
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
@@ -436,6 +436,13 @@ export default function CaseDetailPage() {
     setActivePicker(null);
   }
 
+  const bioParentOptions = caseLabel ? [`Biological Parent - ${caseLabel.split(' - ')[0]} 1`, `Biological Parent - ${caseLabel.split(' - ')[0]} 2`] : ['Biological Parent 1', 'Biological Parent 2'];
+  const activityAssigneeOptions = [...bioParentOptions, ...childProfiles.map((child: any) => child.name)];
+  const activityInviteeOptions = Array.from(new Set([
+    ...bioParentOptions,
+    ...childProfiles.flatMap((child: any) => [child.caseWorker, child.guardianAdLitem, child.fosterParent]).filter(Boolean),
+  ]));
+
   const filteredActivities = activities.filter((activity: any) => {
     if (activityStartDate && activity.date < activityStartDate) return false;
     if (activityEndDate && activity.date > activityEndDate) return false;
@@ -612,14 +619,35 @@ export default function CaseDetailPage() {
 
   function handleAddActivity() {
     if (!activityDraft.title.trim() || !activityDraft.date) return;
-    setActivities(current => [
-      {
-        id: `${Date.now()}`,
-        ...activityDraft,
-      },
-      ...current,
-    ]);
-    setActivityDraft({ title: '', type: 'Home Visit', date: '', notes: '' });
+
+    const nextActivity = {
+      id: `${Date.now()}`,
+      ...activityDraft,
+    };
+
+    setActivities(current => [nextActivity, ...current]);
+
+    if (activityDraft.addToCalendar) {
+      const storedCalendarRaw = localStorage.getItem('fosterhub.calendarEvents');
+      const storedCalendarEvents = storedCalendarRaw ? JSON.parse(storedCalendarRaw) : [];
+      storedCalendarEvents.push({
+        id: `activity-${nextActivity.id}`,
+        caseLabel,
+        children: nextActivity.assignees.filter((item: string) => childProfiles.some((child: any) => child.name === item)),
+        date: nextActivity.date,
+        startTime: nextActivity.startTime,
+        endTime: nextActivity.endTime,
+        time: nextActivity.startTime,
+        eventType: nextActivity.type,
+        notes: nextActivity.notes,
+        location: nextActivity.location,
+        invitees: nextActivity.invitees,
+        color: '#10588c',
+      });
+      localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(storedCalendarEvents));
+    }
+
+    setActivityDraft({ title: '', type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], addToCalendar: true });
     setActivityModalOpen(false);
   }
 
@@ -828,8 +856,10 @@ export default function CaseDetailPage() {
                       <div className="record-meta">
                         <span>{activity.type}</span>
                         <span>{new Date(activity.date).toLocaleDateString()}</span>
+                        <span>{activity.startTime} - {activity.endTime}</span>
                       </div>
-                      {activity.notes ? <p style={{ marginTop: 10, marginBottom: 0 }}>{activity.notes}</p> : null}
+                      {activity.location ? <p style={{ marginTop: 10, marginBottom: 0 }}><strong>Location:</strong> {activity.location}</p> : null}
+                      {activity.assignees?.length ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Assigned:</strong> {activity.assignees.join(', ')}</p> : null}
                     </article>
                   ))}
                 </div>
@@ -919,12 +949,60 @@ export default function CaseDetailPage() {
                       <option>School</option>
                       <option>Medical</option>
                       <option>Placement</option>
+                      <option>ISP</option>
+                      <option>Drug Test</option>
                     </select>
                   </div>
                   <div className="field">
                     <label>Date</label>
                     <input className="input" type="date" value={activityDraft.date} onChange={e => setActivityDraft(current => ({ ...current, date: e.target.value }))} />
                   </div>
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                  <div className="field">
+                    <label>Start time</label>
+                    <input className="input" type="time" value={activityDraft.startTime} onChange={e => setActivityDraft(current => ({ ...current, startTime: e.target.value }))} />
+                  </div>
+                  <div className="field">
+                    <label>End time</label>
+                    <input className="input" type="time" value={activityDraft.endTime} onChange={e => setActivityDraft(current => ({ ...current, endTime: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Location</label>
+                  <input className="input" value={activityDraft.location} onChange={e => setActivityDraft(current => ({ ...current, location: e.target.value }))} />
+                </div>
+                <div className="field">
+                  <label>Assign to</label>
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {activityAssigneeOptions.map(option => {
+                      const selected = activityDraft.assignees.includes(option);
+                      return (
+                        <button key={option} type="button" className={selected ? 'button button-primary' : 'button button-ghost'} style={{ minHeight: 32, padding: '6px 10px' }} onClick={() => setActivityDraft(current => ({ ...current, assignees: selected ? current.assignees.filter((item: string) => item !== option) : [...current.assignees, option] }))}>
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Invite others</label>
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {activityInviteeOptions.map(option => {
+                      const selected = activityDraft.invitees.includes(option);
+                      return (
+                        <button key={option} type="button" className={selected ? 'button button-primary' : 'button button-ghost'} style={{ minHeight: 32, padding: '6px 10px' }} onClick={() => setActivityDraft(current => ({ ...current, invitees: selected ? current.invitees.filter((item: string) => item !== option) : [...current.invitees, option] }))}>
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="field">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input type="checkbox" checked={activityDraft.addToCalendar} onChange={e => setActivityDraft(current => ({ ...current, addToCalendar: e.target.checked }))} />
+                    Add to calendar
+                  </label>
                 </div>
                 <div className="field">
                   <label>Notes</label>
@@ -1001,8 +1079,12 @@ export default function CaseDetailPage() {
                         <div className="record-meta">
                           <span>{activity.type}</span>
                           <span>{new Date(activity.date).toLocaleDateString()}</span>
+                          <span>{activity.startTime} - {activity.endTime}</span>
                         </div>
-                        {activity.notes ? <p style={{ marginTop: 10, marginBottom: 0 }}>{activity.notes}</p> : null}
+                        {activity.location ? <p style={{ marginTop: 10, marginBottom: 0 }}><strong>Location:</strong> {activity.location}</p> : null}
+                        {activity.assignees?.length ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Assigned:</strong> {activity.assignees.join(', ')}</p> : null}
+                        {activity.invitees?.length ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Invitees:</strong> {activity.invitees.join(', ')}</p> : null}
+                        {activity.notes ? <p style={{ marginTop: 8, marginBottom: 0 }}>{activity.notes}</p> : null}
                       </article>
                     ))}
                   </div>

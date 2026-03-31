@@ -186,7 +186,12 @@ function formatTimeForCalendar(value: string) {
 }
 
 export default function CalendarPage() {
-  const [appointments, setAppointments] = useState<CalendarEvent[]>(initialAppointments);
+  const [appointments, setAppointments] = useState<CalendarEvent[]>(() => {
+    if (typeof window === 'undefined') return initialAppointments;
+    const storedEventsRaw = localStorage.getItem('fosterhub.calendarEvents');
+    const storedEvents = storedEventsRaw ? JSON.parse(storedEventsRaw) : [];
+    return [...initialAppointments, ...storedEvents];
+  });
   const [visibleDate, setVisibleDate] = useState(() => new Date());
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventModalMode, setEventModalMode] = useState<'create' | 'view' | 'edit'>('create');
@@ -238,6 +243,11 @@ export default function CalendarPage() {
     const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
     setStoredChildrenByCase(storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {});
   }, []);
+
+  useEffect(() => {
+    const customEvents = appointments.filter(item => !initialAppointments.some(seed => seed.id === item.id));
+    localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(customEvents));
+  }, [appointments]);
 
   const childOptions = useMemo(() => storedChildrenByCase[selectedCase] || childrenByCase[selectedCase] || [], [selectedCase, storedChildrenByCase]);
   const recommendedUsers = useMemo(() => recommendedUsersByCase[selectedCase] || [], [selectedCase]);
