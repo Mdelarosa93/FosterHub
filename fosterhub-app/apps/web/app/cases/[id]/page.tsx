@@ -40,6 +40,7 @@ export default function CaseDetailPage() {
   const [fosterParentQuery, setFosterParentQuery] = useState('');
   const [guardianAdLitemQuery, setGuardianAdLitemQuery] = useState('');
   const [activePicker, setActivePicker] = useState<'caseWorker' | 'fosterParent' | 'guardianAdLitem' | null>(null);
+  const [photoGalleryOpen, setPhotoGalleryOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -208,11 +209,11 @@ export default function CaseDetailPage() {
 
   const childProfileMap: Record<string, any[]> = {
     Hall: [
-      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: 'Sarah Hall', schoolOrDaycare: 'Little Steps Academy', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-05', notes: '', photos: [] },
-      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', schoolOrDaycare: 'Maple Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '', notes: '', photos: [] },
+      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: 'Sarah Hall', primaryPermanencyPlan: 'Placement with relative caregiver', secondaryPermanencyPlan: 'Return to Parent', schoolOrDaycare: 'Little Steps Academy', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-05', lastClothesVoucher: '', notes: '', photos: [] },
+      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', primaryPermanencyPlan: 'Adoption with an Identified Resource', secondaryPermanencyPlan: 'Placement with relative caregiver', schoolOrDaycare: 'Maple Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '', lastClothesVoucher: '', notes: '', photos: [] },
     ],
     Johnson: [
-      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', schoolOrDaycare: 'Northview Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-11', notes: '', photos: [] },
+      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', primaryPermanencyPlan: 'Adoption with no identified resource', secondaryPermanencyPlan: 'Return to Parent', schoolOrDaycare: 'Northview Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-11', lastClothesVoucher: '', notes: '', photos: [] },
     ],
   };
 
@@ -243,10 +244,13 @@ export default function CaseDetailPage() {
           caseWorker: '',
           guardianAdLitem: '',
           fosterParent: '',
+          primaryPermanencyPlan: '',
+          secondaryPermanencyPlan: '',
           schoolOrDaycare: '',
           medications: '',
           medicalProviders: '',
           lastMonthlyHomeVisit: '',
+          lastClothesVoucher: '',
           notes: '',
           photos: [],
         };
@@ -374,10 +378,13 @@ export default function CaseDetailPage() {
       caseWorker: '',
       guardianAdLitem: '',
       fosterParent: '',
+      primaryPermanencyPlan: '',
+      secondaryPermanencyPlan: '',
       schoolOrDaycare: '',
       medications: '',
       medicalProviders: '',
       lastMonthlyHomeVisit: '',
+      lastClothesVoucher: '',
       notes: '',
       photos: [],
     });
@@ -396,6 +403,7 @@ export default function CaseDetailPage() {
     setFosterParentQuery('');
     setGuardianAdLitemQuery('');
     setActivePicker(null);
+    setPhotoGalleryOpen(false);
   }
 
   function updateChildDraft(field: string, value: string) {
@@ -622,7 +630,8 @@ export default function CaseDetailPage() {
                 top: 89,
                 right: 0,
                 bottom: 0,
-                width: 'min(100%, 860px)',
+                width: 'min(100%, 33vw, 520px)',
+                minWidth: 380,
                 borderRadius: '24px 0 0 0',
                 overflow: 'hidden',
                 padding: 0,
@@ -634,10 +643,19 @@ export default function CaseDetailPage() {
               onClick={event => event.stopPropagation()}
             >
               <div style={{ padding: '24px 24px 18px', borderBottom: '1px solid #eef3ef', background: 'white' }}>
-                <div className="section-title" style={{ marginBottom: 0 }}>
-                  <div>
-                    <div className="eyebrow">{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
-                    <h2 style={{ marginBottom: 0 }}>{childDraft.name || 'New child'}</h2>
+                <div className="section-title" style={{ marginBottom: 0, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    {childDraft.photos?.[0]?.url ? (
+                      <img src={childDraft.photos[0].url} alt={childDraft.name || 'Child profile'} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid #d7e6dd' }} />
+                    ) : (
+                      <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18 }}>
+                        {(childDraft.name || 'N').split(' ').map((part: string) => part[0]).slice(0, 2).join('').toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div className="eyebrow">{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
+                      <h2 style={{ marginBottom: 0 }}>{childDraft.name || 'New child'}</h2>
+                    </div>
                   </div>
                   <div className="actions-row" style={{ marginTop: 0 }}>
                     {childDirty || activeChildId === 'new' ? (
@@ -658,7 +676,6 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Overview</div>
-                        <h3 style={{ marginBottom: 0 }}>Basic details</h3>
                       </div>
                     </div>
                     <div className="form-grid">
@@ -680,6 +697,14 @@ export default function CaseDetailPage() {
                           </select>
                         </div>
                       </div>
+                      <div className="field">
+                        <label>Primary Permanency Plan</label>
+                        <input className="input" value={childDraft.primaryPermanencyPlan || ''} onChange={e => updateChildDraft('primaryPermanencyPlan', e.target.value)} placeholder="Adoption with an Identified Resource" />
+                      </div>
+                      <div className="field">
+                        <label>Secondary Permanency Plan</label>
+                        <input className="input" value={childDraft.secondaryPermanencyPlan || ''} onChange={e => updateChildDraft('secondaryPermanencyPlan', e.target.value)} placeholder="Return to Parent" />
+                      </div>
                     </div>
                   </section>
 
@@ -687,8 +712,6 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Placement & team</div>
-                        <h3 style={{ marginBottom: 0 }}>Assigned adults</h3>
-                        <p style={{ marginBottom: 0 }}>Connect the child to the right worker, attorney, and foster parent record.</p>
                       </div>
                     </div>
                     <div className="form-grid">
@@ -785,7 +808,6 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Education</div>
-                        <h3 style={{ marginBottom: 0 }}>School and daycare</h3>
                       </div>
                     </div>
                     <div className="field">
@@ -798,21 +820,13 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Health</div>
-                        <h3 style={{ marginBottom: 0 }}>Care and providers</h3>
-                        <p style={{ marginBottom: 0 }}>Track medications, providers, and the latest monthly home visit.</p>
                       </div>
                     </div>
-                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-                      <div className="field">
-                        <label>Last Monthly Home Visit</label>
-                        <input className="input" type="date" value={childDraft.lastMonthlyHomeVisit || ''} onChange={e => updateChildDraft('lastMonthlyHomeVisit', e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="field">
+                    <div className="field" style={{ marginTop: 8 }}>
                       <label>Medications</label>
                       <textarea className="textarea" rows={3} value={childDraft.medications || ''} onChange={e => updateChildDraft('medications', e.target.value)} />
                     </div>
-                    <div className="field">
+                    <div className="field" style={{ marginTop: 12 }}>
                       <label>Medical Providers</label>
                       <textarea className="textarea" rows={4} value={childDraft.medicalProviders || ''} onChange={e => updateChildDraft('medicalProviders', e.target.value)} placeholder="Doctors, dentists, therapists, specialists..." />
                     </div>
@@ -821,8 +835,25 @@ export default function CaseDetailPage() {
                   <section className="card card-muted" style={{ padding: 18 }}>
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
+                        <div className="eyebrow">Activity</div>
+                      </div>
+                    </div>
+                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                      <div className="field">
+                        <label>Last Monthly Home Visit</label>
+                        <input className="input" type="date" value={childDraft.lastMonthlyHomeVisit || ''} onChange={e => updateChildDraft('lastMonthlyHomeVisit', e.target.value)} />
+                      </div>
+                      <div className="field">
+                        <label>Last Clothes Voucher</label>
+                        <input className="input" type="date" value={childDraft.lastClothesVoucher || ''} onChange={e => updateChildDraft('lastClothesVoucher', e.target.value)} />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="section-title" style={{ marginBottom: 14 }}>
+                      <div>
                         <div className="eyebrow">Notes</div>
-                        <h3 style={{ marginBottom: 0 }}>Ongoing documentation</h3>
                       </div>
                     </div>
                     <div className="field">
@@ -835,26 +866,32 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 12 }}>
                       <div>
                         <div className="eyebrow">Photos</div>
-                        <h3 style={{ marginBottom: 0 }}>Photo timeline</h3>
                       </div>
                     </div>
-                    <div className="field">
-                      <label>Add pictures</label>
-                      <input className="input" type="file" accept="image/*" multiple onChange={handlePhotoUpload} />
-                    </div>
                     {childDraft.photos?.length ? (
-                      <div className="record-list" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-                        {childDraft.photos.map((photo: any) => (
-                          <article key={photo.id} className="record-item" style={{ padding: 12 }}>
-                            <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 14, display: 'block', marginBottom: 10 }} />
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                              <span style={{ fontSize: 13, color: '#4f6b5b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.name}</span>
-                              <button type="button" className="button button-ghost" style={{ minHeight: 32, padding: '6px 10px' }} onClick={() => removePhoto(photo.id)}>
-                                Remove
-                              </button>
-                            </div>
-                          </article>
-                        ))}
+                      <div>
+                        <div
+                          className="record-list"
+                          style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', cursor: childDraft.photos.length > 4 ? 'pointer' : 'default' }}
+                          onClick={() => childDraft.photos.length > 4 ? setPhotoGalleryOpen(true) : undefined}
+                        >
+                          {childDraft.photos.slice(0, 4).map((photo: any) => (
+                            <article key={photo.id} className="record-item" style={{ padding: 10 }}>
+                              <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 14, display: 'block', marginBottom: 8 }} />
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontSize: 12, color: '#4f6b5b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.name}</span>
+                                <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 8px', fontSize: 12 }} onClick={event => { event.stopPropagation(); removePhoto(photo.id); }}>
+                                  Remove
+                                </button>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                        {childDraft.photos.length > 4 ? (
+                          <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px', marginTop: 10 }} onClick={() => setPhotoGalleryOpen(true)}>
+                            View all photos ({childDraft.photos.length})
+                          </button>
+                        ) : null}
                       </div>
                     ) : (
                       <div className="empty-state" style={{ marginTop: 0 }}>
@@ -862,10 +899,56 @@ export default function CaseDetailPage() {
                         <p style={{ marginBottom: 0 }}>Case workers and foster parents can add photos here to preserve a visual history for the child.</p>
                       </div>
                     )}
+                    <div style={{ marginTop: 14 }}>
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#173827' }}>Upload photo</label>
+                      <input id="child-photo-upload" type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display: 'none' }} />
+                      <button type="button" className="button button-primary" style={{ minHeight: 34, padding: '6px 12px', fontSize: 13 }} onClick={() => document.getElementById('child-photo-upload')?.click()}>
+                        Upload photo
+                      </button>
+                    </div>
                   </section>
                 </div>
               </div>
             </section>
+
+            {photoGalleryOpen && childDraft.photos?.length ? (
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(15, 23, 42, 0.45)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  padding: 24,
+                  zIndex: 60,
+                }}
+                onClick={() => setPhotoGalleryOpen(false)}
+              >
+                <section className="card" style={{ width: 'min(100%, 960px)', maxHeight: '85vh', overflow: 'auto', padding: 20 }} onClick={event => event.stopPropagation()}>
+                  <div className="section-title" style={{ marginBottom: 14 }}>
+                    <div>
+                      <div className="eyebrow">Photos</div>
+                    </div>
+                    <button type="button" className="button button-ghost" onClick={() => setPhotoGalleryOpen(false)}>
+                      Close
+                    </button>
+                  </div>
+                  <div className="record-list" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+                    {childDraft.photos.map((photo: any) => (
+                      <article key={photo.id} className="record-item" style={{ padding: 12 }}>
+                        <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 190, objectFit: 'cover', borderRadius: 14, display: 'block', marginBottom: 10 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                          <span style={{ fontSize: 13, color: '#4f6b5b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.name}</span>
+                          <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '5px 10px', fontSize: 12 }} onClick={() => removePhoto(photo.id)}>
+                            Remove
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            ) : null}
           </>
         ) : null}
 
