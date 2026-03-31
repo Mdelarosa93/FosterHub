@@ -209,11 +209,11 @@ export default function CaseDetailPage() {
 
   const childProfileMap: Record<string, any[]> = {
     Hall: [
-      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: 'Sarah Hall', primaryPermanencyPlan: 'Placement with relative caregiver', secondaryPermanencyPlan: 'Return to Parent', schoolOrDaycare: 'Little Steps Academy', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-05', lastClothesVoucher: '', notes: '', photos: [] },
-      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', primaryPermanencyPlan: 'Adoption with an Identified Resource', secondaryPermanencyPlan: 'Placement with relative caregiver', schoolOrDaycare: 'Maple Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '', lastClothesVoucher: '', notes: '', photos: [] },
+      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: 'Sarah Hall', primaryPermanencyPlan: 'Placement with relative caregiver', secondaryPermanencyPlan: 'Return to Parent', schoolOrDaycare: 'Little Steps Academy', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-05', lastClothesVoucher: '', notes: '', photos: [], profilePhotoId: '' },
+      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', primaryPermanencyPlan: 'Adoption with an Identified Resource', secondaryPermanencyPlan: 'Placement with relative caregiver', schoolOrDaycare: 'Maple Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '', lastClothesVoucher: '', notes: '', photos: [], profilePhotoId: '' },
     ],
     Johnson: [
-      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', primaryPermanencyPlan: 'Adoption with no identified resource', secondaryPermanencyPlan: 'Return to Parent', schoolOrDaycare: 'Northview Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-11', lastClothesVoucher: '', notes: '', photos: [] },
+      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '', primaryPermanencyPlan: 'Adoption with no identified resource', secondaryPermanencyPlan: 'Return to Parent', schoolOrDaycare: 'Northview Elementary', medications: '', medicalProviders: '', lastMonthlyHomeVisit: '2026-03-11', lastClothesVoucher: '', notes: '', photos: [], profilePhotoId: '' },
     ],
   };
 
@@ -253,6 +253,7 @@ export default function CaseDetailPage() {
           lastClothesVoucher: '',
           notes: '',
           photos: [],
+          profilePhotoId: '',
         };
       });
       setChildProfiles(mergedChildren);
@@ -387,6 +388,7 @@ export default function CaseDetailPage() {
       lastClothesVoucher: '',
       notes: '',
       photos: [],
+      profilePhotoId: '',
     });
     setChildDirty(true);
     setCaseWorkerQuery('');
@@ -418,9 +420,11 @@ export default function CaseDetailPage() {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = () => {
+        const photoId = `${Date.now()}-${Math.random()}`;
         setChildDraft((current: any) => ({
           ...current,
-          photos: [...(current?.photos || []), { id: `${Date.now()}-${Math.random()}`, name: file.name, url: String(reader.result || '') }],
+          photos: [...(current?.photos || []), { id: photoId, name: file.name, url: String(reader.result || '') }],
+          profilePhotoId: current?.profilePhotoId || photoId,
         }));
         setChildDirty(true);
       };
@@ -430,11 +434,24 @@ export default function CaseDetailPage() {
     event.target.value = '';
   }
 
-  function removePhoto(photoId: string) {
+  function setProfilePhoto(photoId: string) {
     setChildDraft((current: any) => ({
       ...current,
-      photos: (current?.photos || []).filter((photo: any) => photo.id !== photoId),
+      profilePhotoId: photoId,
     }));
+    setChildDirty(true);
+  }
+
+  function removePhoto(photoId: string) {
+    setChildDraft((current: any) => {
+      const remainingPhotos = (current?.photos || []).filter((photo: any) => photo.id !== photoId);
+      const nextProfilePhotoId = current?.profilePhotoId === photoId ? (remainingPhotos[0]?.id || '') : current?.profilePhotoId;
+      return {
+        ...current,
+        photos: remainingPhotos,
+        profilePhotoId: nextProfilePhotoId,
+      };
+    });
     setChildDirty(true);
   }
 
@@ -645,12 +662,14 @@ export default function CaseDetailPage() {
               <div style={{ padding: '24px 24px 18px', borderBottom: '1px solid #eef3ef', background: 'white' }}>
                 <div className="section-title" style={{ marginBottom: 0, alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    {childDraft.photos?.[0]?.url ? (
-                      <img src={childDraft.photos[0].url} alt={childDraft.name || 'Child profile'} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid #d7e6dd' }} />
+                    {childDraft.photos?.find((photo: any) => photo.id === childDraft.profilePhotoId)?.url ? (
+                      <button type="button" onClick={() => setPhotoGalleryOpen(true)} style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }} aria-label="Choose profile picture">
+                        <img src={childDraft.photos.find((photo: any) => photo.id === childDraft.profilePhotoId).url} alt={childDraft.name || 'Child profile'} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid #d7e6dd' }} />
+                      </button>
                     ) : (
-                      <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18 }}>
+                      <button type="button" onClick={() => childDraft.photos?.length ? setPhotoGalleryOpen(true) : document.getElementById('child-photo-upload')?.click()} style={{ width: 56, height: 56, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18, border: 'none', cursor: 'pointer' }} aria-label="Choose profile picture">
                         {(childDraft.name || 'N').split(' ').map((part: string) => part[0]).slice(0, 2).join('').toUpperCase()}
-                      </div>
+                      </button>
                     )}
                     <div>
                       <div className="eyebrow">{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
@@ -878,8 +897,14 @@ export default function CaseDetailPage() {
                           {childDraft.photos.slice(0, 4).map((photo: any) => (
                             <article key={photo.id} className="record-item" style={{ padding: 10 }}>
                               <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 14, display: 'block', marginBottom: 8 }} />
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
                                 <span style={{ fontSize: 12, color: '#4f6b5b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.name}</span>
+                                {childDraft.profilePhotoId === photo.id ? <span className="status-pill">Profile</span> : null}
+                              </div>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 8px', fontSize: 12 }} onClick={event => { event.stopPropagation(); setProfilePhoto(photo.id); }}>
+                                  Set profile
+                                </button>
                                 <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 8px', fontSize: 12 }} onClick={event => { event.stopPropagation(); removePhoto(photo.id); }}>
                                   Remove
                                 </button>
@@ -937,8 +962,14 @@ export default function CaseDetailPage() {
                     {childDraft.photos.map((photo: any) => (
                       <article key={photo.id} className="record-item" style={{ padding: 12 }}>
                         <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 190, objectFit: 'cover', borderRadius: 14, display: 'block', marginBottom: 10 }} />
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                           <span style={{ fontSize: 13, color: '#4f6b5b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.name}</span>
+                          {childDraft.profilePhotoId === photo.id ? <span className="status-pill">Profile</span> : null}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '5px 10px', fontSize: 12 }} onClick={() => setProfilePhoto(photo.id)}>
+                            Set as profile picture
+                          </button>
                           <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '5px 10px', fontSize: 12 }} onClick={() => removePhoto(photo.id)}>
                             Remove
                           </button>
