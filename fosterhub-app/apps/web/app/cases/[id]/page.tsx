@@ -800,7 +800,7 @@ export default function CaseDetailPage() {
                       </span>
                     </button>
                   ) : (
-                    <button type="button" onClick={() => childDraft.photos?.length ? openPhotoGallery() : document.getElementById('child-photo-upload')?.click()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ width: 64, height: 64, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }} aria-label="Choose profile picture">
+                    <button type="button" onClick={() => openPhotoGallery()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ width: 64, height: 64, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }} aria-label="Choose profile picture">
                       {(childDraft.name || 'N').split(' ').map((part: string) => part[0]).slice(0, 2).join('').toUpperCase()}
                       <span style={{ position: 'absolute', right: 0, bottom: 0, width: 22, height: 22, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1042,7 +1042,7 @@ export default function CaseDetailPage() {
               </div>
             </section>
 
-            {photoGalleryOpen && childDraft.photos?.length ? (
+            {photoGalleryOpen ? (
               <div
                 style={{
                   position: 'fixed',
@@ -1071,18 +1071,25 @@ export default function CaseDetailPage() {
                     </div>
                   </div>
 
-                  <div className="record-list" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
-                    {childDraft.photos.map((photo: any) => (
-                      <button key={photo.id} id={`gallery-photo-${photo.id}`} type="button" className="record-item" style={{ padding: 8, position: 'relative', border: '1px solid #dfe9e2', background: 'white', aspectRatio: '1 / 1' }} onClick={() => openPhotoViewer(photo.id)}>
-                        <img src={photo.url} alt={photo.name || 'Photo'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12, display: 'block' }} />
-                        {photo.id === childDraft.profilePhotoId ? (
-                          <span style={{ position: 'absolute', top: 14, right: 14, width: 22, height: 22, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800 }}>
-                            P
-                          </span>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
+                  {childDraft.photos?.length ? (
+                    <div className="record-list" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+                      {childDraft.photos.map((photo: any) => (
+                        <button key={photo.id} id={`gallery-photo-${photo.id}`} type="button" className="record-item" style={{ padding: 8, position: 'relative', border: '1px solid #dfe9e2', background: 'white', aspectRatio: '1 / 1' }} onClick={() => openPhotoViewer(photo.id)}>
+                          <img src={photo.url} alt={photo.name || 'Photo'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12, display: 'block' }} />
+                          {photo.id === childDraft.profilePhotoId ? (
+                            <span style={{ position: 'absolute', top: 14, right: 14, width: 22, height: 22, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800 }}>
+                              P
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state" style={{ marginTop: 0 }}>
+                      <strong>No pictures yet.</strong>
+                      <p style={{ marginBottom: 0 }}>Upload a photo here to start the child gallery.</p>
+                    </div>
+                  )}
                 </section>
               </div>
             ) : null}
