@@ -41,6 +41,8 @@ export default function CaseDetailPage() {
   const [guardianAdLitemQuery, setGuardianAdLitemQuery] = useState('');
   const [activePicker, setActivePicker] = useState<'caseWorker' | 'fosterParent' | 'guardianAdLitem' | null>(null);
   const [photoGalleryOpen, setPhotoGalleryOpen] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [profilePhotoHovered, setProfilePhotoHovered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -265,20 +267,26 @@ export default function CaseDetailPage() {
 
   useEffect(() => {
     if (!caseLabel || !childProfiles.length) return;
-    const storedCountsRaw = localStorage.getItem('fosterhub.caseChildCounts');
-    const storedCounts = storedCountsRaw ? JSON.parse(storedCountsRaw) : {};
-    storedCounts[caseLabel] = childProfiles.length;
-    localStorage.setItem('fosterhub.caseChildCounts', JSON.stringify(storedCounts));
 
-    const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
-    const storedChildren = storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {};
-    storedChildren[caseLabel] = childProfiles.map((child: any) => child.name);
-    localStorage.setItem('fosterhub.caseChildren', JSON.stringify(storedChildren));
+    try {
+      const storedCountsRaw = localStorage.getItem('fosterhub.caseChildCounts');
+      const storedCounts = storedCountsRaw ? JSON.parse(storedCountsRaw) : {};
+      storedCounts[caseLabel] = childProfiles.length;
+      localStorage.setItem('fosterhub.caseChildCounts', JSON.stringify(storedCounts));
 
-    const storedProfilesRaw = localStorage.getItem('fosterhub.caseProfiles');
-    const storedProfiles = storedProfilesRaw ? JSON.parse(storedProfilesRaw) : {};
-    storedProfiles[caseLabel] = childProfiles;
-    localStorage.setItem('fosterhub.caseProfiles', JSON.stringify(storedProfiles));
+      const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
+      const storedChildren = storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {};
+      storedChildren[caseLabel] = childProfiles.map((child: any) => child.name);
+      localStorage.setItem('fosterhub.caseChildren', JSON.stringify(storedChildren));
+
+      const storedProfilesRaw = localStorage.getItem('fosterhub.caseProfiles');
+      const storedProfiles = storedProfilesRaw ? JSON.parse(storedProfilesRaw) : {};
+      storedProfiles[caseLabel] = childProfiles;
+      localStorage.setItem('fosterhub.caseProfiles', JSON.stringify(storedProfiles));
+      setError(null);
+    } catch {
+      setError('These child changes are too large to save in browser storage right now. Try fewer or smaller photos.');
+    }
   }, [caseLabel, childProfiles]);
 
   useEffect(() => {
@@ -360,6 +368,22 @@ export default function CaseDetailPage() {
   const guardianAdLitemSuggestions = (guardianAdLitemQuery ? guardianAdLitemOptions.filter((option: string) => option.toLowerCase().includes(guardianAdLitemQuery.toLowerCase())) : guardianAdLitemOptions).slice(0, 8);
   const fosterParentSuggestions = (fosterParentQuery ? fosterParentOptions.filter((option: string) => option.toLowerCase().includes(fosterParentQuery.toLowerCase())) : fosterParentOptions).slice(0, 8);
 
+  function getChildProfilePhoto(child: any) {
+    return child?.photos?.find((photo: any) => photo.id === child?.profilePhotoId)?.url || child?.photos?.[0]?.url || '';
+  }
+
+  function renderChildAvatar(child: any, size = 32) {
+    const photoUrl = getChildProfilePhoto(child);
+    const initials = (child?.name || 'N').split(' ').map((part: string) => part[0]).slice(0, 2).join('').toUpperCase();
+    return photoUrl ? (
+      <img src={photoUrl} alt={child?.name || 'Child'} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+    ) : (
+      <div style={{ width: size, height: size, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: Math.max(12, Math.round(size * 0.32)), flexShrink: 0 }}>
+        {initials}
+      </div>
+    );
+  }
+
   function openChildModal(child: any) {
     setActiveChildId(child.id);
     setChildDraft({ ...child });
@@ -407,6 +431,8 @@ export default function CaseDetailPage() {
     setGuardianAdLitemQuery('');
     setActivePicker(null);
     setPhotoGalleryOpen(false);
+    setPhotoMenuOpen(false);
+    setSelectedPhotoIndex(0);
   }
 
   function updateChildDraft(field: string, value: string) {
@@ -414,25 +440,68 @@ export default function CaseDetailPage() {
     setChildDirty(true);
   }
 
-  function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
+  function compressImage(file: File) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const maxDimension = 1200;
+          const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(image.width * scale);
+          canvas.height = Math.round(image.height * scale);
+          const context = canvas.getContext('2d');
+          if (!context) {
+            reject(new Error('Unable to prepare image for upload.'));
+            return;
+          }
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.72));
+        };
+        image.onerror = () => reject(new Error('Unable to read selected image.'));
+        image.src = String(reader.result || '');
+      };
+      reader.onerror = () => reject(new Error('Unable to read selected image.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const photoId = `${Date.now()}-${Math.random()}`;
-        setChildDraft((current: any) => ({
-          ...current,
-          photos: [...(current?.photos || []), { id: photoId, name: file.name, url: String(reader.result || '') }],
-          profilePhotoId: current?.profilePhotoId || photoId,
-        }));
-        setChildDirty(true);
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      const preparedPhotos = await Promise.all(files.map(async file => ({
+        id: `${Date.now()}-${Math.random()}`,
+        name: file.name,
+        url: await compressImage(file),
+      })));
+
+      setChildDraft((current: any) => ({
+        ...current,
+        photos: [...(current?.photos || []), ...preparedPhotos],
+        profilePhotoId: current?.profilePhotoId || preparedPhotos[0]?.id || '',
+      }));
+      setChildDirty(true);
+      setError(null);
+    } catch (err: any) {
+      setError(err?.message || 'Unable to add those photos right now.');
+    }
 
     event.target.value = '';
+  }
+
+  function openPhotoGallery(photoId?: string) {
+    if (childDraft?.photos?.length) {
+      const targetPhotoId = photoId || childDraft.profilePhotoId || childDraft.photos[0]?.id;
+      const photoIndex = childDraft.photos.findIndex((photo: any) => photo.id === targetPhotoId);
+      setSelectedPhotoIndex(photoIndex >= 0 ? photoIndex : 0);
+    } else {
+      setSelectedPhotoIndex(0);
+    }
+    setPhotoMenuOpen(false);
+    setPhotoGalleryOpen(true);
   }
 
   function setProfilePhoto(photoId: string) {
@@ -441,12 +510,18 @@ export default function CaseDetailPage() {
       profilePhotoId: photoId,
     }));
     setChildDirty(true);
+    setPhotoMenuOpen(false);
   }
 
   function removePhoto(photoId: string) {
     setChildDraft((current: any) => {
       const remainingPhotos = (current?.photos || []).filter((photo: any) => photo.id !== photoId);
       const nextProfilePhotoId = current?.profilePhotoId === photoId ? (remainingPhotos[0]?.id || '') : current?.profilePhotoId;
+      if (!remainingPhotos.length) {
+        setPhotoGalleryOpen(false);
+      } else {
+        setSelectedPhotoIndex(currentIndex => Math.min(currentIndex, remainingPhotos.length - 1));
+      }
       return {
         ...current,
         photos: remainingPhotos,
@@ -454,6 +529,7 @@ export default function CaseDetailPage() {
       };
     });
     setChildDirty(true);
+    setPhotoMenuOpen(false);
   }
 
   function saveChildChanges() {
@@ -575,10 +651,13 @@ export default function CaseDetailPage() {
                     style={{ textAlign: 'left', cursor: 'pointer', width: '100%' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-                      <div>
-                        <strong className="clickable-card-title">{child.name} - {calculateAgeFromBirthday(child.birthday)} years old</strong>
-                        <div className="record-meta" style={{ marginTop: 8 }}>
-                          <span>Birthday: {new Date(child.birthday).toLocaleDateString()}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {renderChildAvatar(child, 38)}
+                        <div>
+                          <strong className="clickable-card-title">{child.name} - {calculateAgeFromBirthday(child.birthday)} years old</strong>
+                          <div className="record-meta" style={{ marginTop: 8 }}>
+                            <span>Birthday: {new Date(child.birthday).toLocaleDateString()}</span>
+                          </div>
                         </div>
                       </div>
                       <span className="status-pill">{child.status}</span>
@@ -609,9 +688,15 @@ export default function CaseDetailPage() {
                       <span>{staff.role}</span>
                       {staff.assignedNames?.length ? (
                         <div style={{ paddingLeft: 14, display: 'grid', gap: 6 }}>
-                          {staff.assignedNames.map((name: string) => (
-                            <span key={name} style={{ color: '#123122' }}>{name}</span>
-                          ))}
+                          {staff.assignedNames.map((name: string) => {
+                            const child = childProfiles.find((entry: any) => entry.name === name);
+                            return (
+                              <span key={name} style={{ color: '#123122', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {child ? renderChildAvatar(child, 22) : null}
+                                {name}
+                              </span>
+                            );
+                          })}
                         </div>
                       ) : null}
                     </div>
@@ -648,8 +733,8 @@ export default function CaseDetailPage() {
                 top: 89,
                 right: 0,
                 bottom: 0,
-                width: 'min(100%, 33vw, 520px)',
-                minWidth: 380,
+                width: 'min(100%, 44vw, 640px)',
+                minWidth: 460,
                 borderRadius: '24px 0 0 0',
                 overflow: 'hidden',
                 padding: 0,
@@ -660,33 +745,9 @@ export default function CaseDetailPage() {
               }}
               onClick={event => event.stopPropagation()}
             >
-              <div style={{ padding: '24px 24px 18px', borderBottom: '1px solid #eef3ef', background: 'white' }}>
-                <div className="section-title" style={{ marginBottom: 0, alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    {childDraft.photos?.find((photo: any) => photo.id === childDraft.profilePhotoId)?.url ? (
-                      <button type="button" onClick={() => setPhotoGalleryOpen(true)} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative', width: 56, height: 56 }} aria-label="Choose profile picture">
-                        <img src={childDraft.photos.find((photo: any) => photo.id === childDraft.profilePhotoId).url} alt={childDraft.name || 'Child profile'} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid #d7e6dd' }} />
-                        <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.45 18.5 6.65L17.35 5.5C16.55 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </span>
-                      </button>
-                    ) : (
-                      <button type="button" onClick={() => childDraft.photos?.length ? setPhotoGalleryOpen(true) : document.getElementById('child-photo-upload')?.click()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ width: 56, height: 56, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18, border: 'none', cursor: 'pointer', position: 'relative' }} aria-label="Choose profile picture">
-                        {(childDraft.name || 'N').split(' ').map((part: string) => part[0]).slice(0, 2).join('').toUpperCase()}
-                        <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.45 18.5 6.65L17.35 5.5C16.55 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </span>
-                      </button>
-                    )}
-                    <div>
-                      <div className="eyebrow">{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
-                      <h2 style={{ marginBottom: 0 }}>{childDraft.name || 'New child'}</h2>
-                    </div>
-                  </div>
+              <div style={{ padding: '20px 24px 18px', borderBottom: '1px solid #eef3ef', background: 'white' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 }}>
+                  <div className="eyebrow" style={{ marginTop: 2 }}>{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
                   <div className="actions-row" style={{ marginTop: 0 }}>
                     {childDirty || activeChildId === 'new' ? (
                       <button type="button" className="button button-primary" onClick={saveChildChanges}>
@@ -697,6 +758,29 @@ export default function CaseDetailPage() {
                       Close
                     </button>
                   </div>
+                </div>
+
+                <div style={{ display: 'grid', justifyItems: 'center', gap: 10 }}>
+                  {childDraft.photos?.find((photo: any) => photo.id === childDraft.profilePhotoId)?.url ? (
+                    <button type="button" onClick={() => openPhotoGallery()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative', width: 88, height: 88 }} aria-label="Choose profile picture">
+                      <img src={childDraft.photos.find((photo: any) => photo.id === childDraft.profilePhotoId).url} alt={childDraft.name || 'Child profile'} style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '3px solid #d7e6dd' }} />
+                      <span style={{ position: 'absolute', right: 2, bottom: 2, width: 24, height: 24, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.45 18.5 6.65L17.35 5.5C16.55 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => childDraft.photos?.length ? openPhotoGallery() : document.getElementById('child-photo-upload')?.click()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ width: 88, height: 88, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 24, border: 'none', cursor: 'pointer', position: 'relative' }} aria-label="Choose profile picture">
+                      {(childDraft.name || 'N').split(' ').map((part: string) => part[0]).slice(0, 2).join('').toUpperCase()}
+                      <span style={{ position: 'absolute', right: 2, bottom: 2, width: 24, height: 24, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.45 18.5 6.65L17.35 5.5C16.55 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    </button>
+                  )}
+                  <h2 style={{ marginBottom: 0, textAlign: 'center' }}>{childDraft.name || 'New child'}</h2>
                 </div>
               </div>
 
@@ -900,31 +984,20 @@ export default function CaseDetailPage() {
                     </div>
                     {childDraft.photos?.length ? (
                       <div>
-                        <div
-                          className="record-list"
-                          style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', cursor: childDraft.photos.length > 4 ? 'pointer' : 'default' }}
-                          onClick={() => childDraft.photos.length > 4 ? setPhotoGalleryOpen(true) : undefined}
-                        >
+                        <div className="record-list" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
                           {childDraft.photos.slice(0, 4).map((photo: any) => (
-                            <article key={photo.id} className="record-item" style={{ padding: 10 }}>
-                              <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 14, display: 'block', marginBottom: 8 }} />
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                                <span style={{ fontSize: 12, color: '#4f6b5b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.name}</span>
-                                {childDraft.profilePhotoId === photo.id ? <span className="status-pill">Profile</span> : null}
-                              </div>
-                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 8px', fontSize: 12 }} onClick={event => { event.stopPropagation(); setProfilePhoto(photo.id); }}>
-                                  Set profile
-                                </button>
-                                <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 8px', fontSize: 12 }} onClick={event => { event.stopPropagation(); removePhoto(photo.id); }}>
-                                  Remove
-                                </button>
-                              </div>
-                            </article>
+                            <button key={photo.id} type="button" className="record-item" style={{ padding: 8, position: 'relative', cursor: 'pointer', border: '1px solid #dfe9e2', background: 'white' }} onClick={() => openPhotoGallery(photo.id)}>
+                              <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 96, objectFit: 'cover', borderRadius: 12, display: 'block' }} />
+                              {childDraft.profilePhotoId === photo.id ? (
+                                <span style={{ position: 'absolute', top: 14, right: 14, width: 22, height: 22, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800 }}>
+                                  P
+                                </span>
+                              ) : null}
+                            </button>
                           ))}
                         </div>
                         {childDraft.photos.length > 4 ? (
-                          <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px', marginTop: 10 }} onClick={() => setPhotoGalleryOpen(true)}>
+                          <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px', marginTop: 10 }} onClick={() => openPhotoGallery(childDraft.photos[0]?.id)}>
                             View all photos ({childDraft.photos.length})
                           </button>
                         ) : null}
@@ -936,7 +1009,6 @@ export default function CaseDetailPage() {
                       </div>
                     )}
                     <div style={{ marginTop: 14 }}>
-                      <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#173827' }}>Upload photo</label>
                       <input id="child-photo-upload" type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{ display: 'none' }} />
                       <button type="button" className="button button-primary" style={{ minHeight: 34, padding: '6px 12px', fontSize: 13 }} onClick={() => document.getElementById('child-photo-upload')?.click()}>
                         Upload photo
@@ -952,7 +1024,7 @@ export default function CaseDetailPage() {
                 style={{
                   position: 'fixed',
                   inset: 0,
-                  background: 'rgba(15, 23, 42, 0.45)',
+                  background: 'rgba(15, 23, 42, 0.55)',
                   display: 'grid',
                   placeItems: 'center',
                   padding: 24,
@@ -960,33 +1032,61 @@ export default function CaseDetailPage() {
                 }}
                 onClick={() => setPhotoGalleryOpen(false)}
               >
-                <section className="card" style={{ width: 'min(100%, 960px)', maxHeight: '85vh', overflow: 'auto', padding: 20 }} onClick={event => event.stopPropagation()}>
+                <section className="card" style={{ width: 'min(100%, 980px)', maxHeight: '88vh', overflow: 'auto', padding: 20 }} onClick={event => event.stopPropagation()}>
                   <div className="section-title" style={{ marginBottom: 14 }}>
                     <div>
                       <div className="eyebrow">Photos</div>
                     </div>
-                    <button type="button" className="button button-ghost" onClick={() => setPhotoGalleryOpen(false)}>
-                      Close
-                    </button>
+                    <div className="actions-row" style={{ marginTop: 0, position: 'relative' }}>
+                      <button type="button" className="button button-ghost" style={{ minHeight: 36, padding: '6px 12px' }} onClick={() => setPhotoMenuOpen(current => !current)}>
+                        ☰
+                      </button>
+                      {photoMenuOpen ? (
+                        <div className="card" style={{ position: 'absolute', top: 42, right: 48, padding: 10, minWidth: 210, zIndex: 2 }}>
+                          <div className="stack" style={{ gap: 8 }}>
+                            {childDraft.photos[selectedPhotoIndex]?.id === childDraft.profilePhotoId ? (
+                              <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => setProfilePhoto('')}>
+                                Remove profile picture
+                              </button>
+                            ) : (
+                              <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => setProfilePhoto(childDraft.photos[selectedPhotoIndex]?.id)}>
+                                Set as profile picture
+                              </button>
+                            )}
+                            <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => removePhoto(childDraft.photos[selectedPhotoIndex]?.id)}>
+                              Delete photo
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                      <button type="button" className="button button-ghost" onClick={() => setPhotoGalleryOpen(false)}>
+                        Close
+                      </button>
+                    </div>
                   </div>
-                  <div className="record-list" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-                    {childDraft.photos.map((photo: any) => (
-                      <article key={photo.id} className="record-item" style={{ padding: 12 }}>
-                        <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 190, objectFit: 'cover', borderRadius: 14, display: 'block', marginBottom: 10 }} />
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                          <span style={{ fontSize: 13, color: '#4f6b5b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.name}</span>
-                          {childDraft.profilePhotoId === photo.id ? <span className="status-pill">Profile</span> : null}
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '5px 10px', fontSize: 12 }} onClick={() => setProfilePhoto(photo.id)}>
-                            Set as profile picture
-                          </button>
-                          <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '5px 10px', fontSize: 12 }} onClick={() => removePhoto(photo.id)}>
-                            Remove
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+
+                  <div style={{ display: 'grid', gap: 14 }}>
+                    <div style={{ position: 'relative', background: '#f7faf8', borderRadius: 18, overflow: 'hidden', minHeight: 420 }}>
+                      <img src={childDraft.photos[selectedPhotoIndex]?.url} alt={childDraft.photos[selectedPhotoIndex]?.name || 'Photo'} style={{ width: '100%', maxHeight: 560, objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                      {childDraft.photos[selectedPhotoIndex]?.id === childDraft.profilePhotoId ? (
+                        <span style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800 }}>
+                          P
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="record-list" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+                      {childDraft.photos.map((photo: any, index: number) => (
+                        <button key={photo.id} type="button" className="record-item" style={{ padding: 6, position: 'relative', border: index === selectedPhotoIndex ? '2px solid #135c31' : '1px solid #dfe9e2', background: 'white' }} onClick={() => { setSelectedPhotoIndex(index); setPhotoMenuOpen(false); }}>
+                          <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 84, objectFit: 'cover', borderRadius: 10, display: 'block' }} />
+                          {childDraft.profilePhotoId === photo.id ? (
+                            <span style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800 }}>
+                              P
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </section>
               </div>
