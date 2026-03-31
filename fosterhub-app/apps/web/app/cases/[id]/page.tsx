@@ -655,6 +655,12 @@ export default function CaseDetailPage() {
               <div style={{ overflowY: 'auto', padding: 24, background: '#f7faf8' }}>
                 <div className="form-grid" style={{ gap: 18 }}>
                   <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="section-title" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="eyebrow">Overview</div>
+                        <h3 style={{ marginBottom: 0 }}>Basic details</h3>
+                      </div>
+                    </div>
                     <div className="form-grid">
                       <div className="field">
                         <label>Name</label>
@@ -678,6 +684,13 @@ export default function CaseDetailPage() {
                   </section>
 
                   <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="section-title" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="eyebrow">Placement & team</div>
+                        <h3 style={{ marginBottom: 0 }}>Assigned adults</h3>
+                        <p style={{ marginBottom: 0 }}>Connect the child to the right worker, attorney, and foster parent record.</p>
+                      </div>
+                    </div>
                     <div className="form-grid">
                       <div className="field" style={{ position: 'relative' }} data-picker-field="true">
                         <label>Case Worker</label>
@@ -769,11 +782,27 @@ export default function CaseDetailPage() {
                   </section>
 
                   <section className="card card-muted" style={{ padding: 18 }}>
-                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-                      <div className="field">
-                        <label>School / Daycare</label>
-                        <input className="input" value={childDraft.schoolOrDaycare || ''} onChange={e => updateChildDraft('schoolOrDaycare', e.target.value)} />
+                    <div className="section-title" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="eyebrow">Education</div>
+                        <h3 style={{ marginBottom: 0 }}>School and daycare</h3>
                       </div>
+                    </div>
+                    <div className="field">
+                      <label>School / Daycare</label>
+                      <input className="input" value={childDraft.schoolOrDaycare || ''} onChange={e => updateChildDraft('schoolOrDaycare', e.target.value)} />
+                    </div>
+                  </section>
+
+                  <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="section-title" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="eyebrow">Health</div>
+                        <h3 style={{ marginBottom: 0 }}>Care and providers</h3>
+                        <p style={{ marginBottom: 0 }}>Track medications, providers, and the latest monthly home visit.</p>
+                      </div>
+                    </div>
+                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
                       <div className="field">
                         <label>Last Monthly Home Visit</label>
                         <input className="input" type="date" value={childDraft.lastMonthlyHomeVisit || ''} onChange={e => updateChildDraft('lastMonthlyHomeVisit', e.target.value)} />
@@ -787,9 +816,18 @@ export default function CaseDetailPage() {
                       <label>Medical Providers</label>
                       <textarea className="textarea" rows={4} value={childDraft.medicalProviders || ''} onChange={e => updateChildDraft('medicalProviders', e.target.value)} placeholder="Doctors, dentists, therapists, specialists..." />
                     </div>
+                  </section>
+
+                  <section className="card card-muted" style={{ padding: 18 }}>
+                    <div className="section-title" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="eyebrow">Notes</div>
+                        <h3 style={{ marginBottom: 0 }}>Ongoing documentation</h3>
+                      </div>
+                    </div>
                     <div className="field">
-                      <label>Notes</label>
-                      <textarea className="textarea" rows={5} value={childDraft.notes || ''} onChange={e => updateChildDraft('notes', e.target.value)} />
+                      <label>Case notes</label>
+                      <textarea className="textarea" rows={6} value={childDraft.notes || ''} onChange={e => updateChildDraft('notes', e.target.value)} />
                     </div>
                   </section>
 
