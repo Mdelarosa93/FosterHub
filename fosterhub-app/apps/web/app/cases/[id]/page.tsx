@@ -42,7 +42,7 @@ export default function CaseDetailPage() {
   const [activePicker, setActivePicker] = useState<'caseWorker' | 'fosterParent' | 'guardianAdLitem' | null>(null);
   const [photoGalleryOpen, setPhotoGalleryOpen] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
-  const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+  const [photoMenuOpen, setPhotoMenuOpen] = useState<string | null>(null);
   const [profilePhotoHovered, setProfilePhotoHovered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -299,6 +299,14 @@ export default function CaseDetailPage() {
   }, [activeChildId]);
 
   useEffect(() => {
+    if (!photoGalleryOpen || !childDraft?.photos?.length) return;
+    const activePhoto = childDraft.photos[selectedPhotoIndex];
+    if (!activePhoto) return;
+    const target = document.getElementById(`gallery-photo-${activePhoto.id}`);
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [photoGalleryOpen, selectedPhotoIndex, childDraft]);
+
+  useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as HTMLElement | null;
       if (!target?.closest('[data-picker-field="true"]')) {
@@ -431,7 +439,7 @@ export default function CaseDetailPage() {
     setGuardianAdLitemQuery('');
     setActivePicker(null);
     setPhotoGalleryOpen(false);
-    setPhotoMenuOpen(false);
+    setPhotoMenuOpen(null);
     setSelectedPhotoIndex(0);
   }
 
@@ -500,7 +508,7 @@ export default function CaseDetailPage() {
     } else {
       setSelectedPhotoIndex(0);
     }
-    setPhotoMenuOpen(false);
+    setPhotoMenuOpen(null);
     setPhotoGalleryOpen(true);
   }
 
@@ -510,7 +518,7 @@ export default function CaseDetailPage() {
       profilePhotoId: photoId,
     }));
     setChildDirty(true);
-    setPhotoMenuOpen(false);
+    setPhotoMenuOpen(null);
   }
 
   function removePhoto(photoId: string) {
@@ -529,7 +537,7 @@ export default function CaseDetailPage() {
       };
     });
     setChildDirty(true);
-    setPhotoMenuOpen(false);
+    setPhotoMenuOpen(null);
   }
 
   function saveChildChanges() {
@@ -1037,56 +1045,47 @@ export default function CaseDetailPage() {
                     <div>
                       <div className="eyebrow">Photos</div>
                     </div>
-                    <div className="actions-row" style={{ marginTop: 0, position: 'relative' }}>
-                      <button type="button" className="button button-ghost" style={{ minHeight: 36, padding: '6px 12px' }} onClick={() => setPhotoMenuOpen(current => !current)}>
-                        ☰
-                      </button>
-                      {photoMenuOpen ? (
-                        <div className="card" style={{ position: 'absolute', top: 42, right: 48, padding: 10, minWidth: 210, zIndex: 2 }}>
-                          <div className="stack" style={{ gap: 8 }}>
-                            {childDraft.photos[selectedPhotoIndex]?.id === childDraft.profilePhotoId ? (
-                              <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => setProfilePhoto('')}>
-                                Remove profile picture
-                              </button>
-                            ) : (
-                              <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => setProfilePhoto(childDraft.photos[selectedPhotoIndex]?.id)}>
-                                Set as profile picture
-                              </button>
-                            )}
-                            <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => removePhoto(childDraft.photos[selectedPhotoIndex]?.id)}>
-                              Delete photo
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                      <button type="button" className="button button-ghost" onClick={() => setPhotoGalleryOpen(false)}>
-                        Close
-                      </button>
-                    </div>
+                    <button type="button" className="button button-ghost" onClick={() => setPhotoGalleryOpen(false)}>
+                      Close
+                    </button>
                   </div>
 
-                  <div style={{ display: 'grid', gap: 14 }}>
-                    <div style={{ position: 'relative', background: '#f7faf8', borderRadius: 18, overflow: 'hidden', minHeight: 420 }}>
-                      <img src={childDraft.photos[selectedPhotoIndex]?.url} alt={childDraft.photos[selectedPhotoIndex]?.name || 'Photo'} style={{ width: '100%', maxHeight: 560, objectFit: 'contain', display: 'block', margin: '0 auto' }} />
-                      {childDraft.photos[selectedPhotoIndex]?.id === childDraft.profilePhotoId ? (
-                        <span style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800 }}>
-                          P
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="record-list" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
-                      {childDraft.photos.map((photo: any, index: number) => (
-                        <button key={photo.id} type="button" className="record-item" style={{ padding: 6, position: 'relative', border: index === selectedPhotoIndex ? '2px solid #135c31' : '1px solid #dfe9e2', background: 'white' }} onClick={() => { setSelectedPhotoIndex(index); setPhotoMenuOpen(false); }}>
-                          <img src={photo.url} alt={photo.name} style={{ width: '100%', height: 84, objectFit: 'cover', borderRadius: 10, display: 'block' }} />
-                          {childDraft.profilePhotoId === photo.id ? (
-                            <span style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800 }}>
+                  <div className="stack" style={{ gap: 18 }}>
+                    {childDraft.photos.map((photo: any, index: number) => (
+                      <article key={photo.id} id={`gallery-photo-${photo.id}`} className="card card-muted" style={{ padding: 16, position: 'relative', border: index === selectedPhotoIndex ? '2px solid #135c31' : undefined }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10, position: 'relative' }}>
+                          <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => setPhotoMenuOpen(current => current === photo.id ? null : photo.id)}>
+                            ☰
+                          </button>
+                          {photoMenuOpen === photo.id ? (
+                            <div className="card" style={{ position: 'absolute', top: 40, right: 0, padding: 10, minWidth: 210, zIndex: 2 }}>
+                              <div className="stack" style={{ gap: 8 }}>
+                                {photo.id === childDraft.profilePhotoId ? (
+                                  <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => setProfilePhoto('')}>
+                                    Remove profile picture
+                                  </button>
+                                ) : (
+                                  <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => setProfilePhoto(photo.id)}>
+                                    Set as profile picture
+                                  </button>
+                                )}
+                                <button type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => removePhoto(photo.id)}>
+                                  Delete photo
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                        <div style={{ position: 'relative', background: '#f7faf8', borderRadius: 18, overflow: 'hidden' }}>
+                          <img src={photo.url} alt={photo.name || 'Photo'} style={{ width: '100%', maxHeight: 560, objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                          {photo.id === childDraft.profilePhotoId ? (
+                            <span style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800 }}>
                               P
                             </span>
                           ) : null}
-                        </button>
-                      ))}
-                    </div>
+                        </div>
+                      </article>
+                    ))}
                   </div>
                 </section>
               </div>
