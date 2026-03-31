@@ -41,13 +41,6 @@ const caseNumberMap: Record<string, string> = {
   Lewis: '456789',
 };
 
-const workerOptions = ['Taylor Reed', 'Jordan Kim', 'Monica Alvarez', 'Marcus Green'];
-const workerSupervisorMap: Record<string, string> = {
-  'Taylor Reed': 'Monica Alvarez',
-  'Jordan Kim': 'Monica Alvarez',
-  'Marcus Green': 'Monica Alvarez',
-  'Monica Alvarez': 'Monica Alvarez',
-};
 
 function getLocalDateInputValue() {
   const now = new Date();
@@ -154,9 +147,19 @@ export default function CasesPage() {
 
   const visibleCases = showAllCases ? displayCases : myCases;
 
+  const storedUsersRaw = typeof window !== 'undefined' ? localStorage.getItem('fosterhub.users') : null;
+  const storedUsers = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
+  const workerOptions = storedUsers.filter((user: any) => user.type === 'Staff' && user.roles?.includes('Case Worker')).map((user: any) => user.name);
+  const workerSupervisorMap = storedUsers.reduce((map: Record<string, string>, user: any) => {
+    if (user.type === 'Staff' && user.roles?.includes('Case Worker')) {
+      map[user.name] = user.supervisor || 'Unassigned';
+    }
+    return map;
+  }, {});
+
   const workerSuggestions = useMemo(() => {
-    return (assignedWorkerQuery ? workerOptions.filter(option => option.toLowerCase().includes(assignedWorkerQuery.toLowerCase())) : workerOptions).slice(0, 8);
-  }, [assignedWorkerQuery]);
+    return (assignedWorkerQuery ? workerOptions.filter((option: string) => option.toLowerCase().includes(assignedWorkerQuery.toLowerCase())) : workerOptions).slice(0, 8);
+  }, [assignedWorkerQuery, workerOptions]);
 
   function resetAddCaseForm() {
     setCaseNameDraft('');
@@ -369,7 +372,7 @@ export default function CasesPage() {
                   {workerPickerOpen ? (
                     <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
                       <div className="stack" style={{ gap: 8 }}>
-                        {workerSuggestions.map(option => (
+                        {workerSuggestions.map((option: string) => (
                           <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { setAssignedWorkerDraft(option); setAssignedWorkerQuery(''); setWorkerPickerOpen(false); }}>
                             {option}
                           </button>

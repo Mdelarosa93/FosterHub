@@ -113,7 +113,17 @@ const permissionOptions = [
 ];
 
 export default function IntakePage() {
-  const [users, setUsers] = useState<UserRecord[]>(initialUsers);
+  const [users, setUsers] = useState<UserRecord[]>(() => {
+    if (typeof window === 'undefined') return initialUsers;
+    const stored = localStorage.getItem('fosterhub.users');
+    if (!stored) return initialUsers;
+
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return initialUsers;
+    }
+  });
   const [query, setQuery] = useState('');
   const [selectedType, setSelectedType] = useState<UserType>('Staff');
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
@@ -134,6 +144,10 @@ export default function IntakePage() {
   }, [users, query, selectedType]);
 
   const activeUser = users.find(user => user.id === activeUserId) || null;
+
+  useEffect(() => {
+    localStorage.setItem('fosterhub.users', JSON.stringify(users));
+  }, [users]);
 
   useEffect(() => {
     if (activeUser && activeUser.type !== selectedType) {

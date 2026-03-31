@@ -37,9 +37,9 @@ export default function CaseDetailPage() {
   const [childDirty, setChildDirty] = useState(false);
   const [caseDirty, setCaseDirty] = useState(false);
   const [caseWorkerQuery, setCaseWorkerQuery] = useState('');
-  const [placementQuery, setPlacementQuery] = useState('');
-  const [supervisorQuery, setSupervisorQuery] = useState('');
-  const [activePicker, setActivePicker] = useState<'caseWorker' | 'placement' | 'supervisor' | null>(null);
+  const [fosterParentQuery, setFosterParentQuery] = useState('');
+  const [guardianAdLitemQuery, setGuardianAdLitemQuery] = useState('');
+  const [activePicker, setActivePicker] = useState<'caseWorker' | 'fosterParent' | 'guardianAdLitem' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -208,17 +208,26 @@ export default function CaseDetailPage() {
 
   const childProfileMap: Record<string, any[]> = {
     Hall: [
-      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', supervisor: 'Monica Alvarez', placement: 'Sarah Hall' },
-      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', supervisor: 'Monica Alvarez', placement: '' },
+      { id: 'archer-hall', name: 'Archer Hall', age: 4, birthday: '2021-04-11', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: 'Sarah Hall' },
+      { id: 'mia-hall', name: 'Mia Hall', age: 7, birthday: '2018-09-02', status: 'Pending Placement', caseWorker: 'Jordan Kim', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '' },
     ],
     Johnson: [
-      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', supervisor: 'Monica Alvarez', placement: 'Ava Johnson Foster Home' },
+      { id: 'ava-johnson', name: 'Ava Johnson', age: 9, birthday: '2017-01-14', status: 'Placed', caseWorker: 'Taylor Reed', guardianAdLitem: 'Attorney Maria Lopez', fosterParent: '' },
     ],
   };
 
   useEffect(() => {
     if (!data?.child?.lastName) return;
     const defaultChildren = childProfileMap[data.child.lastName] || [];
+    const storedProfilesRaw = localStorage.getItem('fosterhub.caseProfiles');
+    const storedProfiles = storedProfilesRaw ? JSON.parse(storedProfilesRaw) : {};
+    const savedProfiles: any[] = storedProfiles[caseLabel] || [];
+
+    if (savedProfiles.length) {
+      setChildProfiles(savedProfiles);
+      return;
+    }
+
     const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
     const storedChildren = storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {};
     const savedNames: string[] = storedChildren[caseLabel] || [];
@@ -232,8 +241,8 @@ export default function CaseDetailPage() {
           birthday: '2020-01-01',
           status: 'Pending Placement',
           caseWorker: '',
-          supervisor: '',
-          placement: '',
+          guardianAdLitem: '',
+          fosterParent: '',
         };
       });
       setChildProfiles(mergedChildren);
@@ -253,6 +262,11 @@ export default function CaseDetailPage() {
     const storedChildren = storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {};
     storedChildren[caseLabel] = childProfiles.map((child: any) => child.name);
     localStorage.setItem('fosterhub.caseChildren', JSON.stringify(storedChildren));
+
+    const storedProfilesRaw = localStorage.getItem('fosterhub.caseProfiles');
+    const storedProfiles = storedProfilesRaw ? JSON.parse(storedProfilesRaw) : {};
+    storedProfiles[caseLabel] = childProfiles;
+    localStorage.setItem('fosterhub.caseProfiles', JSON.stringify(storedProfiles));
   }, [caseLabel, childProfiles]);
 
   useEffect(() => {
@@ -278,52 +292,69 @@ export default function CaseDetailPage() {
 
   const caseWorkers = Array.from(
     new Map(
-      childProfiles.map((child: any) => [
-        child.caseWorker,
-        {
-          name: child.caseWorker,
-          role: 'Case Worker',
-          assignedNames: childProfiles.filter((entry: any) => entry.caseWorker === child.caseWorker).map((entry: any) => entry.name),
-        },
-      ]),
+      childProfiles
+        .filter((child: any) => child.caseWorker)
+        .map((child: any) => [
+          child.caseWorker,
+          {
+            name: child.caseWorker,
+            role: 'Case Worker',
+            assignedNames: childProfiles.filter((entry: any) => entry.caseWorker === child.caseWorker).map((entry: any) => entry.name),
+          },
+        ]),
     ).values(),
   );
 
-  const supervisors = Array.from(
+  const guardianAdLitems = Array.from(
     new Map(
-      childProfiles.map((child: any) => [
-        child.supervisor,
-        {
-          name: child.supervisor,
-          role: 'Supervisor',
-          assignedNames: Array.from(
-            new Set(
-              childProfiles
-                .filter((entry: any) => entry.supervisor === child.supervisor)
-                .map((entry: any) => entry.caseWorker),
-            ),
-          ),
-        },
-      ]),
+      childProfiles
+        .filter((child: any) => child.guardianAdLitem)
+        .map((child: any) => [
+          child.guardianAdLitem,
+          {
+            name: child.guardianAdLitem,
+            role: 'Guardian Ad Litem',
+            assignedNames: childProfiles.filter((entry: any) => entry.guardianAdLitem === child.guardianAdLitem).map((entry: any) => entry.name),
+          },
+        ]),
     ).values(),
   );
 
-  const assignedStaff = [...caseWorkers, ...supervisors];
+  const fosterParents = Array.from(
+    new Map(
+      childProfiles
+        .filter((child: any) => child.fosterParent)
+        .map((child: any) => [
+          child.fosterParent,
+          {
+            name: child.fosterParent,
+            role: 'Foster Parent',
+            assignedNames: childProfiles.filter((entry: any) => entry.fosterParent === child.fosterParent).map((entry: any) => entry.name),
+          },
+        ]),
+    ).values(),
+  );
+
+  const assignedStaff = [...caseWorkers, ...guardianAdLitems, ...fosterParents];
 
   const activeChild = childProfiles.find((child: any) => child.id === activeChildId) || null;
-  const systemUserOptions = ['Taylor Reed', 'Jordan Kim', 'Monica Alvarez', 'Sarah Hall', 'David Hall', 'Ava Johnson Foster Home'];
+  const storedUsersRaw = typeof window !== 'undefined' ? localStorage.getItem('fosterhub.users') : null;
+  const storedUsers = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
+  const caseWorkerOptions = storedUsers.filter((user: any) => user.type === 'Staff' && user.roles?.includes('Case Worker')).map((user: any) => user.name);
+  const guardianAdLitemOptions = storedUsers.filter((user: any) => user.type === 'Legal' && user.roles?.includes('Attorney')).map((user: any) => user.name);
+  const fosterParentOptions = storedUsers.filter((user: any) => user.type === 'Foster Parents').map((user: any) => user.name);
 
-  const caseWorkerSuggestions = (caseWorkerQuery ? systemUserOptions.filter(option => option.toLowerCase().includes(caseWorkerQuery.toLowerCase())) : systemUserOptions).slice(0, 8);
-  const supervisorSuggestions = (supervisorQuery ? systemUserOptions.filter(option => option.toLowerCase().includes(supervisorQuery.toLowerCase())) : systemUserOptions).slice(0, 8);
-  const placementSuggestions = (placementQuery ? systemUserOptions.filter(option => option.toLowerCase().includes(placementQuery.toLowerCase())) : systemUserOptions).slice(0, 8);
+  const caseWorkerSuggestions = (caseWorkerQuery ? caseWorkerOptions.filter((option: string) => option.toLowerCase().includes(caseWorkerQuery.toLowerCase())) : caseWorkerOptions).slice(0, 8);
+  const guardianAdLitemSuggestions = (guardianAdLitemQuery ? guardianAdLitemOptions.filter((option: string) => option.toLowerCase().includes(guardianAdLitemQuery.toLowerCase())) : guardianAdLitemOptions).slice(0, 8);
+  const fosterParentSuggestions = (fosterParentQuery ? fosterParentOptions.filter((option: string) => option.toLowerCase().includes(fosterParentQuery.toLowerCase())) : fosterParentOptions).slice(0, 8);
 
   function openChildModal(child: any) {
     setActiveChildId(child.id);
     setChildDraft({ ...child });
     setChildDirty(false);
     setCaseWorkerQuery('');
-    setPlacementQuery('');
-    setSupervisorQuery('');
+    setFosterParentQuery('');
+    setGuardianAdLitemQuery('');
     setActivePicker(null);
   }
 
@@ -335,13 +366,13 @@ export default function CaseDetailPage() {
       birthday: '',
       status: 'Pending Placement',
       caseWorker: '',
-      supervisor: '',
-      placement: '',
+      guardianAdLitem: '',
+      fosterParent: '',
     });
     setChildDirty(true);
     setCaseWorkerQuery('');
-    setPlacementQuery('');
-    setSupervisorQuery('');
+    setFosterParentQuery('');
+    setGuardianAdLitemQuery('');
     setActivePicker(null);
   }
 
@@ -350,8 +381,8 @@ export default function CaseDetailPage() {
     setChildDraft(null);
     setChildDirty(false);
     setCaseWorkerQuery('');
-    setPlacementQuery('');
-    setSupervisorQuery('');
+    setFosterParentQuery('');
+    setGuardianAdLitemQuery('');
     setActivePicker(null);
   }
 
@@ -525,7 +556,7 @@ export default function CaseDetailPage() {
             ) : (
               <div className="empty-state">
                 <strong>No staff assigned yet.</strong>
-                <p style={{ marginBottom: 0 }}>Assigned case workers and supervisors will appear here.</p>
+                <p style={{ marginBottom: 0 }}>Assigned case workers, guardians ad litem, and foster parents will appear here.</p>
               </div>
             )}
           </section>
@@ -613,62 +644,57 @@ export default function CaseDetailPage() {
                   ) : null}
                 </div>
                 <div className="field" style={{ position: 'relative' }} data-picker-field="true">
-                  <label>Placement</label>
-                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('placement')}>
-                    {childDraft.placement ? (
-                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('placement', '')}>
-                        {childDraft.placement} ×
+                  <label>Foster Parents</label>
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('fosterParent')}>
+                    {childDraft.fosterParent ? (
+                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('fosterParent', '')}>
+                        {childDraft.fosterParent} ×
                       </button>
                     ) : null}
                     <input
-                      value={placementQuery}
-                      onFocus={() => setActivePicker('placement')}
-                      onChange={e => setPlacementQuery(e.target.value)}
-                      placeholder={childDraft.placement ? 'Search another placement' : 'Search FosterHub users for placement'}
+                      value={fosterParentQuery}
+                      onFocus={() => setActivePicker('fosterParent')}
+                      onChange={e => setFosterParentQuery(e.target.value)}
+                      placeholder={childDraft.fosterParent ? 'Search another foster parent' : 'Search foster parents'}
                       style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
                     />
                   </div>
-                  {activePicker === 'placement' ? (
+                  {activePicker === 'fosterParent' ? (
                     <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
                       <div className="stack" style={{ gap: 8 }}>
-                        {placementSuggestions.map((option: string) => (
-                          <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('placement', option); setPlacementQuery(''); setActivePicker(null); }}>
+                        {fosterParentSuggestions.length ? fosterParentSuggestions.map((option: string) => (
+                          <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('fosterParent', option); setFosterParentQuery(''); setActivePicker(null); }}>
                             {option}
                           </button>
-                        ))}
+                        )) : <span className="muted">No foster parents found.</span>}
                       </div>
                     </div>
                   ) : null}
-                  {placementQuery && !systemUserOptions.some(option => option.toLowerCase() === placementQuery.toLowerCase()) ? (
-                    <button type="button" className="button button-secondary">
-                      Invite {placementQuery} to FosterHub
-                    </button>
-                  ) : null}
                 </div>
                 <div className="field" style={{ position: 'relative' }} data-picker-field="true">
-                  <label>Supervisor</label>
-                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('supervisor')}>
-                    {childDraft.supervisor ? (
-                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('supervisor', '')}>
-                        {childDraft.supervisor} ×
+                  <label>Guardian Ad Litem</label>
+                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('guardianAdLitem')}>
+                    {childDraft.guardianAdLitem ? (
+                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('guardianAdLitem', '')}>
+                        {childDraft.guardianAdLitem} ×
                       </button>
                     ) : null}
                     <input
-                      value={supervisorQuery}
-                      onFocus={() => setActivePicker('supervisor')}
-                      onChange={e => setSupervisorQuery(e.target.value)}
-                      placeholder={childDraft.supervisor ? 'Search another supervisor' : 'Search supervisor'}
+                      value={guardianAdLitemQuery}
+                      onFocus={() => setActivePicker('guardianAdLitem')}
+                      onChange={e => setGuardianAdLitemQuery(e.target.value)}
+                      placeholder={childDraft.guardianAdLitem ? 'Search another attorney' : 'Search guardian ad litem'}
                       style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
                     />
                   </div>
-                  {activePicker === 'supervisor' ? (
+                  {activePicker === 'guardianAdLitem' ? (
                     <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
                       <div className="stack" style={{ gap: 8 }}>
-                        {supervisorSuggestions.map((option: string) => (
-                          <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('supervisor', option); setSupervisorQuery(''); setActivePicker(null); }}>
+                        {guardianAdLitemSuggestions.length ? guardianAdLitemSuggestions.map((option: string) => (
+                          <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('guardianAdLitem', option); setGuardianAdLitemQuery(''); setActivePicker(null); }}>
                             {option}
                           </button>
-                        ))}
+                        )) : <span className="muted">No attorneys found.</span>}
                       </div>
                     </div>
                   ) : null}
