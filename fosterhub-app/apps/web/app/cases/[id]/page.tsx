@@ -1082,54 +1082,6 @@ export default function CaseDetailPage() {
             )}
             </section>
 
-            <section className="card card-muted">
-              <div className="section-title">
-                <div>
-                  <div className="eyebrow">Activity summary</div>
-                  <h3 style={{ marginBottom: 0 }}>Status by activity type</h3>
-                </div>
-                <div className="actions-row" style={{ marginTop: 0 }}>
-                  <button type="button" className="button button-ghost" onClick={() => openAddActivityModal()}>
-                    Add Activity
-                  </button>
-                  <button type="button" className="button button-ghost" onClick={() => setActivityPanelOpen(true)}>
-                    View All Activities
-                  </button>
-                </div>
-              </div>
-
-              {activitySummaryRows.length ? (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '1px solid #d9e5dd' }}>Activity Type</th>
-                        {activityStatusColumns.map(status => <th key={status} style={{ textAlign: 'center', padding: '10px 12px', borderBottom: '1px solid #d9e5dd' }}>{status}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activitySummaryRows.map(row => (
-                        <tr key={row.type}>
-                          <td style={{ padding: '10px 12px', borderBottom: '1px solid #eef3ef', fontWeight: 700 }}>{row.type}</td>
-                          {activityStatusColumns.map(status => (
-                            <td key={status} style={{ padding: '10px 12px', borderBottom: '1px solid #eef3ef', textAlign: 'center' }}>
-                              <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '4px 10px' }} onClick={() => { setActivitySummaryView({ type: row.type, outcome: status }); setActivityPanelOpen(true); }}>
-                                {row.counts[status] || 0}
-                              </button>
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <strong>No activities recorded yet.</strong>
-                  <p style={{ marginBottom: 0 }}>Add case activities here to build a running activity summary.</p>
-                </div>
-              )}
-            </section>
           </div>
 
           <section className="card card-muted">
@@ -1169,6 +1121,55 @@ export default function CaseDetailPage() {
               </div>
             )}
           </section>
+        </section>
+
+        <section className="card card-muted">
+          <div className="section-title">
+            <div>
+              <div className="eyebrow">Activity summary</div>
+              <h3 style={{ marginBottom: 0 }}>Status by activity type</h3>
+            </div>
+            <div className="actions-row" style={{ marginTop: 0 }}>
+              <button type="button" className="button button-ghost" onClick={() => openAddActivityModal()}>
+                Add Activity
+              </button>
+              <button type="button" className="button button-ghost" onClick={() => setActivityPanelOpen(true)}>
+                View All Activities
+              </button>
+            </div>
+          </div>
+
+          {activitySummaryRows.length ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '1px solid #d9e5dd' }}>Activity Type</th>
+                    {activityStatusColumns.map(status => <th key={status} style={{ textAlign: 'center', padding: '10px 12px', borderBottom: '1px solid #d9e5dd' }}>{status}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {activitySummaryRows.map(row => (
+                    <tr key={row.type}>
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid #eef3ef', fontWeight: 700 }}>{row.type}</td>
+                      {activityStatusColumns.map(status => (
+                        <td key={status} style={{ padding: '10px 12px', borderBottom: '1px solid #eef3ef', textAlign: 'center' }}>
+                          <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '4px 10px' }} onClick={() => { setActivitySummaryView({ type: row.type, outcome: status }); setActivityPanelOpen(true); }}>
+                            {row.counts[status] || 0}
+                          </button>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <strong>No activities recorded yet.</strong>
+              <p style={{ marginBottom: 0 }}>Add case activities here to build a running activity summary.</p>
+            </div>
+          )}
         </section>
 
         {activityModalOpen ? (
