@@ -229,16 +229,6 @@ export default function CalendarPage() {
     return map;
   }, [appointments]);
 
-  const upcomingAppointments = useMemo(() => {
-    return [...appointments]
-      .sort((a, b) => {
-        const dateA = new Date(`${a.date}T00:00:00`).getTime() + timeToSortableNumber(a.time) * 60000;
-        const dateB = new Date(`${b.date}T00:00:00`).getTime() + timeToSortableNumber(b.time) * 60000;
-        return dateA - dateB;
-      })
-      .slice(0, 2);
-  }, [appointments]);
-
   useEffect(() => {
     const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
     setStoredChildrenByCase(storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {});
@@ -332,12 +322,6 @@ export default function CalendarPage() {
     setActiveEventId(null);
   }
 
-  function openNewEventModal() {
-    resetEventForm();
-    setEventModalMode('create');
-    setEventModalOpen(true);
-  }
-
   function openExistingEvent(event: CalendarEvent) {
     setActiveEventId(event.id);
     setSelectedCase(event.caseLabel);
@@ -388,34 +372,6 @@ export default function CalendarPage() {
     <AppShell title="Calendar">
       <main className="page-stack">
         <section className="card">
-          <div className="section-title">
-            <div>
-              <div className="eyebrow">Up next</div>
-              <h2 style={{ marginBottom: 0 }}>Upcoming appointments</h2>
-            </div>
-          </div>
-
-          <div className="record-list">
-            {upcomingAppointments.map(item => (
-              <article
-                key={item.id}
-                className="record-item"
-                onClick={() => openExistingEvent(item)}
-                style={{ cursor: 'pointer' }}
-                title={`${item.time} · ${item.caseLabel} · ${item.eventType}`}
-              >
-                <strong>{item.caseLabel}</strong>
-                <div className="record-meta">
-                  <span>{new Date(item.date).toLocaleDateString()}</span>
-                  <span>{item.time}</span>
-                  <span>{item.eventType}</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="card">
           <div className="section-title" style={{ alignItems: 'center', marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button
@@ -439,9 +395,6 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            <button type="button" className="button button-primary" onClick={openNewEventModal}>
-              New Event
-            </button>
           </div>
 
           <div
