@@ -933,7 +933,7 @@ export default function CaseDetailPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             <h2 style={{ fontSize: 34, margin: 0 }}>{displayCaseLabel}</h2>
             <div className="actions-row" style={{ marginTop: 0 }}>
-              <button type="button" className="button button-ghost" onClick={() => setCaseInfoOpen(true)}>
+              <button type="button" className="button button-primary" style={{ background: '#10588c', borderColor: '#10588c', color: 'white' }} onClick={() => setCaseInfoOpen(true)}>
                 Edit Case Number
               </button>
               {caseDirty ? (
@@ -995,7 +995,7 @@ export default function CaseDetailPage() {
                   <div className="eyebrow">Family</div>
                 </div>
                 <button type="button" className="button button-ghost" onClick={openFamilyModal}>
-                  Edit Family
+                  Add Family
                 </button>
               </div>
 
@@ -1169,19 +1169,11 @@ export default function CaseDetailPage() {
                     <input className="input" type="date" value={activityDraft.date} onChange={e => setActivityDraft(current => ({ ...current, date: e.target.value }))} />
                   </div>
                 </div>
-                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-                  <div className="field">
-                    <label>Start time</label>
-                    <input className="input" type="time" value={activityDraft.startTime} onChange={e => setActivityDraft(current => ({ ...current, startTime: e.target.value }))} />
-                  </div>
-                  <div className="field">
-                    <label>End time</label>
-                    <input className="input" type="time" value={activityDraft.endTime} onChange={e => setActivityDraft(current => ({ ...current, endTime: e.target.value }))} />
-                  </div>
-                </div>
                 <div className="field">
-                  <label>Location</label>
-                  <input className="input" value={activityDraft.location} onChange={e => setActivityDraft(current => ({ ...current, location: e.target.value }))} />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input type="checkbox" checked={activityDraft.addToCalendar} onChange={e => setActivityDraft(current => ({ ...current, addToCalendar: e.target.checked }))} />
+                    Add to calendar
+                  </label>
                 </div>
                 <div className="field">
                   <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -1201,24 +1193,42 @@ export default function CaseDetailPage() {
                     })}
                   </div>
                 </div>
-                <div className="field">
-                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <span>Invite others</span>
-                    <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }} onClick={() => setActivityDraft(current => ({ ...current, invitees: current.invitees.length === activityInviteeOptions.length ? [] : activityInviteeOptions }))}>
-                      {activityDraft.invitees.length === activityInviteeOptions.length ? 'Deselect all' : 'Select all'}
-                    </button>
-                  </label>
-                  <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {activityInviteeOptions.map(option => {
-                      const selected = activityDraft.invitees.includes(option);
-                      return (
-                        <button key={option} type="button" className={selected ? 'button button-primary' : 'button button-ghost'} style={{ minHeight: 32, padding: '6px 10px' }} onClick={() => setActivityDraft(current => ({ ...current, invitees: selected ? current.invitees.filter((item: string) => item !== option) : [...current.invitees, option] }))}>
-                          {option}
+                {activityDraft.addToCalendar ? (
+                  <>
+                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                      <div className="field">
+                        <label>Start time</label>
+                        <input className="input" type="time" value={activityDraft.startTime} onChange={e => setActivityDraft(current => ({ ...current, startTime: e.target.value }))} />
+                      </div>
+                      <div className="field">
+                        <label>End time</label>
+                        <input className="input" type="time" value={activityDraft.endTime} onChange={e => setActivityDraft(current => ({ ...current, endTime: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label>Location</label>
+                      <input className="input" value={activityDraft.location} onChange={e => setActivityDraft(current => ({ ...current, location: e.target.value }))} />
+                    </div>
+                    <div className="field">
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <span>Invite others</span>
+                        <button type="button" className="button button-ghost" style={{ minHeight: 28, padding: '4px 10px', fontSize: 12 }} onClick={() => setActivityDraft(current => ({ ...current, invitees: current.invitees.length === activityInviteeOptions.length ? [] : activityInviteeOptions }))}>
+                          {activityDraft.invitees.length === activityInviteeOptions.length ? 'Deselect all' : 'Select all'}
                         </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                      </label>
+                      <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {activityInviteeOptions.map(option => {
+                          const selected = activityDraft.invitees.includes(option);
+                          return (
+                            <button key={option} type="button" className={selected ? 'button button-primary' : 'button button-ghost'} style={{ minHeight: 32, padding: '6px 10px' }} onClick={() => setActivityDraft(current => ({ ...current, invitees: selected ? current.invitees.filter((item: string) => item !== option) : [...current.invitees, option] }))}>
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
                 <div className="field">
                   <label>Attach documents</label>
                   <input className="input" type="file" multiple onChange={handleActivityDocumentUpload} />
@@ -1228,12 +1238,6 @@ export default function CaseDetailPage() {
                   <label>Attach photos</label>
                   <input className="input" type="file" accept="image/*" multiple onChange={handleActivityPhotoUpload} />
                   {activityDraft.photos.length ? <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>{activityDraft.photos.length} photo(s) attached</p> : null}
-                </div>
-                <div className="field">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <input type="checkbox" checked={activityDraft.addToCalendar} onChange={e => setActivityDraft(current => ({ ...current, addToCalendar: e.target.checked }))} />
-                    Add to calendar
-                  </label>
                 </div>
                 <div className="field">
                   <label>Notes</label>
@@ -1363,7 +1367,7 @@ export default function CaseDetailPage() {
               <div className="section-title">
                 <div>
                   <div className="eyebrow">Family</div>
-                  <h3>{'Edit Family'}</h3>
+                  <h3>{'Add Family'}</h3>
                 </div>
                 <button type="button" className="button button-ghost" onClick={() => setFamilyModalOpen(false)}>Close</button>
               </div>

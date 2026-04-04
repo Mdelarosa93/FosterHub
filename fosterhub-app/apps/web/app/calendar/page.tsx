@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '../../components/AppShell';
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -197,6 +197,19 @@ function formatDayHeading(date: Date) {
   return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
+const timeSlots = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 2);
+  const minute = index % 2 === 0 ? '00' : '30';
+  const displayHour = hour % 12 || 12;
+  const meridiem = hour >= 12 ? 'PM' : 'AM';
+  return {
+    key: `${String(hour).padStart(2, '0')}:${minute}`,
+    label: `${displayHour}:${minute} ${meridiem}`,
+    hour,
+    isWorkingHour: hour >= 8 && hour < 18,
+  };
+});
+
 function syncActivityEventToCaseStorage(event: CalendarEvent) {
   if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
 
@@ -291,6 +304,7 @@ export default function CalendarPage() {
   const [eventActionHover, setEventActionHover] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
+  const monthPickerRef = useRef<HTMLDivElement | null>(null);
 
   const monthDays = useMemo(() => buildCalendarDays(visibleDate), [visibleDate]);
   const monthLabel = useMemo(() => formatMonthHeading(visibleDate), [visibleDate]);
@@ -321,6 +335,23 @@ export default function CalendarPage() {
     const isoDate = visibleDate.toISOString().slice(0, 10);
     return appointmentMap.get(isoDate) || [];
   }, [appointmentMap, visibleDate]);
+  const visibleYears = useMemo(() => {
+    const currentYear = visibleDate.getFullYear();
+    return Array.from({ length: 21 }, (_, index) => currentYear - 10 + index);
+  }, [visibleDate]);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!monthPickerOpen) return;
+      const target = event.target as Node | null;
+      if (monthPickerRef.current && target && !monthPickerRef.current.contains(target)) {
+        setMonthPickerOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [monthPickerOpen]);
 
   useEffect(() => {
     const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
@@ -539,30 +570,39 @@ export default function CalendarPage() {
               </button>
 
               {monthPickerOpen ? (
-                <div className="card" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 20, padding: 14, width: 280 }}>
+                <div ref={monthPickerRef} className="card" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 20, padding: 14, width: 320 }}>
                   <div className="grid" style={{ gridTemplateColumns: '1fr 110px', gap: 12 }}>
                     <div className="field" style={{ marginBottom: 0 }}>
                       <label>Month</label>
-                      <select
-                        className="select"
-                        value={visibleDate.getMonth()}
-                        onChange={e => setVisibleDate(current => new Date(current.getFullYear(), Number(e.target.value), current.getDate()))}
-                      >
+                      <div style={{ display: 'grid', gap: 6 }}>
                         {Array.from({ length: 12 }, (_, index) => (
-                          <option key={index} value={index}>
+                          <button
+                            key={index}
+                            type="button"
+                            className={visibleDate.getMonth() === index ? 'button button-primary' : 'button button-ghost'}
+                            style={{ justifyContent: 'flex-start', minHeight: 34, padding: '6px 10px' }}
+                            onClick={() => setVisibleDate(current => new Date(current.getFullYear(), index, current.getDate()))}
+                          >
                             {new Date(2026, index, 1).toLocaleString(undefined, { month: 'long' })}
-                          </option>
+                          </button>
                         ))}
-                      </select>
+                      </div>
                     </div>
                     <div className="field" style={{ marginBottom: 0 }}>
                       <label>Year</label>
-                      <input
-                        className="input"
-                        type="number"
-                        value={visibleDate.getFullYear()}
-                        onChange={e => setVisibleDate(current => new Date(Number(e.target.value || current.getFullYear()), current.getMonth(), current.getDate()))}
-                      />
+                      <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid #d9e5dd', borderRadius: 14, padding: 6, display: 'grid', gap: 4 }}>
+                        {visibleYears.map(year => (
+                          <button
+                            key={year}
+                            type="button"
+                            className={visibleDate.getFullYear() === year ? 'button button-primary' : 'button button-ghost'}
+                            style={{ justifyContent: 'flex-start', minHeight: 34, padding: '6px 10px' }}
+                            onClick={() => setVisibleDate(current => new Date(year, current.getMonth(), current.getDate()))}
+                          >
+                            {year}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -639,39 +679,71 @@ export default function CalendarPage() {
               })}
             </div>
           ) : calendarView === 'week' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 12 }}>
-              {weekDays.map(day => {
-                const isoDate = day.toISOString().slice(0, 10);
-                const appointmentsForDay = appointmentMap.get(isoDate) || [];
-                const isToday = day.toDateString() === new Date().toDateString();
-                return (
-                  <div key={isoDate} className="card card-muted" style={{ padding: 14, minHeight: 320 }}>
-                    <div style={{ fontWeight: 800, color: isToday ? '#046307' : '#123122', marginBottom: 12 }}>
-                      {day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ minWidth: 920, display: 'grid', gridTemplateColumns: '88px repeat(7, minmax(120px, 1fr))', border: '1px solid #d9e5dd', borderRadius: 18, overflow: 'hidden' }}>
+                <div style={{ background: '#f7faf8', borderRight: '1px solid #d9e5dd' }} />
+                {weekDays.map(day => {
+                  const isToday = day.toDateString() === new Date().toDateString();
+                  return (
+                    <div key={day.toISOString()} style={{ padding: '12px 10px', textAlign: 'center', borderRight: '1px solid #eef3ef', background: isToday ? '#eef6f1' : '#f7faf8' }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#10588c' }}>{day.toLocaleDateString(undefined, { weekday: 'short' })}</div>
+                      <div style={{ fontWeight: 800, color: isToday ? '#046307' : '#123122' }}>{day.getDate()}</div>
                     </div>
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      {appointmentsForDay.length ? appointmentsForDay.map(appointment => (
-                        <button key={appointment.id} type="button" className="record-item clickable-card" onClick={() => openExistingEvent(appointment)} style={{ textAlign: 'left', width: '100%' }}>
-                          <strong style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: appointment.color, display: 'inline-block' }} />{appointment.eventType}</strong>
-                          <div className="record-meta"><span>{appointment.time}</span><span>{appointment.caseLabel}</span></div>
-                        </button>
-                      )) : <div className="empty-state" style={{ marginTop: 0 }}><p style={{ margin: 0 }}>No events</p></div>}
+                  );
+                })}
+                {timeSlots.map(slot => (
+                  <div key={slot.key} style={{ display: 'contents' }}>
+                    <div style={{ padding: '8px 10px', borderTop: '1px solid #eef3ef', borderRight: '1px solid #d9e5dd', background: slot.isWorkingHour ? '#ffffff' : '#f7faf8', color: slot.isWorkingHour ? '#4a5e52' : '#9aa9a0', fontSize: 12, fontWeight: slot.key.endsWith(':00') ? 700 : 500 }}>
+                      {slot.key.endsWith(':00') ? slot.label : ''}
                     </div>
+                    {weekDays.map(day => {
+                      const isoDate = day.toISOString().slice(0, 10);
+                      const slotEvent = (appointmentMap.get(isoDate) || []).find(item => item.startTime === slot.key);
+                      const isToday = day.toDateString() === new Date().toDateString();
+                      return (
+                        <div key={`${isoDate}-${slot.key}`} style={{ minHeight: 34, padding: 4, borderTop: '1px solid #eef3ef', borderRight: '1px solid #eef3ef', background: isToday ? (slot.isWorkingHour ? '#fcfffd' : '#f3f7f5') : (slot.isWorkingHour ? '#ffffff' : '#fafcfb') }}>
+                          {slotEvent ? (
+                            <button type="button" onClick={() => openExistingEvent(slotEvent)} style={{ width: '100%', border: 'none', borderLeft: `4px solid ${slotEvent.color}`, borderRadius: 8, background: '#eef6f1', padding: '6px 8px', textAlign: 'left', cursor: 'pointer' }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: '#123122' }}>{slotEvent.eventType}</div>
+                              <div style={{ fontSize: 11, color: '#52665a' }}>{slotEvent.time}</div>
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           ) : (
-            <div className="card card-muted" style={{ padding: 18 }}>
-              <div style={{ fontWeight: 800, color: '#123122', marginBottom: 14 }}>{formatDayHeading(visibleDate)}</div>
-              <div style={{ display: 'grid', gap: 10 }}>
-                {dayAppointments.length ? dayAppointments.map(appointment => (
-                  <button key={appointment.id} type="button" className="record-item clickable-card" onClick={() => openExistingEvent(appointment)} style={{ textAlign: 'left', width: '100%' }}>
-                    <strong style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: appointment.color, display: 'inline-block' }} />{appointment.eventType}</strong>
-                    <div className="record-meta"><span>{appointment.time}</span><span>{appointment.caseLabel}</span></div>
-                    {appointment.location ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Location:</strong> {appointment.location}</p> : null}
-                  </button>
-                )) : <div className="empty-state" style={{ marginTop: 0 }}><strong>No events on this day.</strong></div>}
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ minWidth: 720, display: 'grid', gridTemplateColumns: '88px minmax(0, 1fr)', border: '1px solid #d9e5dd', borderRadius: 18, overflow: 'hidden' }}>
+                <div style={{ background: '#f7faf8', borderRight: '1px solid #d9e5dd' }} />
+                <div style={{ padding: '12px 14px', background: visibleDate.toDateString() === new Date().toDateString() ? '#eef6f1' : '#f7faf8' }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#10588c' }}>{visibleDate.toLocaleDateString(undefined, { weekday: 'long' })}</div>
+                  <div style={{ fontWeight: 800, color: visibleDate.toDateString() === new Date().toDateString() ? '#046307' : '#123122' }}>{visibleDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</div>
+                </div>
+                {timeSlots.map(slot => {
+                  const slotEvent = dayAppointments.find(item => item.startTime === slot.key);
+                  return (
+                    <div key={slot.key} style={{ display: 'contents' }}>
+                      <div style={{ padding: '8px 10px', borderTop: '1px solid #eef3ef', borderRight: '1px solid #d9e5dd', background: slot.isWorkingHour ? '#ffffff' : '#f7faf8', color: slot.isWorkingHour ? '#4a5e52' : '#9aa9a0', fontSize: 12, fontWeight: slot.key.endsWith(':00') ? 700 : 500 }}>
+                        {slot.key.endsWith(':00') ? slot.label : ''}
+                      </div>
+                      <div style={{ minHeight: 34, padding: 4, borderTop: '1px solid #eef3ef', background: slot.isWorkingHour ? '#ffffff' : '#fafcfb' }}>
+                        {slotEvent ? (
+                          <button type="button" onClick={() => openExistingEvent(slotEvent)} style={{ width: '100%', border: 'none', borderLeft: `4px solid ${slotEvent.color}`, borderRadius: 8, background: '#eef6f1', padding: '8px 10px', textAlign: 'left', cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                              <strong style={{ color: '#123122' }}>{slotEvent.eventType}</strong>
+                              <span style={{ fontSize: 12, color: '#52665a' }}>{slotEvent.time}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: '#52665a', marginTop: 4 }}>{slotEvent.caseLabel}</div>
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
