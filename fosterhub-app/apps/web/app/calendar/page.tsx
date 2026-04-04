@@ -185,6 +185,18 @@ function formatTimeForCalendar(value: string) {
   return `${hour}:${minute}${meridiem}`;
 }
 
+function startOfWeek(date: Date) {
+  const next = new Date(date);
+  const day = next.getDay();
+  next.setDate(next.getDate() - day);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function formatDayHeading(date: Date) {
+  return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
 function syncActivityEventToCaseStorage(event: CalendarEvent) {
   if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
 
@@ -255,6 +267,8 @@ export default function CalendarPage() {
     return [...initialAppointments, ...storedEvents];
   });
   const [visibleDate, setVisibleDate] = useState(() => new Date());
+  const [calendarView, setCalendarView] = useState<'day' | 'week' | 'month'>('month');
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventModalMode, setEventModalMode] = useState<'create' | 'view' | 'edit'>('create');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
@@ -282,6 +296,14 @@ export default function CalendarPage() {
   const monthLabel = useMemo(() => formatMonthHeading(visibleDate), [visibleDate]);
   const activeMonth = visibleDate.getMonth();
   const formDisabled = eventModalMode === 'view';
+  const weekDays = useMemo(() => {
+    const start = startOfWeek(visibleDate);
+    return Array.from({ length: 7 }, (_, index) => {
+      const next = new Date(start);
+      next.setDate(start.getDate() + index);
+      return next;
+    });
+  }, [visibleDate]);
 
   const appointmentMap = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -294,6 +316,11 @@ export default function CalendarPage() {
     }
     return map;
   }, [appointments]);
+
+  const dayAppointments = useMemo(() => {
+    const isoDate = visibleDate.toISOString().slice(0, 10);
+    return appointmentMap.get(isoDate) || [];
+  }, [appointmentMap, visibleDate]);
 
   useEffect(() => {
     const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
@@ -348,8 +375,24 @@ export default function CalendarPage() {
     }
   }, [selectedCase, eventModalMode]);
 
-  function changeMonth(direction: number) {
-    setVisibleDate(current => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  function changePeriod(direction: number) {
+    setVisibleDate(current => {
+      const next = new Date(current);
+      if (calendarView === 'day') {
+        next.setDate(next.getDate() + direction);
+        return next;
+      }
+      if (calendarView === 'week') {
+        next.setDate(next.getDate() + direction * 7);
+        return next;
+      }
+      return new Date(current.getFullYear(), current.getMonth() + direction, 1);
+    });
+  }
+
+  function jumpToToday() {
+    setVisibleDate(new Date());
+    setMonthPickerOpen(false);
   }
 
   function toggleChild(child: string) {
@@ -468,123 +511,170 @@ export default function CalendarPage() {
     <AppShell title="Calendar">
       <main className="page-stack">
         <section className="card">
-          <div className="section-title" style={{ alignItems: 'center', marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="section-title" style={{ alignItems: 'center', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="button button-ghost"
                 style={{ minHeight: 42, minWidth: 42, padding: 0 }}
-                onClick={() => changeMonth(-1)}
-                aria-label="Previous month"
+                onClick={() => changePeriod(-1)}
+                aria-label="Previous period"
               >
                 ←
               </button>
-              <h2 style={{ marginBottom: 0 }}>{monthLabel}</h2>
+              <button type="button" className="button button-ghost" onClick={jumpToToday}>
+                Today
+              </button>
+              <button type="button" className="button button-ghost" onClick={() => setMonthPickerOpen(current => !current)}>
+                {calendarView === 'day' ? formatDayHeading(visibleDate) : monthLabel}
+              </button>
               <button
                 type="button"
                 className="button button-ghost"
                 style={{ minHeight: 42, minWidth: 42, padding: 0 }}
-                onClick={() => changeMonth(1)}
-                aria-label="Next month"
+                onClick={() => changePeriod(1)}
+                aria-label="Next period"
               >
                 →
               </button>
-            </div>
 
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-              gap: 10,
-            }}
-          >
-            {weekdayLabels.map(label => (
-              <div key={label} style={{ fontWeight: 800, color: '#10588c', padding: '6px 8px' }}>
-                {label}
-              </div>
-            ))}
-
-            {monthDays.map(day => {
-              const isoDate = day.toISOString().slice(0, 10);
-              const appointmentsForDay = appointmentMap.get(isoDate) || [];
-              const isCurrentMonth = day.getMonth() === activeMonth;
-              const isToday = day.toDateString() === new Date().toDateString();
-
-              return (
-                <div
-                  key={isoDate}
-                  style={{
-                    minHeight: 124,
-                    borderRadius: 18,
-                    border: isToday ? '2px solid rgba(4, 99, 7, 0.35)' : '1px solid #d9e5dd',
-                    background: isCurrentMonth ? '#ffffff' : '#f8fbf9',
-                    padding: 12,
-                    display: 'grid',
-                    gap: 8,
-                    alignContent: 'start',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      color: isCurrentMonth ? '#123122' : '#8a9b90',
-                    }}
-                  >
-                    {day.getDate()}
-                  </div>
-
-                  <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-                    {appointmentsForDay.map(appointment => (
-                      <button
-                        key={appointment.id}
-                        type="button"
-                        onClick={() => openExistingEvent(appointment)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          minWidth: 0,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          fontSize: 13,
-                          color: '#123122',
-                          background: 'transparent',
-                          border: 'none',
-                          padding: 0,
-                          textAlign: 'left',
-                        }}
-                        title={`${appointment.time} · ${appointment.caseLabel} · ${appointment.eventType}`}
+              {monthPickerOpen ? (
+                <div className="card" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 20, padding: 14, width: 280 }}>
+                  <div className="grid" style={{ gridTemplateColumns: '1fr 110px', gap: 12 }}>
+                    <div className="field" style={{ marginBottom: 0 }}>
+                      <label>Month</label>
+                      <select
+                        className="select"
+                        value={visibleDate.getMonth()}
+                        onChange={e => setVisibleDate(current => new Date(current.getFullYear(), Number(e.target.value), current.getDate()))}
                       >
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 999,
-                            background: appointment.color,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <span style={{ fontWeight: 700, flexShrink: 0 }}>{appointment.time}</span>
-                        <span
-                          style={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {appointment.caseLabel}
-                        </span>
-                      </button>
-                    ))}
+                        {Array.from({ length: 12 }, (_, index) => (
+                          <option key={index} value={index}>
+                            {new Date(2026, index, 1).toLocaleString(undefined, { month: 'long' })}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="field" style={{ marginBottom: 0 }}>
+                      <label>Year</label>
+                      <input
+                        className="input"
+                        type="number"
+                        value={visibleDate.getFullYear()}
+                        onChange={e => setVisibleDate(current => new Date(Number(e.target.value || current.getFullYear()), current.getMonth(), current.getDate()))}
+                      />
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+              ) : null}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {(['day', 'week', 'month'] as const).map(view => (
+                <button
+                  key={view}
+                  type="button"
+                  className={calendarView === view ? 'button button-primary' : 'button button-ghost'}
+                  style={{ minHeight: 36, padding: '8px 12px', textTransform: 'capitalize' }}
+                  onClick={() => setCalendarView(view)}
+                >
+                  {view}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {calendarView === 'month' ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                gap: 10,
+              }}
+            >
+              {weekdayLabels.map(label => (
+                <div key={label} style={{ fontWeight: 800, color: '#10588c', padding: '6px 8px' }}>
+                  {label}
+                </div>
+              ))}
+
+              {monthDays.map(day => {
+                const isoDate = day.toISOString().slice(0, 10);
+                const appointmentsForDay = appointmentMap.get(isoDate) || [];
+                const isCurrentMonth = day.getMonth() === activeMonth;
+                const isToday = day.toDateString() === new Date().toDateString();
+
+                return (
+                  <div
+                    key={isoDate}
+                    style={{
+                      minHeight: 124,
+                      borderRadius: 18,
+                      border: isToday ? '2px solid rgba(4, 99, 7, 0.35)' : '1px solid #d9e5dd',
+                      background: isCurrentMonth ? '#ffffff' : '#f8fbf9',
+                      padding: 12,
+                      display: 'grid',
+                      gap: 8,
+                      alignContent: 'start',
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, color: isCurrentMonth ? '#123122' : '#8a9b90' }}>{day.getDate()}</div>
+                    <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+                      {appointmentsForDay.map(appointment => (
+                        <button
+                          key={appointment.id}
+                          type="button"
+                          onClick={() => openExistingEvent(appointment)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, color: '#123122', background: 'transparent', border: 'none', padding: 0, textAlign: 'left' }}
+                          title={`${appointment.time} · ${appointment.caseLabel} · ${appointment.eventType}`}
+                        >
+                          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 999, background: appointment.color, flexShrink: 0 }} />
+                          <span style={{ fontWeight: 700, flexShrink: 0 }}>{appointment.time}</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appointment.caseLabel}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : calendarView === 'week' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 12 }}>
+              {weekDays.map(day => {
+                const isoDate = day.toISOString().slice(0, 10);
+                const appointmentsForDay = appointmentMap.get(isoDate) || [];
+                const isToday = day.toDateString() === new Date().toDateString();
+                return (
+                  <div key={isoDate} className="card card-muted" style={{ padding: 14, minHeight: 320 }}>
+                    <div style={{ fontWeight: 800, color: isToday ? '#046307' : '#123122', marginBottom: 12 }}>
+                      {day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </div>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {appointmentsForDay.length ? appointmentsForDay.map(appointment => (
+                        <button key={appointment.id} type="button" className="record-item clickable-card" onClick={() => openExistingEvent(appointment)} style={{ textAlign: 'left', width: '100%' }}>
+                          <strong style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: appointment.color, display: 'inline-block' }} />{appointment.eventType}</strong>
+                          <div className="record-meta"><span>{appointment.time}</span><span>{appointment.caseLabel}</span></div>
+                        </button>
+                      )) : <div className="empty-state" style={{ marginTop: 0 }}><p style={{ margin: 0 }}>No events</p></div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="card card-muted" style={{ padding: 18 }}>
+              <div style={{ fontWeight: 800, color: '#123122', marginBottom: 14 }}>{formatDayHeading(visibleDate)}</div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {dayAppointments.length ? dayAppointments.map(appointment => (
+                  <button key={appointment.id} type="button" className="record-item clickable-card" onClick={() => openExistingEvent(appointment)} style={{ textAlign: 'left', width: '100%' }}>
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: appointment.color, display: 'inline-block' }} />{appointment.eventType}</strong>
+                    <div className="record-meta"><span>{appointment.time}</span><span>{appointment.caseLabel}</span></div>
+                    {appointment.location ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Location:</strong> {appointment.location}</p> : null}
+                  </button>
+                )) : <div className="empty-state" style={{ marginTop: 0 }}><strong>No events on this day.</strong></div>}
+              </div>
+            </div>
+          )}
         </section>
 
         {eventModalOpen ? (

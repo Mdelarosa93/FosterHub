@@ -54,6 +54,7 @@ export default function CaseDetailPage() {
   const [docNotes, setDocNotes] = useState('');
   const [decisionNotes, setDecisionNotes] = useState<RequestDecisionState>({});
   const [childProfiles, setChildProfiles] = useState<any[]>([]);
+  const [bioParents, setBioParents] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [deletedActivities, setDeletedActivities] = useState<any[]>([]);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
@@ -76,6 +77,9 @@ export default function CaseDetailPage() {
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [photoMenuHover, setPhotoMenuHover] = useState<string | null>(null);
   const [profilePhotoHovered, setProfilePhotoHovered] = useState(false);
+  const [familyModalOpen, setFamilyModalOpen] = useState(false);
+  const [familyDraft, setFamilyDraft] = useState({ firstName: '', lastName: '', type: 'child' as 'child' | 'biological parent', relationship: 'Mother' });
+  const [caseInfoOpen, setCaseInfoOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -238,6 +242,10 @@ export default function CaseDetailPage() {
   const childName = data ? `${data.child.firstName} ${data.child.lastName}`.trim() : 'Case detail';
   const caseNumberMap: Record<string, string> = { Hall: '123456', Johnson: '234567', Carter: '345678', Lewis: '456789' };
   const caseLabel = data?.caseLabel || (data?.child?.lastName ? `${data.child.lastName} - ${caseNumberMap[data.child.lastName] || '000000'}` : 'Case detail');
+  const preferredBioParent = bioParents.find((parent: any) => parent.relationship === 'Mother') || bioParents[0];
+  const displayLastName = preferredBioParent?.lastName || data?.child?.lastName || caseLabel.split(' - ')[0];
+  const displayCaseNumber = data?.caseNumber || caseLabel.split(' - ')[1] || '000000';
+  const displayCaseLabel = `${displayLastName} - ${displayCaseNumber}`;
   const childCountMap: Record<string, number> = { Hall: 2, Johnson: 1, Carter: 2, Lewis: 1 };
   const childCount = childProfiles.length > 0 ? childProfiles.length : (data?.id?.startsWith('local-') ? 0 : (data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0));
   const openRequestCount = data?.requests?.filter((request: any) => request.status === 'SUBMITTED').length ?? 0;
@@ -309,6 +317,13 @@ export default function CaseDetailPage() {
   }, [caseLabel]);
 
   useEffect(() => {
+    if (!caseId) return;
+    const storedBioParentsRaw = localStorage.getItem('fosterhub.caseBioParents');
+    const storedBioParents = storedBioParentsRaw ? JSON.parse(storedBioParentsRaw) : {};
+    setBioParents(storedBioParents[caseId] || []);
+  }, [caseId]);
+
+  useEffect(() => {
     if (!caseLabel || !childProfiles.length) return;
 
     try {
@@ -356,6 +371,14 @@ export default function CaseDetailPage() {
     storedActivities[caseLabel] = activities;
     localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
   }, [caseLabel, activities]);
+
+  useEffect(() => {
+    if (!caseId) return;
+    const storedBioParentsRaw = localStorage.getItem('fosterhub.caseBioParents');
+    const storedBioParents = storedBioParentsRaw ? JSON.parse(storedBioParentsRaw) : {};
+    storedBioParents[caseId] = bioParents;
+    localStorage.setItem('fosterhub.caseBioParents', JSON.stringify(storedBioParents));
+  }, [caseId, bioParents]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -461,6 +484,12 @@ export default function CaseDetailPage() {
   ]));
 
   const filteredActivities = activities.filter((activity: any) => {
+    if (activityStartDate && activity.date < activityStartDate) return false;
+    if (activityEndDate && activity.date > activityEndDate) return false;
+    return true;
+  });
+
+  const filteredDeletedActivities = deletedActivities.filter((activity: any) => {
     if (activityStartDate && activity.date < activityStartDate) return false;
     if (activityEndDate && activity.date > activityEndDate) return false;
     return true;
@@ -744,6 +773,14 @@ export default function CaseDetailPage() {
           activity.notes || '',
           '',
         ]),
+        ...filteredDeletedActivities.flatMap((activity: any) => [
+          `${activity.date} | DELETED | ${activity.type}`,
+          `Invitees: ${(activity.invitees || []).join(', ') || 'None'}`,
+          activity.location ? `Location: ${activity.location}` : '',
+          activity.reason ? `Deletion reason: ${activity.reason}` : '',
+          activity.deletedAt ? `Deleted at: ${new Date(activity.deletedAt).toLocaleString()}` : '',
+          '',
+        ]),
       ],
       ...filteredActivities
         .filter((activity: any) => (activity.documents?.length || activity.photos?.length))
@@ -815,12 +852,63 @@ export default function CaseDetailPage() {
     setCaseDirty(true);
   }
 
+  function openFamilyModal() {
+    setFamilyDraft({ firstName: '', lastName: '', type: 'child', relationship: 'Mother' });
+    setFamilyModalOpen(true);
+  }
+
+  function addFamilyMember() {
+    if (!familyDraft.firstName.trim() || !familyDraft.lastName.trim()) return;
+
+    const fullName = `${familyDraft.firstName.trim()} ${familyDraft.lastName.trim()}`;
+    if (familyDraft.type === 'child') {
+      setChildProfiles(current => [
+        ...current,
+        {
+          id: `${Date.now()}`,
+          name: fullName,
+          birthday: '2020-01-01',
+          status: 'Pending Placement',
+          caseWorker: '',
+          guardianAdLitem: '',
+          fosterParent: '',
+          primaryPermanencyPlan: '',
+          secondaryPermanencyPlan: '',
+          schoolOrDaycare: '',
+          medications: '',
+          medicalProviders: '',
+          lastMonthlyHomeVisit: '',
+          lastClothesVoucher: '',
+          notes: '',
+          photos: [],
+          profilePhotoId: '',
+        },
+      ]);
+    } else {
+      setBioParents(current => [
+        ...current,
+        {
+          id: `${Date.now()}`,
+          firstName: familyDraft.firstName.trim(),
+          lastName: familyDraft.lastName.trim(),
+          relationship: familyDraft.relationship,
+          phone: '',
+          email: '',
+          address: '',
+          notes: '',
+        },
+      ]);
+    }
+
+    setFamilyModalOpen(false);
+  }
+
   function saveCaseMeta() {
     const createdCasesRaw = localStorage.getItem('fosterhub.createdCases');
     const createdCases = createdCasesRaw ? JSON.parse(createdCasesRaw) : [];
     const nextCreatedCases = createdCases.map((item: any) =>
       item.id === caseId
-        ? { ...item, status: data?.status, createdAt: data?.openedAt }
+        ? { ...item, status: data?.status, createdAt: data?.openedAt, caseNumber: data?.caseNumber }
         : item,
     );
     localStorage.setItem('fosterhub.createdCases', JSON.stringify(nextCreatedCases));
@@ -830,10 +918,12 @@ export default function CaseDetailPage() {
     overrides[caseId || caseLabel] = {
       status: data?.status,
       openedAt: data?.openedAt,
+      caseNumber: data?.caseNumber,
     };
     localStorage.setItem('fosterhub.caseMetaOverrides', JSON.stringify(overrides));
 
     setCaseDirty(false);
+    setCaseInfoOpen(false);
   }
 
   return (
@@ -841,12 +931,17 @@ export default function CaseDetailPage() {
       <main className="page-stack">
         <section className="hero" style={{ padding: '28px 32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-            <h2 style={{ fontSize: 34, margin: 0 }}>{caseLabel}</h2>
-            {caseDirty ? (
-              <button type="button" className="button button-primary" onClick={saveCaseMeta}>
-                Save
+            <h2 style={{ fontSize: 34, margin: 0 }}>{displayCaseLabel}</h2>
+            <div className="actions-row" style={{ marginTop: 0 }}>
+              <button type="button" className="button button-ghost" onClick={() => setCaseInfoOpen(true)}>
+                Edit Case Number
               </button>
-            ) : null}
+              {caseDirty ? (
+                <button type="button" className="button button-primary" onClick={saveCaseMeta}>
+                  Save
+                </button>
+              ) : null}
+            </div>
           </div>
         </section>
 
@@ -897,14 +992,14 @@ export default function CaseDetailPage() {
             <section className="card">
               <div className="section-title">
                 <div>
-                  <div className="eyebrow">Children</div>
+                  <div className="eyebrow">Family</div>
                 </div>
-                <button type="button" className="button button-ghost" onClick={openAddChildModal}>
-                  Add Child
+                <button type="button" className="button button-ghost" onClick={openFamilyModal}>
+                  Edit Family
                 </button>
               </div>
 
-            {childProfiles.length ? (
+            {childProfiles.length || bioParents.length ? (
               <div className="record-list">
                 {childProfiles.map((child: any) => (
                   <button
@@ -918,9 +1013,10 @@ export default function CaseDetailPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         {renderChildAvatar(child, 38)}
                         <div>
-                          <strong className="clickable-card-title">{child.name} - {calculateAgeFromBirthday(child.birthday)} years old</strong>
+                          <strong className="clickable-card-title">{child.name}</strong>
                           <div className="record-meta" style={{ marginTop: 8 }}>
-                            <span>Birthday: {new Date(child.birthday).toLocaleDateString()}</span>
+                            <span>Child</span>
+                            <span>{calculateAgeFromBirthday(child.birthday)} years old</span>
                           </div>
                         </div>
                       </div>
@@ -928,11 +1024,26 @@ export default function CaseDetailPage() {
                     </div>
                   </button>
                 ))}
+
+                {bioParents.map((parent: any) => (
+                  <article key={parent.id} className="record-item" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                      <div>
+                        <strong>{parent.firstName} {parent.lastName}</strong>
+                        <div className="record-meta" style={{ marginTop: 8 }}>
+                          <span>Biological Parent</span>
+                          <span>{parent.relationship}</span>
+                        </div>
+                        {parent.phone ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Phone:</strong> {parent.phone}</p> : null}
+                      </div>
+                    </div>
+                  </article>
+                ))}
               </div>
             ) : (
               <div className="empty-state">
-                <strong>No children loaded yet.</strong>
-                <p style={{ marginBottom: 0 }}>Children attached to this case will appear here.</p>
+                <strong>No family members loaded yet.</strong>
+                <p style={{ marginBottom: 0 }}>Children and biological parents attached to this case will appear here.</p>
               </div>
             )}
             </section>
@@ -1214,7 +1325,7 @@ export default function CaseDetailPage() {
                   </div>
                 )}
 
-                {deletedActivities.length ? (
+                {filteredDeletedActivities.length ? (
                   <div className="card card-muted" style={{ padding: 18, marginTop: 18 }}>
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
@@ -1222,7 +1333,7 @@ export default function CaseDetailPage() {
                       </div>
                     </div>
                     <div className="record-list">
-                      {deletedActivities.map((activity: any) => (
+                      {filteredDeletedActivities.map((activity: any) => (
                         <article key={`${activity.id}-${activity.deletedAt}`} className="record-item" style={{ borderColor: '#f0d2cd', background: '#fff9f7' }}>
                           <strong style={{ color: '#7a271a' }}>{activity.type}</strong>
                           <div className="record-meta">
@@ -1241,6 +1352,72 @@ export default function CaseDetailPage() {
               </div>
             </section>
           </>
+        ) : null}
+
+        {familyModalOpen ? (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.35)', display: 'grid', placeItems: 'center', padding: 24, zIndex: 55 }}
+            onClick={() => setFamilyModalOpen(false)}
+          >
+            <section className="card" style={{ width: 'min(100%, 560px)', padding: 24 }} onClick={event => event.stopPropagation()}>
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">Family</div>
+                  <h3>{'Edit Family'}</h3>
+                </div>
+                <button type="button" className="button button-ghost" onClick={() => setFamilyModalOpen(false)}>Close</button>
+              </div>
+              <div className="form-grid">
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                  <div className="field"><label>First name</label><input className="input" value={familyDraft.firstName} onChange={e => setFamilyDraft(current => ({ ...current, firstName: e.target.value }))} /></div>
+                  <div className="field"><label>Last name</label><input className="input" value={familyDraft.lastName} onChange={e => setFamilyDraft(current => ({ ...current, lastName: e.target.value }))} /></div>
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                  <div className="field">
+                    <label>Type</label>
+                    <select className="select" value={familyDraft.type} onChange={e => setFamilyDraft(current => ({ ...current, type: e.target.value as 'child' | 'biological parent' }))}>
+                      <option value="child">Child</option>
+                      <option value="biological parent">Biological Parent</option>
+                    </select>
+                  </div>
+                  {familyDraft.type === 'biological parent' ? (
+                    <div className="field">
+                      <label>Relationship</label>
+                      <select className="select" value={familyDraft.relationship} onChange={e => setFamilyDraft(current => ({ ...current, relationship: e.target.value }))}>
+                        <option>Mother</option>
+                        <option>Father</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                  ) : <div />}
+                </div>
+                <div className="actions-row" style={{ justifyContent: 'flex-end' }}>
+                  <button type="button" className="button button-ghost" onClick={() => setFamilyModalOpen(false)}>Cancel</button>
+                  <button type="button" className="button button-primary" onClick={addFamilyMember}>Add to Family</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {caseInfoOpen ? (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.35)', display: 'grid', placeItems: 'center', padding: 24, zIndex: 55 }} onClick={() => setCaseInfoOpen(false)}>
+            <section className="card" style={{ width: 'min(100%, 480px)', padding: 24 }} onClick={event => event.stopPropagation()}>
+              <div className="section-title">
+                <div><div className="eyebrow">Case</div><h3>Edit case number</h3></div>
+                <button type="button" className="button button-ghost" onClick={() => setCaseInfoOpen(false)}>Close</button>
+              </div>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Case Number</label>
+                  <input className="input" value={data?.caseNumber || ''} onChange={e => { setData((current: any) => ({ ...current, caseNumber: e.target.value })); setCaseDirty(true); }} />
+                </div>
+                <div className="actions-row" style={{ justifyContent: 'flex-end' }}>
+                  <button type="button" className="button button-primary" onClick={saveCaseMeta}>Save</button>
+                </div>
+              </div>
+            </section>
+          </div>
         ) : null}
 
         {childDraft ? (
