@@ -304,7 +304,16 @@ export default function CalendarPage() {
   const [eventActionHover, setEventActionHover] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
+  const [caseFilter, setCaseFilter] = useState('all');
+  const [workerFilter, setWorkerFilter] = useState('all');
+  const [hiddenEventIds, setHiddenEventIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const raw = localStorage.getItem('fosterhub.hiddenCalendarEvents');
+    return raw ? JSON.parse(raw) : [];
+  });
   const monthPickerRef = useRef<HTMLDivElement | null>(null);
+  const weekScrollRef = useRef<HTMLDivElement | null>(null);
+  const dayScrollRef = useRef<HTMLDivElement | null>(null);
 
   const monthDays = useMemo(() => buildCalendarDays(visibleDate), [visibleDate]);
   const monthLabel = useMemo(() => formatMonthHeading(visibleDate), [visibleDate]);
@@ -319,9 +328,16 @@ export default function CalendarPage() {
     });
   }, [visibleDate]);
 
+  const displayedAppointments = useMemo(() => appointments.filter(appointment => {
+    if (hiddenEventIds.includes(appointment.id)) return false;
+    if (caseFilter !== 'all' && appointment.caseLabel !== caseFilter) return false;
+    if (workerFilter !== 'all' && !appointment.invitees.some(invitee => invitee.toLowerCase().includes(workerFilter.toLowerCase()))) return false;
+    return true;
+  }), [appointments, hiddenEventIds, caseFilter, workerFilter]);
+
   const appointmentMap = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    for (const appointment of appointments) {
+    for (const appointment of displayedAppointments) {
       const current = map.get(appointment.date) || [];
       map.set(
         appointment.date,
@@ -329,7 +345,7 @@ export default function CalendarPage() {
       );
     }
     return map;
-  }, [appointments]);
+  }, [displayedAppointments]);
 
   const dayAppointments = useMemo(() => {
     const isoDate = visibleDate.toISOString().slice(0, 10);
@@ -339,6 +355,9 @@ export default function CalendarPage() {
     const currentYear = visibleDate.getFullYear();
     return Array.from({ length: 21 }, (_, index) => currentYear - 10 + index);
   }, [visibleDate]);
+  const slotHeight = 34;
+  const now = new Date();
+  const currentTimeTop = ((now.getHours() * 60 + now.getMinutes()) / 30) * slotHeight;
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -362,6 +381,20 @@ export default function CalendarPage() {
     const customEvents = appointments.filter(item => !initialAppointments.some(seed => seed.id === item.id));
     localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(customEvents));
   }, [appointments]);
+
+  useEffect(() => {
+    localStorage.setItem('fosterhub.hiddenCalendarEvents', JSON.stringify(hiddenEventIds));
+  }, [hiddenEventIds]);
+
+  useEffect(() => {
+    const targetScroll = 6 * 34;
+    if (calendarView === 'week' && weekScrollRef.current) {
+      weekScrollRef.current.scrollTop = targetScroll;
+    }
+    if (calendarView === 'day' && dayScrollRef.current) {
+      dayScrollRef.current.scrollTop = targetScroll;
+    }
+  }, [calendarView, visibleDate]);
 
   const childOptions = useMemo(() => storedChildrenByCase[selectedCase] || childrenByCase[selectedCase] || [], [selectedCase, storedChildrenByCase]);
   const recommendedUsers = useMemo(() => recommendedUsersByCase[selectedCase] || [], [selectedCase]);
@@ -624,6 +657,23 @@ export default function CalendarPage() {
             </div>
           </div>
 
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 220px))', gap: 12, marginBottom: 18 }}>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Filter by case</label>
+              <select className="select" value={caseFilter} onChange={e => setCaseFilter(e.target.value)}>
+                <option value="all">All cases</option>
+                {caseOptions.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Filter by case worker</label>
+              <select className="select" value={workerFilter} onChange={e => setWorkerFilter(e.target.value)}>
+                <option value="all">All case workers</option>
+                {['Taylor Reed', 'Jordan Kim'].map(worker => <option key={worker} value={worker}>{worker}</option>)}
+              </select>
+            </div>
+          </div>
+
           {calendarView === 'month' ? (
             <div
               style={{
@@ -679,8 +729,8 @@ export default function CalendarPage() {
               })}
             </div>
           ) : calendarView === 'week' ? (
-            <div style={{ overflowX: 'auto' }}>
-              <div style={{ minWidth: 920, display: 'grid', gridTemplateColumns: '88px repeat(7, minmax(120px, 1fr))', border: '1px solid #d9e5dd', borderRadius: 18, overflow: 'hidden' }}>
+            <div ref={weekScrollRef} style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 560, position: 'relative' }}>
+              <div style={{ minWidth: 920, display: 'grid', gridTemplateColumns: '88px repeat(7, minmax(120px, 1fr))', border: '1px solid #d9e5dd', borderRadius: 18, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ background: '#f7faf8', borderRight: '1px solid #d9e5dd' }} />
                 {weekDays.map(day => {
                   const isToday = day.toDateString() === new Date().toDateString();
@@ -701,9 +751,9 @@ export default function CalendarPage() {
                       const slotEvent = (appointmentMap.get(isoDate) || []).find(item => item.startTime === slot.key);
                       const isToday = day.toDateString() === new Date().toDateString();
                       return (
-                        <div key={`${isoDate}-${slot.key}`} style={{ minHeight: 34, padding: 4, borderTop: '1px solid #eef3ef', borderRight: '1px solid #eef3ef', background: isToday ? (slot.isWorkingHour ? '#fcfffd' : '#f3f7f5') : (slot.isWorkingHour ? '#ffffff' : '#fafcfb') }}>
+                        <div key={`${isoDate}-${slot.key}`} style={{ minHeight: 34, padding: 4, borderTop: '1px solid #eef3ef', borderRight: '1px solid #eef3ef', background: isToday ? (slot.isWorkingHour ? '#fcfffd' : '#f3f7f5') : (slot.isWorkingHour ? '#ffffff' : '#fafcfb'), position: 'relative' }}>
                           {slotEvent ? (
-                            <button type="button" onClick={() => openExistingEvent(slotEvent)} style={{ width: '100%', border: 'none', borderLeft: `4px solid ${slotEvent.color}`, borderRadius: 8, background: '#eef6f1', padding: '6px 8px', textAlign: 'left', cursor: 'pointer' }}>
+                            <button type="button" onClick={() => openExistingEvent(slotEvent)} style={{ width: '100%', height: `${Math.max(30, ((Number(slotEvent.endTime.slice(0, 2)) * 60 + Number(slotEvent.endTime.slice(3, 5))) - (Number(slotEvent.startTime.slice(0, 2)) * 60 + Number(slotEvent.startTime.slice(3, 5)))) / 30 * slotHeight - 8)}px`, border: 'none', borderLeft: `4px solid ${slotEvent.color}`, borderRadius: 8, background: '#eef6f1', padding: '6px 8px', textAlign: 'left', cursor: 'pointer', position: 'absolute', top: 4, left: 4, right: 4, zIndex: 2, overflow: 'hidden' }}>
                               <div style={{ fontSize: 12, fontWeight: 800, color: '#123122' }}>{slotEvent.eventType}</div>
                               <div style={{ fontSize: 11, color: '#52665a' }}>{slotEvent.time}</div>
                             </button>
@@ -714,10 +764,13 @@ export default function CalendarPage() {
                   </div>
                 ))}
               </div>
+              {weekDays.some(day => day.toDateString() === now.toDateString()) ? (
+                <div style={{ position: 'absolute', left: 88, right: 0, top: `${69 + currentTimeTop}px`, borderTop: '2px solid #123122', zIndex: 3, pointerEvents: 'none' }} />
+              ) : null}
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <div style={{ minWidth: 720, display: 'grid', gridTemplateColumns: '88px minmax(0, 1fr)', border: '1px solid #d9e5dd', borderRadius: 18, overflow: 'hidden' }}>
+            <div ref={dayScrollRef} style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 560, position: 'relative' }}>
+              <div style={{ minWidth: 720, display: 'grid', gridTemplateColumns: '88px minmax(0, 1fr)', border: '1px solid #d9e5dd', borderRadius: 18, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ background: '#f7faf8', borderRight: '1px solid #d9e5dd' }} />
                 <div style={{ padding: '12px 14px', background: visibleDate.toDateString() === new Date().toDateString() ? '#eef6f1' : '#f7faf8' }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: '#10588c' }}>{visibleDate.toLocaleDateString(undefined, { weekday: 'long' })}</div>
@@ -730,9 +783,9 @@ export default function CalendarPage() {
                       <div style={{ padding: '8px 10px', borderTop: '1px solid #eef3ef', borderRight: '1px solid #d9e5dd', background: slot.isWorkingHour ? '#ffffff' : '#f7faf8', color: slot.isWorkingHour ? '#4a5e52' : '#9aa9a0', fontSize: 12, fontWeight: slot.key.endsWith(':00') ? 700 : 500 }}>
                         {slot.key.endsWith(':00') ? slot.label : ''}
                       </div>
-                      <div style={{ minHeight: 34, padding: 4, borderTop: '1px solid #eef3ef', background: slot.isWorkingHour ? '#ffffff' : '#fafcfb' }}>
+                      <div style={{ minHeight: 34, padding: 4, borderTop: '1px solid #eef3ef', background: slot.isWorkingHour ? '#ffffff' : '#fafcfb', position: 'relative' }}>
                         {slotEvent ? (
-                          <button type="button" onClick={() => openExistingEvent(slotEvent)} style={{ width: '100%', border: 'none', borderLeft: `4px solid ${slotEvent.color}`, borderRadius: 8, background: '#eef6f1', padding: '8px 10px', textAlign: 'left', cursor: 'pointer' }}>
+                          <button type="button" onClick={() => openExistingEvent(slotEvent)} style={{ width: '100%', height: `${Math.max(30, ((Number(slotEvent.endTime.slice(0, 2)) * 60 + Number(slotEvent.endTime.slice(3, 5))) - (Number(slotEvent.startTime.slice(0, 2)) * 60 + Number(slotEvent.startTime.slice(3, 5)))) / 30 * slotHeight - 8)}px`, border: 'none', borderLeft: `4px solid ${slotEvent.color}`, borderRadius: 8, background: '#eef6f1', padding: '8px 10px', textAlign: 'left', cursor: 'pointer', position: 'absolute', top: 4, left: 4, right: 4, zIndex: 2, overflow: 'hidden' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                               <strong style={{ color: '#123122' }}>{slotEvent.eventType}</strong>
                               <span style={{ fontSize: 12, color: '#52665a' }}>{slotEvent.time}</span>
@@ -745,6 +798,9 @@ export default function CalendarPage() {
                   );
                 })}
               </div>
+              {visibleDate.toDateString() === now.toDateString() ? (
+                <div style={{ position: 'absolute', left: 88, right: 0, top: `${69 + currentTimeTop}px`, borderTop: '2px solid #123122', zIndex: 3, pointerEvents: 'none' }} />
+              ) : null}
             </div>
           )}
         </section>
@@ -857,6 +913,32 @@ export default function CalendarPage() {
                           onClick={requestDeleteActiveEvent}
                         >
                           Delete event
+                        </button>
+                      ) : null}
+
+                      {activeEventId ? (
+                        <button
+                          type="button"
+                          onMouseEnter={() => setEventActionHover('hide')}
+                          onMouseLeave={() => setEventActionHover(current => (current === 'hide' ? null : current))}
+                          style={{
+                            border: 'none',
+                            background: eventActionHover === 'hide' ? '#eef6f1' : 'transparent',
+                            color: '#123122',
+                            textAlign: 'left',
+                            padding: '9px 10px',
+                            borderRadius: 10,
+                            fontSize: 14,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => {
+                            setHiddenEventIds(current => activeEventId ? [...new Set([...current, activeEventId])] : current);
+                            setEventActionsOpen(false);
+                            closeEventModal();
+                          }}
+                        >
+                          Remove from my calendar
                         </button>
                       ) : null}
 

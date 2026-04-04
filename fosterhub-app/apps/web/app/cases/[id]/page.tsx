@@ -60,9 +60,12 @@ export default function CaseDetailPage() {
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null);
-  const [activityDraft, setActivityDraft] = useState({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [] as string[], invitees: [] as string[], documents: [] as any[], photos: [] as any[], addToCalendar: true });
+  const [activityDraft, setActivityDraft] = useState({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [] as string[], invitees: [] as string[], documents: [] as any[], photos: [] as any[], addToCalendar: true, outcome: 'Scheduled' });
   const [activityStartDate, setActivityStartDate] = useState(() => getDaysAgoDateValue(30));
   const [activityEndDate, setActivityEndDate] = useState(() => getLocalDateValue());
+  const [activityTypeFilter, setActivityTypeFilter] = useState('all');
+  const [activityOutcomeFilter, setActivityOutcomeFilter] = useState('all');
+  const [activitySummaryView, setActivitySummaryView] = useState<{ type: string, outcome: string } | null>(null);
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [childDraft, setChildDraft] = useState<any | null>(null);
   const [childDirty, setChildDirty] = useState(false);
@@ -486,14 +489,37 @@ export default function CaseDetailPage() {
   const filteredActivities = activities.filter((activity: any) => {
     if (activityStartDate && activity.date < activityStartDate) return false;
     if (activityEndDate && activity.date > activityEndDate) return false;
+    if (activityTypeFilter !== 'all' && activity.type !== activityTypeFilter) return false;
+    if (activityOutcomeFilter !== 'all' && (activity.outcome || 'Scheduled') !== activityOutcomeFilter) return false;
     return true;
   });
 
   const filteredDeletedActivities = deletedActivities.filter((activity: any) => {
     if (activityStartDate && activity.date < activityStartDate) return false;
     if (activityEndDate && activity.date > activityEndDate) return false;
+    if (activityTypeFilter !== 'all' && activity.type !== activityTypeFilter) return false;
+    if (activityOutcomeFilter !== 'all' && activityOutcomeFilter !== 'Deleted') return false;
     return true;
   });
+
+  const activityStatusColumns = ['Scheduled', 'Deleted', 'Completed', 'Missed', 'Rescheduled'];
+  const activityTypes = Array.from(new Set([...activities.map((activity: any) => activity.type), ...deletedActivities.map((activity: any) => activity.type)])).sort();
+  const activitySummaryRows = activityTypes.map(type => ({
+    type,
+    counts: activityStatusColumns.reduce((acc: Record<string, number>, status) => {
+      if (status === 'Deleted') {
+        acc[status] = filteredDeletedActivities.filter((activity: any) => activity.type === type).length;
+      } else {
+        acc[status] = filteredActivities.filter((activity: any) => activity.type === type && (activity.outcome || 'Scheduled') === status).length;
+      }
+      return acc;
+    }, {}),
+  }));
+  const summaryDetailActivities = activitySummaryView
+    ? activitySummaryView.outcome === 'Deleted'
+      ? filteredDeletedActivities.filter((activity: any) => activity.type === activitySummaryView.type)
+      : filteredActivities.filter((activity: any) => activity.type === activitySummaryView.type && (activity.outcome || 'Scheduled') === activitySummaryView.outcome)
+    : [];
 
   const activityDocuments = activities.flatMap((activity: any) => (activity.documents || []).map((document: any) => ({
     ...document,
@@ -516,10 +542,11 @@ export default function CaseDetailPage() {
         documents: activity.documents || [],
         photos: activity.photos || [],
         addToCalendar: activity.addToCalendar ?? true,
+        outcome: activity.outcome || 'Scheduled',
       });
     } else {
       setActiveActivityId(null);
-      setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], documents: [], photos: [], addToCalendar: true });
+      setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], documents: [], photos: [], addToCalendar: true, outcome: 'Scheduled' });
     }
     setActivityPanelOpen(false);
     setActivityModalOpen(true);
@@ -754,7 +781,7 @@ export default function CaseDetailPage() {
     }
     localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(storedCalendarEvents));
 
-    setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], documents: [], photos: [], addToCalendar: true });
+    setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], documents: [], photos: [], addToCalendar: true, outcome: 'Scheduled' });
     setActiveActivityId(null);
     setActivityModalOpen(false);
   }
@@ -764,6 +791,13 @@ export default function CaseDetailPage() {
       [
         `Activity Report - ${caseLabel}`,
         `Date range: ${activityStartDate || 'Beginning'} to ${activityEndDate || 'Today'}`,
+        `Type filter: ${activityTypeFilter === 'all' ? 'All' : activityTypeFilter}`,
+        `Outcome filter: ${activityOutcomeFilter === 'all' ? 'All' : activityOutcomeFilter}`,
+        '',
+        'Summary by activity type:',
+        ...activitySummaryRows.flatMap(row => [
+          `${row.type} | Scheduled: ${row.counts.Scheduled || 0} | Deleted: ${row.counts.Deleted || 0} | Completed: ${row.counts.Completed || 0} | Missed: ${row.counts.Missed || 0} | Rescheduled: ${row.counts.Rescheduled || 0}`,
+        ]),
         '',
         ...filteredActivities.flatMap((activity: any) => [
           `${activity.date} | ${activity.type}`,
@@ -1150,7 +1184,7 @@ export default function CaseDetailPage() {
                 </button>
               </div>
               <div className="form-grid">
-                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
                   <div className="field">
                     <label>Type</label>
                     <select className="select" value={activityDraft.type} onChange={e => setActivityDraft(current => ({ ...current, type: e.target.value }))}>
@@ -1167,6 +1201,15 @@ export default function CaseDetailPage() {
                   <div className="field">
                     <label>Date</label>
                     <input className="input" type="date" value={activityDraft.date} onChange={e => setActivityDraft(current => ({ ...current, date: e.target.value }))} />
+                  </div>
+                  <div className="field">
+                    <label>Outcome</label>
+                    <select className="select" value={activityDraft.outcome} onChange={e => setActivityDraft(current => ({ ...current, outcome: e.target.value }))}>
+                      <option>Scheduled</option>
+                      <option>Completed</option>
+                      <option>Missed</option>
+                      <option>Rescheduled</option>
+                    </select>
                   </div>
                 </div>
                 <div className="field">
@@ -1290,6 +1333,20 @@ export default function CaseDetailPage() {
                       <label>End date</label>
                       <input className="input" type="date" value={activityEndDate} onChange={e => setActivityEndDate(e.target.value)} />
                     </div>
+                    <div className="field">
+                      <label>Activity type</label>
+                      <select className="select" value={activityTypeFilter} onChange={e => setActivityTypeFilter(e.target.value)}>
+                        <option value="all">All activity types</option>
+                        {activityTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Outcome</label>
+                      <select className="select" value={activityOutcomeFilter} onChange={e => setActivityOutcomeFilter(e.target.value)}>
+                        <option value="all">All outcomes</option>
+                        {activityStatusColumns.map(status => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div className="actions-row" style={{ marginTop: 12, flexWrap: 'wrap' }}>
                     <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => applyActivityRange(30)}>
@@ -1304,8 +1361,69 @@ export default function CaseDetailPage() {
                     <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => applyActivityRange(365)}>
                       12 Months
                     </button>
+                    <button type="button" className="button button-primary" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => { setActivityStartDate(getDaysAgoDateValue(30)); setActivityEndDate(getLocalDateValue()); setActivityTypeFilter('all'); setActivityOutcomeFilter('all'); setActivitySummaryView(null); }}>
+                      Reset
+                    </button>
                   </div>
                 </div>
+                <div className="card" style={{ padding: 18, marginBottom: 18, overflowX: 'auto' }}>
+                  <div className="section-title" style={{ marginBottom: 14 }}>
+                    <div>
+                      <div className="eyebrow">Activity summary</div>
+                      <h3 style={{ marginBottom: 0 }}>Status by activity type</h3>
+                    </div>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '1px solid #d9e5dd' }}>Activity Type</th>
+                        {activityStatusColumns.map(status => <th key={status} style={{ textAlign: 'center', padding: '10px 12px', borderBottom: '1px solid #d9e5dd' }}>{status}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activitySummaryRows.map(row => (
+                        <tr key={row.type}>
+                          <td style={{ padding: '10px 12px', borderBottom: '1px solid #eef3ef', fontWeight: 700 }}>{row.type}</td>
+                          {activityStatusColumns.map(status => (
+                            <td key={status} style={{ padding: '10px 12px', borderBottom: '1px solid #eef3ef', textAlign: 'center' }}>
+                              <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '4px 10px' }} onClick={() => setActivitySummaryView({ type: row.type, outcome: status })}>
+                                {row.counts[status] || 0}
+                              </button>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {activitySummaryView ? (
+                  <div className="card card-muted" style={{ padding: 18, marginBottom: 18 }}>
+                    <div className="section-title" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="eyebrow">Details</div>
+                        <h3 style={{ marginBottom: 0 }}>{activitySummaryView.type} · {activitySummaryView.outcome}</h3>
+                      </div>
+                      <button type="button" className="button button-ghost" onClick={() => setActivitySummaryView(null)}>Close</button>
+                    </div>
+                    {summaryDetailActivities.length ? (
+                      <div className="record-list">
+                        {summaryDetailActivities.map((activity: any) => (
+                          <article key={`${activity.id}-${activity.deletedAt || ''}`} className="record-item">
+                            <strong>{activity.type}</strong>
+                            <div className="record-meta">
+                              <span>{new Date(activity.date).toLocaleDateString()}</span>
+                              <span>{activity.startTime} - {activity.endTime}</span>
+                              <span>{activitySummaryView.outcome}</span>
+                            </div>
+                            {activity.reason ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Reason:</strong> {activity.reason}</p> : null}
+                          </article>
+                        ))}
+                      </div>
+                    ) : <div className="empty-state"><p style={{ margin: 0 }}>No matching events.</p></div>}
+                  </div>
+                ) : null}
+
                 {filteredActivities.length ? (
                   <div className="record-list">
                     {filteredActivities.map((activity: any) => (
