@@ -211,6 +211,7 @@ export default function CalendarPage() {
   const [startTime, setStartTime] = useState('14:00');
   const [endTime, setEndTime] = useState('15:00');
   const [notes, setNotes] = useState('');
+  const [eventActionsOpen, setEventActionsOpen] = useState(false);
 
   const monthDays = useMemo(() => buildCalendarDays(visibleDate), [visibleDate]);
   const monthLabel = useMemo(() => formatMonthHeading(visibleDate), [visibleDate]);
@@ -320,6 +321,19 @@ export default function CalendarPage() {
     setEndTime('15:00');
     setNotes('');
     setActiveEventId(null);
+    setEventActionsOpen(false);
+  }
+
+  function closeEventModal() {
+    setEventModalOpen(false);
+    setEventActionsOpen(false);
+  }
+
+  function deleteActiveEvent() {
+    if (!activeEventId) return;
+    setAppointments(current => current.filter(item => item.id !== activeEventId));
+    closeEventModal();
+    resetEventForm();
   }
 
   function openExistingEvent(event: CalendarEvent) {
@@ -338,6 +352,7 @@ export default function CalendarPage() {
     setEndTime(event.endTime);
     setNotes(event.notes);
     setEventModalMode('view');
+    setEventActionsOpen(false);
     setEventModalOpen(true);
   }
 
@@ -364,7 +379,7 @@ export default function CalendarPage() {
       setAppointments(current => [...current, { id: `${Date.now()}`, ...normalizedEvent }]);
     }
 
-    setEventModalOpen(false);
+    closeEventModal();
     resetEventForm();
   }
 
@@ -502,15 +517,100 @@ export default function CalendarPage() {
               padding: 24,
               zIndex: 50,
             }}
-            onClick={() => setEventModalOpen(false)}
+            onClick={closeEventModal}
           >
             <div
               className="card"
-              style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }}
+              style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24, position: 'relative' }}
               onClick={event => event.stopPropagation()}
             >
-              <div className="section-title">
+              <div className="section-title" style={{ alignItems: 'flex-start' }}>
                 <h2 style={{ marginBottom: 0 }}>{eventModalMode === 'create' ? 'New Event' : 'Event Details'}</h2>
+
+                <div style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    aria-label="Event actions"
+                    onClick={() => setEventActionsOpen(current => !current)}
+                    style={{ minHeight: 42, minWidth: 42, padding: 0, fontSize: 20, lineHeight: 1 }}
+                  >
+                    ☰
+                  </button>
+
+                  {eventActionsOpen ? (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 8px)',
+                        right: 0,
+                        zIndex: 30,
+                        minWidth: 180,
+                        background: 'white',
+                        border: '1px solid #d9e5dd',
+                        borderRadius: 18,
+                        boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)',
+                        padding: 10,
+                        display: 'grid',
+                        gap: 6,
+                      }}
+                    >
+                      {eventModalMode === 'view' ? (
+                        <button
+                          type="button"
+                          className="button button-ghost"
+                          style={{ justifyContent: 'flex-start' }}
+                          onClick={() => {
+                            setEventModalMode('edit');
+                            setEventActionsOpen(false);
+                          }}
+                        >
+                          Edit event
+                        </button>
+                      ) : null}
+
+                      {eventModalMode === 'edit' ? (
+                        <button
+                          type="button"
+                          className="button button-primary"
+                          style={{ justifyContent: 'flex-start' }}
+                          onClick={() => {
+                            setEventActionsOpen(false);
+                            handleSaveEvent();
+                          }}
+                        >
+                          Save changes
+                        </button>
+                      ) : null}
+
+                      {activeEventId ? (
+                        <button
+                          type="button"
+                          className="button button-ghost"
+                          style={{ justifyContent: 'flex-start', color: '#b42318' }}
+                          onClick={() => {
+                            setEventActionsOpen(false);
+                            deleteActiveEvent();
+                          }}
+                        >
+                          Delete event
+                        </button>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        className="button button-ghost"
+                        style={{ justifyContent: 'flex-start' }}
+                        onClick={() => {
+                          setEventActionsOpen(false);
+                          closeEventModal();
+                        }}
+                      >
+                        Close window
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div className="form-grid">
@@ -861,27 +961,6 @@ export default function CalendarPage() {
                 </div>
               </div>
 
-              <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 22 }}>
-                {eventModalMode === 'view' ? (
-                  <>
-                    <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
-                      Close
-                    </button>
-                    <button type="button" className="button button-primary" onClick={() => setEventModalMode('edit')}>
-                      Edit event
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button type="button" className="button button-ghost" onClick={() => setEventModalOpen(false)}>
-                      Cancel
-                    </button>
-                    <button type="button" className="button button-primary" onClick={handleSaveEvent}>
-                      {eventModalMode === 'edit' ? 'Save changes' : 'Save event'}
-                    </button>
-                  </>
-                )}
-              </div>
             </div>
           </div>
         ) : null}
