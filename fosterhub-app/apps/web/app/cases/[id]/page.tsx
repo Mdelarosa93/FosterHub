@@ -55,6 +55,7 @@ export default function CaseDetailPage() {
   const [decisionNotes, setDecisionNotes] = useState<RequestDecisionState>({});
   const [childProfiles, setChildProfiles] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
+  const [deletedActivities, setDeletedActivities] = useState<any[]>([]);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null);
@@ -301,6 +302,10 @@ export default function CaseDetailPage() {
     const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
     const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
     setActivities(storedActivities[caseLabel] || []);
+
+    const storedDeletedActivitiesRaw = localStorage.getItem('fosterhub.deletedCaseActivities');
+    const storedDeletedActivities = storedDeletedActivitiesRaw ? JSON.parse(storedDeletedActivitiesRaw) : {};
+    setDeletedActivities(storedDeletedActivities[caseLabel] || []);
   }, [caseLabel]);
 
   useEffect(() => {
@@ -1208,6 +1213,31 @@ export default function CaseDetailPage() {
                     <p style={{ marginBottom: 0 }}>Adjust the date range or add a new activity.</p>
                   </div>
                 )}
+
+                {deletedActivities.length ? (
+                  <div className="card card-muted" style={{ padding: 18, marginTop: 18 }}>
+                    <div className="section-title" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="eyebrow">Deleted events</div>
+                      </div>
+                    </div>
+                    <div className="record-list">
+                      {deletedActivities.map((activity: any) => (
+                        <article key={`${activity.id}-${activity.deletedAt}`} className="record-item" style={{ borderColor: '#f0d2cd', background: '#fff9f7' }}>
+                          <strong style={{ color: '#7a271a' }}>{activity.type}</strong>
+                          <div className="record-meta">
+                            <span>{new Date(activity.date).toLocaleDateString()}</span>
+                            <span>{activity.startTime} - {activity.endTime}</span>
+                            <span>Deleted {new Date(activity.deletedAt).toLocaleString()}</span>
+                          </div>
+                          {activity.location ? <p style={{ marginTop: 10, marginBottom: 0 }}><strong>Location:</strong> {activity.location}</p> : null}
+                          {activity.invitees?.length ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Invitees:</strong> {activity.invitees.join(', ')}</p> : null}
+                          {activity.reason ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Deletion reason:</strong> {activity.reason}</p> : null}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </section>
           </>

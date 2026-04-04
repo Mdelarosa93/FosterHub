@@ -211,7 +211,30 @@ function syncActivityEventToCaseStorage(event: CalendarEvent) {
   localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
 }
 
-function removeActivityEventFromCaseStorage(event: CalendarEvent) {
+function logDeletedActivityEvent(event: CalendarEvent, reason: string) {
+  if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
+
+  const storedDeletedRaw = localStorage.getItem('fosterhub.deletedCaseActivities');
+  const storedDeleted = storedDeletedRaw ? JSON.parse(storedDeletedRaw) : {};
+  const caseDeletedActivities = storedDeleted[event.caseLabel] || [];
+
+  caseDeletedActivities.unshift({
+    id: event.id,
+    type: event.eventType,
+    date: event.date,
+    startTime: event.startTime,
+    endTime: event.endTime,
+    location: event.location,
+    invitees: event.invitees,
+    reason,
+    deletedAt: new Date().toISOString(),
+  });
+
+  storedDeleted[event.caseLabel] = caseDeletedActivities;
+  localStorage.setItem('fosterhub.deletedCaseActivities', JSON.stringify(storedDeleted));
+}
+
+function removeActivityEventFromCaseStorage(event: CalendarEvent, reason: string) {
   if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
 
   const activityId = event.id.replace(/^activity-/, '');
@@ -221,6 +244,7 @@ function removeActivityEventFromCaseStorage(event: CalendarEvent) {
 
   storedActivities[event.caseLabel] = caseActivities.filter((activity: any) => activity.id !== activityId);
   localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
+  logDeletedActivityEvent(event, reason);
 }
 
 export default function CalendarPage() {
@@ -250,6 +274,9 @@ export default function CalendarPage() {
   const [endTime, setEndTime] = useState('15:00');
   const [notes, setNotes] = useState('');
   const [eventActionsOpen, setEventActionsOpen] = useState(false);
+  const [eventActionHover, setEventActionHover] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   const monthDays = useMemo(() => buildCalendarDays(visibleDate), [visibleDate]);
   const monthLabel = useMemo(() => formatMonthHeading(visibleDate), [visibleDate]);
@@ -360,19 +387,29 @@ export default function CalendarPage() {
     setNotes('');
     setActiveEventId(null);
     setEventActionsOpen(false);
+    setEventActionHover(null);
+    setDeleteConfirmOpen(false);
+    setDeleteReason('');
   }
 
   function closeEventModal() {
     setEventModalOpen(false);
     setEventActionsOpen(false);
+    setDeleteConfirmOpen(false);
+    setEventActionHover(null);
   }
 
-  function deleteActiveEvent() {
-    if (!activeEventId) return;
+  function requestDeleteActiveEvent() {
+    setEventActionsOpen(false);
+    setDeleteConfirmOpen(true);
+  }
+
+  function confirmDeleteActiveEvent() {
+    if (!activeEventId || !deleteReason.trim()) return;
 
     const activeEvent = appointments.find(item => item.id === activeEventId);
     if (activeEvent) {
-      removeActivityEventFromCaseStorage(activeEvent);
+      removeActivityEventFromCaseStorage(activeEvent, deleteReason.trim());
     }
 
     setAppointments(current => current.filter(item => item.id !== activeEventId));
@@ -571,13 +608,28 @@ export default function CalendarPage() {
               <div className="section-title" style={{ alignItems: 'flex-start' }}>
                 <h2 style={{ marginBottom: 0 }}>{eventModalMode === 'create' ? 'New Event' : 'Event Details'}</h2>
 
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {eventModalMode === 'edit' ? (
+                    <button type="button" className="button button-primary" onClick={handleSaveEvent}>
+                      Save changes
+                    </button>
+                  ) : null}
+
                   <button
                     type="button"
                     className="button button-ghost"
                     aria-label="Event actions"
                     onClick={() => setEventActionsOpen(current => !current)}
-                    style={{ minHeight: 42, minWidth: 42, padding: 0, fontSize: 20, lineHeight: 1 }}
+                    style={{
+                      minHeight: 42,
+                      minWidth: 42,
+                      padding: 0,
+                      fontSize: 18,
+                      lineHeight: 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
                   >
                     ☰
                   </button>
@@ -589,21 +641,32 @@ export default function CalendarPage() {
                         top: 'calc(100% + 8px)',
                         right: 0,
                         zIndex: 30,
-                        minWidth: 180,
+                        minWidth: 190,
                         background: 'white',
                         border: '1px solid #d9e5dd',
-                        borderRadius: 18,
+                        borderRadius: 16,
                         boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)',
-                        padding: 10,
+                        padding: 8,
                         display: 'grid',
-                        gap: 6,
+                        gap: 2,
                       }}
                     >
                       {eventModalMode === 'view' ? (
                         <button
                           type="button"
-                          className="button button-ghost"
-                          style={{ justifyContent: 'flex-start' }}
+                          onMouseEnter={() => setEventActionHover('edit')}
+                          onMouseLeave={() => setEventActionHover(current => (current === 'edit' ? null : current))}
+                          style={{
+                            border: 'none',
+                            background: eventActionHover === 'edit' ? '#eef6f1' : 'transparent',
+                            color: '#123122',
+                            textAlign: 'left',
+                            padding: '9px 10px',
+                            borderRadius: 10,
+                            fontSize: 14,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
                           onClick={() => {
                             setEventModalMode('edit');
                             setEventActionsOpen(false);
@@ -613,29 +676,23 @@ export default function CalendarPage() {
                         </button>
                       ) : null}
 
-                      {eventModalMode === 'edit' ? (
-                        <button
-                          type="button"
-                          className="button button-primary"
-                          style={{ justifyContent: 'flex-start' }}
-                          onClick={() => {
-                            setEventActionsOpen(false);
-                            handleSaveEvent();
-                          }}
-                        >
-                          Save changes
-                        </button>
-                      ) : null}
-
                       {activeEventId ? (
                         <button
                           type="button"
-                          className="button button-ghost"
-                          style={{ justifyContent: 'flex-start', color: '#b42318' }}
-                          onClick={() => {
-                            setEventActionsOpen(false);
-                            deleteActiveEvent();
+                          onMouseEnter={() => setEventActionHover('delete')}
+                          onMouseLeave={() => setEventActionHover(current => (current === 'delete' ? null : current))}
+                          style={{
+                            border: 'none',
+                            background: eventActionHover === 'delete' ? '#fef3f2' : 'transparent',
+                            color: '#b42318',
+                            textAlign: 'left',
+                            padding: '9px 10px',
+                            borderRadius: 10,
+                            fontSize: 14,
+                            fontWeight: 600,
+                            cursor: 'pointer',
                           }}
+                          onClick={requestDeleteActiveEvent}
                         >
                           Delete event
                         </button>
@@ -643,8 +700,19 @@ export default function CalendarPage() {
 
                       <button
                         type="button"
-                        className="button button-ghost"
-                        style={{ justifyContent: 'flex-start' }}
+                        onMouseEnter={() => setEventActionHover('close')}
+                        onMouseLeave={() => setEventActionHover(current => (current === 'close' ? null : current))}
+                        style={{
+                          border: 'none',
+                          background: eventActionHover === 'close' ? '#eef6f1' : 'transparent',
+                          color: '#123122',
+                          textAlign: 'left',
+                          padding: '9px 10px',
+                          borderRadius: 10,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
                         onClick={() => {
                           setEventActionsOpen(false);
                           closeEventModal();
@@ -656,6 +724,61 @@ export default function CalendarPage() {
                   ) : null}
                 </div>
               </div>
+
+              {deleteConfirmOpen ? (
+                <div
+                  style={{
+                    marginBottom: 20,
+                    border: '1px solid #f0d2cd',
+                    background: '#fff7f5',
+                    borderRadius: 18,
+                    padding: 18,
+                    display: 'grid',
+                    gap: 14,
+                  }}
+                >
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 18 }}>Delete this event?</h3>
+                    <p style={{ marginTop: 10, marginBottom: 0, color: '#6b3b33' }}>
+                      Deleting this event will remove it from the calendar for everyone listed on the event. It will also send an in-app notification to everyone invited that the event has been deleted.
+                    </p>
+                  </div>
+
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label htmlFor="delete-reason">Reason for deleting</label>
+                    <textarea
+                      id="delete-reason"
+                      className="textarea"
+                      rows={3}
+                      value={deleteReason}
+                      onChange={e => setDeleteReason(e.target.value)}
+                      placeholder="Add the reason for deleting this event"
+                    />
+                  </div>
+
+                  <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 0 }}>
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      onClick={() => {
+                        setDeleteConfirmOpen(false);
+                        setDeleteReason('');
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-primary"
+                      onClick={confirmDeleteActiveEvent}
+                      disabled={!deleteReason.trim()}
+                      style={{ background: !deleteReason.trim() ? '#f3f5f4' : '#b42318', borderColor: !deleteReason.trim() ? '#d9e5dd' : '#b42318' }}
+                    >
+                      Confirm delete
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="form-grid">
                 <div className="field">
