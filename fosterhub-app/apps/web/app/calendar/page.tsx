@@ -185,6 +185,44 @@ function formatTimeForCalendar(value: string) {
   return `${hour}:${minute}${meridiem}`;
 }
 
+function syncActivityEventToCaseStorage(event: CalendarEvent) {
+  if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
+
+  const activityId = event.id.replace(/^activity-/, '');
+  const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
+  const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
+  const caseActivities = storedActivities[event.caseLabel] || [];
+
+  storedActivities[event.caseLabel] = caseActivities.map((activity: any) =>
+    activity.id === activityId
+      ? {
+          ...activity,
+          type: event.eventType,
+          date: event.date,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          location: event.location,
+          notes: event.notes,
+          invitees: event.invitees,
+        }
+      : activity,
+  );
+
+  localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
+}
+
+function removeActivityEventFromCaseStorage(event: CalendarEvent) {
+  if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
+
+  const activityId = event.id.replace(/^activity-/, '');
+  const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
+  const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
+  const caseActivities = storedActivities[event.caseLabel] || [];
+
+  storedActivities[event.caseLabel] = caseActivities.filter((activity: any) => activity.id !== activityId);
+  localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
+}
+
 export default function CalendarPage() {
   const [appointments, setAppointments] = useState<CalendarEvent[]>(() => {
     if (typeof window === 'undefined') return initialAppointments;
@@ -331,6 +369,12 @@ export default function CalendarPage() {
 
   function deleteActiveEvent() {
     if (!activeEventId) return;
+
+    const activeEvent = appointments.find(item => item.id === activeEventId);
+    if (activeEvent) {
+      removeActivityEventFromCaseStorage(activeEvent);
+    }
+
     setAppointments(current => current.filter(item => item.id !== activeEventId));
     closeEventModal();
     resetEventForm();
@@ -372,9 +416,9 @@ export default function CalendarPage() {
     };
 
     if (eventModalMode === 'edit' && activeEventId) {
-      setAppointments(current =>
-        current.map(item => (item.id === activeEventId ? { ...item, ...normalizedEvent } : item)),
-      );
+      const updatedEvent = { id: activeEventId, ...normalizedEvent };
+      syncActivityEventToCaseStorage(updatedEvent);
+      setAppointments(current => current.map(item => (item.id === activeEventId ? updatedEvent : item)));
     } else {
       setAppointments(current => [...current, { id: `${Date.now()}`, ...normalizedEvent }]);
     }
