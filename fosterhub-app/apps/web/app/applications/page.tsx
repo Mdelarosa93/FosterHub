@@ -59,6 +59,66 @@ type QueueSummary = {
   byOwner: Array<{ ownerId: string | null; ownerName: string; total: number; approvalReady: number; approved: number; countyCount: number; overdue: number; averageAgeDays: number; invited: number; activated: number; profileCompleted: number }>;
 };
 
+function formatStageLabel(value: string) {
+  return value.replace(/_/g, ' ');
+}
+
+function formatOnboardingLabel(value?: string | null) {
+  return (value || 'NOT_STARTED').replace(/_/g, ' ');
+}
+
+function getStageBadgeStyle(stage: string) {
+  switch (stage) {
+    case 'APPROVED':
+      return { background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' };
+    case 'READY_FOR_APPROVAL':
+      return { background: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe' };
+    case 'MISSING_DOCUMENTS':
+      return { background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' };
+    case 'HOME_STUDY':
+    case 'TRAINING_REQUIRED':
+      return { background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe' };
+    default:
+      return { background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' };
+  }
+}
+
+function getOnboardingBadgeStyle(status?: string | null) {
+  switch (status) {
+    case 'PROFILE_COMPLETED':
+      return { background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' };
+    case 'ACCOUNT_ACTIVATED':
+      return { background: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe' };
+    case 'INVITED':
+      return { background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' };
+    default:
+      return { background: '#f3f4f6', color: '#4b5563', border: '1px solid #e5e7eb' };
+  }
+}
+
+function getQueueAgeInDays(submittedAt: string) {
+  return Math.max(0, Math.floor((Date.now() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+function getSlaBadge(daysOpen: number) {
+  if (daysOpen > 14) {
+    return {
+      label: `Overdue · ${daysOpen}d`,
+      style: { background: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca' },
+    };
+  }
+  if (daysOpen >= 7) {
+    return {
+      label: `Watch · ${daysOpen}d`,
+      style: { background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' },
+    };
+  }
+  return {
+    label: `On track · ${daysOpen}d`,
+    style: { background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
+  };
+}
+
 export default function ApplicationsPage() {
   const router = useRouter();
   const [applications, setApplications] = useState<ApiApplication[]>([]);
@@ -85,6 +145,7 @@ export default function ApplicationsPage() {
   });
   const [documentDrafts, setDocumentDrafts] = useState<Record<string, { title: string; fileName: string; notes: string }>>({});
   const sessionUser = getStoredSessionUser();
+  const isCountyScopedUser = sessionUser?.organizationType?.toLowerCase() === 'county_agency';
   const [draft, setDraft] = useState({
     organizationId: '',
     assignedToUserId: '',
@@ -134,7 +195,7 @@ export default function ApplicationsPage() {
         setOrganizations(orgs);
         setAssignableUsers(ownerResult.data || []);
         setQueueSummary(summaryResult.data || null);
-        if (sessionUser?.organizationType === 'county_agency') {
+        if (isCountyScopedUser) {
           setSelectedCountyId(sessionUser.organizationId || 'all');
           setDraft(current => ({ ...current, organizationId: sessionUser.organizationId || '' }));
         } else {
@@ -194,6 +255,28 @@ export default function ApplicationsPage() {
     approved: filtered.filter(item => item.stage === 'APPROVED').length,
     missingDocs: filtered.filter(item => item.stage === 'MISSING_DOCUMENTS').length,
   }), [filtered]);
+
+  const selectedCountyName = useMemo(() => {
+    if (selectedCountyId === 'all') return 'All counties';
+    return organizations.find(county => county.id === selectedCountyId)?.name || 'Selected county';
+  }, [organizations, selectedCountyId]);
+
+  const scopeSummary = useMemo(() => {
+    const presetLabel = selectedPreset === 'all'
+      ? 'All applications'
+      : selectedPreset === 'my-queue'
+        ? 'My queue'
+        : selectedPreset === 'unassigned'
+          ? 'Unassigned'
+          : 'Overdue';
+    return `${presetLabel} · ${selectedCountyName}`;
+  }, [selectedCountyName, selectedPreset]);
+
+  const scopedAssignableUsers = useMemo(() => {
+    const activeOrganizationId = selectedCountyId === 'all' ? sessionUser?.organizationId : selectedCountyId;
+    if (!activeOrganizationId) return assignableUsers;
+    return assignableUsers.filter(user => user.organizationId === activeOrganizationId);
+  }, [assignableUsers, selectedCountyId, sessionUser?.organizationId]);
 
   const filteredQueueSummary = useMemo(() => {
     const ageInDays = (submittedAt: string) => Math.max(0, Math.floor((Date.now() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24)));
@@ -417,28 +500,44 @@ export default function ApplicationsPage() {
     <AppShell
       title="Application management"
       headerActions={
-        <div className="actions-row" style={{ flexWrap: 'wrap' }}>
-          {[
-            { key: 'all', label: 'All' },
-            { key: 'my-queue', label: 'My Queue' },
-            { key: 'unassigned', label: 'Unassigned' },
-            { key: 'overdue', label: 'Overdue' },
-          ].map(preset => (
-            <button
-              key={preset.key}
-              type="button"
-              className={selectedPreset === preset.key ? 'button button-primary' : 'button button-ghost'}
-              onClick={() => setSelectedPreset(preset.key as 'all' | 'my-queue' | 'unassigned' | 'overdue')}
-            >
-              {preset.label}
-            </button>
-          ))}
-          <select className="select" value={selectedCountyId} onChange={e => setSelectedCountyId(e.target.value)} style={{ maxWidth: 260 }}>
-            <option value="all">All counties</option>
-            {organizations.map(county => (
-              <option key={county.id} value={county.id}>{county.name}</option>
+        <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
+          <div className="actions-row" style={{ flexWrap: 'wrap' }}>
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'my-queue', label: 'My Queue' },
+              { key: 'unassigned', label: 'Unassigned' },
+              { key: 'overdue', label: 'Overdue' },
+            ].map(preset => (
+              <button
+                key={preset.key}
+                type="button"
+                className={selectedPreset === preset.key ? 'button button-primary' : 'button button-ghost'}
+                onClick={() => setSelectedPreset(preset.key as 'all' | 'my-queue' | 'unassigned' | 'overdue')}
+              >
+                {preset.label}
+              </button>
             ))}
-          </select>
+            {!isCountyScopedUser ? (
+              <select className="select" value={selectedCountyId} onChange={e => setSelectedCountyId(e.target.value)} style={{ minWidth: 220, maxWidth: 280 }}>
+                <option value="all">All counties</option>
+                {organizations.map(county => (
+                  <option key={county.id} value={county.id}>{county.name}</option>
+                ))}
+              </select>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '10px 14px', borderRadius: 12, border: '1px solid #d9e5dd', background: '#f8fbf9', color: '#123122', fontWeight: 700 }}>
+                {selectedCountyName}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, background: '#eef6ff', color: '#10588c', fontSize: 12, fontWeight: 800 }}>
+              {scopeSummary}
+            </span>
+            <span style={{ color: '#567060', fontSize: 13 }}>
+              {filtered.length} visible application{filtered.length === 1 ? '' : 's'}
+            </span>
+          </div>
         </div>
       }
     >
@@ -454,7 +553,7 @@ export default function ApplicationsPage() {
           <div className="section-title">
             <div>
               <div className="eyebrow">Bulk actions</div>
-              <h3 style={{ marginBottom: 0 }}>{selectedApplicationIds.length} selected</h3>
+              <h3 style={{ marginBottom: 0 }}>Update multiple applications at once</h3>
             </div>
             <div className="actions-row">
               <button
@@ -466,45 +565,59 @@ export default function ApplicationsPage() {
               </button>
             </div>
           </div>
-          <div className="grid">
-            <div className="field">
-              <label>Bulk stage update</label>
-              <select className="select" value={bulkDraft.stage} onChange={e => setBulkDraft({ ...bulkDraft, stage: e.target.value })}>
-                <option value="">No stage change</option>
-                <option value="SUBMITTED">Submitted</option>
-                <option value="MISSING_DOCUMENTS">Missing Documents</option>
-                <option value="TRAINING_REQUIRED">Training Required</option>
-                <option value="HOME_STUDY">Home Study</option>
-                <option value="READY_FOR_APPROVAL">Ready for Approval</option>
-                <option value="APPROVED">Approved</option>
-              </select>
+          <p style={{ marginTop: 0, color: '#567060' }}>
+            Pick the records you want below, then apply a stage, owner, or onboarding update in one pass.
+          </p>
+
+          {selectedApplicationIds.length ? (
+            <>
+              <div style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, background: '#123122', color: 'white', fontSize: 12, fontWeight: 800, marginBottom: 16 }}>
+                {selectedApplicationIds.length} selected
+              </div>
+              <div className="grid">
+                <div className="field">
+                  <label>Bulk stage update</label>
+                  <select className="select" value={bulkDraft.stage} onChange={e => setBulkDraft({ ...bulkDraft, stage: e.target.value })}>
+                    <option value="">No stage change</option>
+                    <option value="SUBMITTED">Submitted</option>
+                    <option value="MISSING_DOCUMENTS">Missing Documents</option>
+                    <option value="TRAINING_REQUIRED">Training Required</option>
+                    <option value="HOME_STUDY">Home Study</option>
+                    <option value="READY_FOR_APPROVAL">Ready for Approval</option>
+                    <option value="APPROVED">Approved</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Bulk owner update</label>
+                  <select className="select" value={bulkDraft.assignedToUserId} onChange={e => setBulkDraft({ ...bulkDraft, assignedToUserId: e.target.value })}>
+                    <option value="">No owner change</option>
+                    {scopedAssignableUsers.map(user => (
+                      <option key={user.id} value={user.id}>{user.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="field">
+                <label>Bulk onboarding update</label>
+                <select className="select" value={bulkDraft.onboardingStatus} onChange={e => setBulkDraft({ ...bulkDraft, onboardingStatus: e.target.value })}>
+                  <option value="">No onboarding change</option>
+                  <option value="INVITED">Invited</option>
+                  <option value="ACCOUNT_ACTIVATED">Account Activated</option>
+                  <option value="PROFILE_COMPLETED">Profile Completed</option>
+                </select>
+              </div>
+              <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
+                <button type="button" className="button button-primary" onClick={handleBulkUpdate} disabled={saving || !selectedApplicationIds.length}>
+                  Review bulk update
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="empty-state" style={{ marginTop: 12 }}>
+              <strong>No applications selected yet.</strong>
+              <p style={{ marginBottom: 0 }}>Use the checkboxes in the pipeline below to start a bulk update.</p>
             </div>
-            <div className="field">
-              <label>Bulk owner update</label>
-              <select className="select" value={bulkDraft.assignedToUserId} onChange={e => setBulkDraft({ ...bulkDraft, assignedToUserId: e.target.value })}>
-                <option value="">No owner change</option>
-                {assignableUsers
-                  .filter(user => selectedCountyId === 'all' || user.organizationId === selectedCountyId)
-                  .map(user => (
-                    <option key={user.id} value={user.id}>{user.name}</option>
-                  ))}
-              </select>
-            </div>
-          </div>
-          <div className="field">
-            <label>Bulk onboarding update</label>
-            <select className="select" value={bulkDraft.onboardingStatus} onChange={e => setBulkDraft({ ...bulkDraft, onboardingStatus: e.target.value })}>
-              <option value="">No onboarding change</option>
-              <option value="INVITED">Invited</option>
-              <option value="ACCOUNT_ACTIVATED">Account Activated</option>
-              <option value="PROFILE_COMPLETED">Profile Completed</option>
-            </select>
-          </div>
-          <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
-            <button type="button" className="button button-primary" onClick={handleBulkUpdate} disabled={saving || !selectedApplicationIds.length}>
-              Review bulk update
-            </button>
-          </div>
+          )}
         </section>
 
         <section className="grid">
@@ -598,7 +711,7 @@ export default function ApplicationsPage() {
           </section>
         ) : null}
 
-        <section className="card card-muted">
+        <section className="card card-muted" style={{ padding: 24 }}>
           <div className="section-title">
             <div>
               <div className="eyebrow">Backend persistence</div>
@@ -606,7 +719,7 @@ export default function ApplicationsPage() {
             </div>
           </div>
           <div className="form-grid">
-            {sessionUser?.organizationType !== 'county_agency' ? (
+            {!isCountyScopedUser ? (
               <div className="field">
                 <label>County</label>
                 <select className="select" value={draft.organizationId} onChange={e => setDraft({ ...draft, organizationId: e.target.value })}>
@@ -638,11 +751,12 @@ export default function ApplicationsPage() {
               <label>Owner</label>
               <select className="select" value={draft.assignedToUserId} onChange={e => setDraft({ ...draft, assignedToUserId: e.target.value })}>
                 <option value="">Unassigned</option>
-                {assignableUsers
-                  .filter(user => !draft.organizationId || user.organizationId === draft.organizationId)
-                  .map(user => (
-                    <option key={user.id} value={user.id}>{user.name}</option>
-                  ))}
+                {(draft.organizationId
+                  ? assignableUsers.filter(user => user.organizationId === draft.organizationId)
+                  : scopedAssignableUsers
+                ).map(user => (
+                  <option key={user.id} value={user.id}>{user.name}</option>
+                ))}
               </select>
             </div>
             <div className="actions-row" style={{ justifyContent: 'flex-end' }}>
@@ -653,66 +767,111 @@ export default function ApplicationsPage() {
           </div>
         </section>
 
-        <section className="card">
+        <section className="card" style={{ padding: 24 }}>
           <div className="section-title">
             <div>
               <div className="eyebrow">Applicant pipeline</div>
               <h2 style={{ marginBottom: 0 }}>Prospective foster parents</h2>
             </div>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, background: '#f3f4f6', color: '#374151', fontSize: 12, fontWeight: 800 }}>
+              {filtered.length} in view
+            </span>
           </div>
 
           <div className="record-list">
-            {filtered.map(application => (
-              <article key={application.id} className="record-item">
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedApplicationIds.includes(application.id)}
-                      onChange={event => setSelectedApplicationIds(current => event.target.checked ? [...current, application.id] : current.filter(id => id !== application.id))}
-                      style={{ marginTop: 4 }}
-                    />
-                    <div>
-                    <strong>{application.householdName}</strong>
-                    <div className="record-meta">
-                      <span>{application.organizationName}</span>
-                      <span>{application.primaryApplicant}</span>
-                      <span>{application.assignedToUserName ? `Owner: ${application.assignedToUserName}` : 'Owner: Unassigned'}</span>
-                      {application.convertedToUserId ? <span>Onboarding: {(application.onboardingStatus || 'NOT_STARTED').replace(/_/g, ' ')}</span> : null}
-                      <span>Submitted {new Date(application.submittedAt).toLocaleDateString()}</span>
-                    </div>
-                    </div>
-                  </div>
-                  <span className="status-pill">{application.stage.replace(/_/g, ' ')}</span>
-                </div>
-                <div className="grid" style={{ marginTop: 18 }}>
-                  <div className="card card-muted" style={{ padding: 18 }}>
-                    <div className="eyebrow">Checklist</div>
-                    <strong>{application.checklistProgress}% complete</strong>
-                    <p style={{ marginBottom: 0 }}>This record is now coming from the real backend instead of local-only prototype data.</p>
-                  </div>
-                  <div className="card card-muted" style={{ padding: 18 }}>
-                    <div className="eyebrow">Contact</div>
-                    <strong>{application.email || 'No email yet'}</strong>
-                    <p style={{ marginBottom: 0 }}>{application.phone || 'No phone yet'}</p>
-                  </div>
-                </div>
-                <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 18 }}>
-                  {application.stage === 'APPROVED' ? (
-                    application.convertedToUserId ? (
-                      <span className="button button-ghost" style={{ cursor: 'default' }}>Converted to foster parent portal</span>
-                    ) : (
-                      <button type="button" className="button button-primary" onClick={() => handleConvertToFosterParent(application.id)} disabled={saving}>
-                        Convert to foster parent
+            {!filtered.length ? (
+              <div className="empty-state">
+                <strong>No applications match this view.</strong>
+                <p style={{ marginBottom: 0 }}>Try a different queue preset or county context to widen the results.</p>
+              </div>
+            ) : null}
+            {filtered.map(application => {
+              const stageBadgeStyle = getStageBadgeStyle(application.stage);
+              const onboardingBadgeStyle = getOnboardingBadgeStyle(application.onboardingStatus);
+              const daysOpen = getQueueAgeInDays(application.submittedAt);
+              const slaBadge = getSlaBadge(daysOpen);
+              return (
+                <article key={application.id} className="record-item" style={{ borderRadius: 20, border: '1px solid #d9e5dd', padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0, flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedApplicationIds.includes(application.id)}
+                        onChange={event => setSelectedApplicationIds(current => event.target.checked ? [...current, application.id] : current.filter(id => id !== application.id))}
+                        style={{ marginTop: 14 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => openApplicationModal(application)}
+                        style={{ minWidth: 0, flex: 1, textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: 18, color: '#123122' }}>{application.householdName}</strong>
+                          <span style={{ ...stageBadgeStyle, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 800 }}>
+                            {formatStageLabel(application.stage)}
+                          </span>
+                          <span style={{ ...slaBadge.style, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 800 }}>
+                            {slaBadge.label}
+                          </span>
+                          {application.convertedToUserId ? (
+                            <span style={{ ...onboardingBadgeStyle, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 800 }}>
+                              Onboarding: {formatOnboardingLabel(application.onboardingStatus)}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="record-meta" style={{ marginTop: 8 }}>
+                          <span>{application.organizationName}</span>
+                          <span>{application.primaryApplicant}</span>
+                          <span>{application.assignedToUserName ? `Owner: ${application.assignedToUserName}` : 'Owner: Unassigned'}</span>
+                          <span>Submitted {new Date(application.submittedAt).toLocaleDateString()}</span>
+                          <span style={{ color: '#10588c', fontWeight: 700 }}>Open application details</span>
+                        </div>
                       </button>
-                    )
-                  ) : null}
-                  <button type="button" className="button button-ghost" onClick={() => openApplicationModal(application)}>
-                    Update workflow
-                  </button>
-                </div>
-              </article>
-            ))}
+                    </div>
+                    <button type="button" className="button button-ghost" onClick={() => openApplicationModal(application)}>
+                      Open application
+                    </button>
+                  </div>
+                  <div className="grid" style={{ marginTop: 18 }}>
+                    <div className="card card-muted" style={{ padding: 18 }}>
+                      <div className="eyebrow">Checklist progress</div>
+                      <strong>{application.checklistProgress}% complete</strong>
+                      <p style={{ marginBottom: 0 }}>
+                        {application.stage === 'READY_FOR_APPROVAL'
+                          ? 'This record looks close to approval. Review final requirements and ownership before moving it forward.'
+                          : application.stage === 'MISSING_DOCUMENTS'
+                            ? 'Missing requirements still need attention before this application can move forward.'
+                            : 'Use workflow updates to keep stage movement aligned with actual requirement completion.'}
+                      </p>
+                    </div>
+                    <div className="card card-muted" style={{ padding: 18 }}>
+                      <div className="eyebrow">Contact</div>
+                      <strong>{application.email || 'No email yet'}</strong>
+                      <p style={{ marginBottom: 0 }}>{application.phone || 'No phone yet'}</p>
+                    </div>
+                  </div>
+                  <div className="actions-row" style={{ justifyContent: 'space-between', marginTop: 18, alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ color: '#567060', fontSize: 13 }}>
+                      {application.convertedToUserId ? 'Application has been converted into a foster parent portal account.' : 'Not yet converted to foster parent portal.'}
+                    </div>
+                    <div className="actions-row" style={{ justifyContent: 'flex-end' }}>
+                      {application.stage === 'APPROVED' ? (
+                        application.convertedToUserId ? (
+                          <span className="button button-ghost" style={{ cursor: 'default' }}>Converted to foster parent portal</span>
+                        ) : (
+                          <button type="button" className="button button-primary" onClick={() => handleConvertToFosterParent(application.id)} disabled={saving}>
+                            Convert to foster parent
+                          </button>
+                        )
+                      ) : null}
+                      <button type="button" className="button button-secondary" onClick={() => openApplicationModal(application)}>
+                        Update workflow
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
@@ -737,22 +896,30 @@ export default function ApplicationsPage() {
                 </div>
               </div>
               <div className="record-list">
+                <div className="record-item" style={{ background: '#f8fbf9' }}>
+                  <strong>Impact summary</strong>
+                  <div className="record-meta">
+                    <span>{selectedApplicationIds.length} applications selected</span>
+                    <span>{filtered.filter(item => selectedApplicationIds.includes(item.id)).length} visible in current filtered view</span>
+                    <span>{scopeSummary}</span>
+                  </div>
+                </div>
                 {bulkDraft.stage ? (
                   <div className="record-item">
                     <strong>Stage update</strong>
-                    <p style={{ marginBottom: 0 }}>{bulkDraft.stage.replace(/_/g, ' ')}</p>
+                    <p style={{ marginBottom: 0 }}>Set all selected records to <strong>{formatStageLabel(bulkDraft.stage)}</strong>.</p>
                   </div>
                 ) : null}
                 {bulkDraft.assignedToUserId ? (
                   <div className="record-item">
                     <strong>Owner update</strong>
-                    <p style={{ marginBottom: 0 }}>{assignableUsers.find(user => user.id === bulkDraft.assignedToUserId)?.name || 'Selected owner'}</p>
+                    <p style={{ marginBottom: 0 }}>Assign selected records to <strong>{assignableUsers.find(user => user.id === bulkDraft.assignedToUserId)?.name || 'Selected owner'}</strong>.</p>
                   </div>
                 ) : null}
                 {bulkDraft.onboardingStatus ? (
                   <div className="record-item">
                     <strong>Onboarding update</strong>
-                    <p style={{ marginBottom: 0 }}>{bulkDraft.onboardingStatus.replace(/_/g, ' ')}</p>
+                    <p style={{ marginBottom: 0 }}>Set foster parent onboarding to <strong>{formatOnboardingLabel(bulkDraft.onboardingStatus)}</strong>.</p>
                   </div>
                 ) : null}
               </div>
@@ -780,77 +947,119 @@ export default function ApplicationsPage() {
             onClick={closeApplicationModal}
           >
             <section className="card" style={{ width: 'min(100%, 760px)', maxHeight: '88vh', overflow: 'auto', padding: 24 }} onClick={event => event.stopPropagation()}>
-              <div className="section-title">
+              <div className="section-title" style={{ alignItems: 'flex-start' }}>
                 <div>
                   <div className="eyebrow">Workflow editor</div>
                   <h2 style={{ marginBottom: 0 }}>{activeApplication.householdName}</h2>
                 </div>
+                <button type="button" className="button button-ghost" onClick={closeApplicationModal}>Close</button>
               </div>
               <div className="form-grid">
-                <div className="grid">
-                  <div className="field">
-                    <label>Stage</label>
-                    <select className="select" value={workflowDraft.stage} onChange={e => setWorkflowDraft({ ...workflowDraft, stage: e.target.value })}>
-                      <option value="SUBMITTED">Submitted</option>
-                      <option value="MISSING_DOCUMENTS">Missing Documents</option>
-                      <option value="TRAINING_REQUIRED">Training Required</option>
-                      <option value="HOME_STUDY">Home Study</option>
-                      <option value="READY_FOR_APPROVAL">Ready for Approval</option>
-                      <option value="APPROVED">Approved</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Checklist progress</label>
-                    <div className="input">
-                      {workflowDraft.checklistItems.length
-                        ? `${Math.round((workflowDraft.checklistItems.filter(item => item.completed).length / workflowDraft.checklistItems.length) * 100)}% complete`
-                        : `${workflowDraft.checklistProgress}% complete`}
+                <section className="card" style={{ padding: 18, border: '1px solid #d9e5dd', background: '#fcfdfc' }}>
+                  <div className="section-title">
+                    <div>
+                      <div className="eyebrow">Application summary</div>
+                      <h3 style={{ marginBottom: 0 }}>Current record snapshot</h3>
                     </div>
                   </div>
-                </div>
-                <div className="grid">
-                  <div className="field">
-                    <label>Household</label>
-                    <input className="input" value={workflowDraft.householdName} onChange={e => setWorkflowDraft({ ...workflowDraft, householdName: e.target.value })} />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                    <span style={{ ...getStageBadgeStyle(activeApplication.stage), display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800 }}>
+                      {formatStageLabel(activeApplication.stage)}
+                    </span>
+                    {activeApplication.convertedToUserId ? (
+                      <span style={{ ...getOnboardingBadgeStyle(activeApplication.onboardingStatus), display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800 }}>
+                        Onboarding: {formatOnboardingLabel(activeApplication.onboardingStatus)}
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="field">
-                    <label>Primary applicant</label>
-                    <input className="input" value={workflowDraft.primaryApplicant} onChange={e => setWorkflowDraft({ ...workflowDraft, primaryApplicant: e.target.value })} />
+                  <div className="record-meta" style={{ display: 'grid', gap: 8 }}>
+                    <span><strong>County:</strong> {activeApplication.organizationName}</span>
+                    <span><strong>Primary applicant:</strong> {activeApplication.primaryApplicant}</span>
+                    <span><strong>Owner:</strong> {activeApplication.assignedToUserName || 'Unassigned'}</span>
+                    <span><strong>Submitted:</strong> {new Date(activeApplication.submittedAt).toLocaleString()}</span>
                   </div>
-                </div>
-                <div className="grid">
-                  <div className="field">
-                    <label>Email</label>
-                    <input className="input" value={workflowDraft.email} onChange={e => setWorkflowDraft({ ...workflowDraft, email: e.target.value })} />
-                  </div>
-                  <div className="field">
-                    <label>Phone</label>
-                    <input className="input" value={workflowDraft.phone} onChange={e => setWorkflowDraft({ ...workflowDraft, phone: e.target.value })} />
-                  </div>
-                </div>
+                </section>
 
-                <div className="field">
-                  <label>Owner</label>
-                  <select className="select" value={workflowDraft.assignedToUserId} onChange={e => setWorkflowDraft({ ...workflowDraft, assignedToUserId: e.target.value })}>
-                    <option value="">Unassigned</option>
-                    {assignableUsers
-                      .filter(user => !activeApplication || user.organizationId === activeApplication.organizationId)
-                      .map(user => (
-                        <option key={user.id} value={user.id}>{user.name}</option>
-                      ))}
-                  </select>
-                </div>
-
-                {activeApplication.convertedToUserId ? (
+                <section className="card card-muted" style={{ padding: 18 }}>
+                  <div className="section-title">
+                    <div>
+                      <div className="eyebrow">Workflow status</div>
+                      <h3 style={{ marginBottom: 0 }}>Stage, ownership, and onboarding</h3>
+                    </div>
+                  </div>
+                  <div className="grid">
+                    <div className="field">
+                      <label>Stage</label>
+                      <select className="select" value={workflowDraft.stage} onChange={e => setWorkflowDraft({ ...workflowDraft, stage: e.target.value })}>
+                        <option value="SUBMITTED">Submitted</option>
+                        <option value="MISSING_DOCUMENTS">Missing Documents</option>
+                        <option value="TRAINING_REQUIRED">Training Required</option>
+                        <option value="HOME_STUDY">Home Study</option>
+                        <option value="READY_FOR_APPROVAL">Ready for Approval</option>
+                        <option value="APPROVED">Approved</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Checklist progress</label>
+                      <div className="input">
+                        {workflowDraft.checklistItems.length
+                          ? `${Math.round((workflowDraft.checklistItems.filter(item => item.completed).length / workflowDraft.checklistItems.length) * 100)}% complete`
+                          : `${workflowDraft.checklistProgress}% complete`}
+                      </div>
+                    </div>
+                  </div>
                   <div className="field">
-                    <label>Foster parent onboarding status</label>
-                    <select className="select" value={workflowDraft.onboardingStatus} onChange={e => setWorkflowDraft({ ...workflowDraft, onboardingStatus: e.target.value })}>
-                      <option value="INVITED">Invited</option>
-                      <option value="ACCOUNT_ACTIVATED">Account Activated</option>
-                      <option value="PROFILE_COMPLETED">Profile Completed</option>
+                    <label>Owner</label>
+                    <select className="select" value={workflowDraft.assignedToUserId} onChange={e => setWorkflowDraft({ ...workflowDraft, assignedToUserId: e.target.value })}>
+                      <option value="">Unassigned</option>
+                      {assignableUsers
+                        .filter(user => !activeApplication || user.organizationId === activeApplication.organizationId)
+                        .map(user => (
+                          <option key={user.id} value={user.id}>{user.name}</option>
+                        ))}
                     </select>
                   </div>
-                ) : null}
+
+                  {activeApplication.convertedToUserId ? (
+                    <div className="field">
+                      <label>Foster parent onboarding status</label>
+                      <select className="select" value={workflowDraft.onboardingStatus} onChange={e => setWorkflowDraft({ ...workflowDraft, onboardingStatus: e.target.value })}>
+                        <option value="INVITED">Invited</option>
+                        <option value="ACCOUNT_ACTIVATED">Account Activated</option>
+                        <option value="PROFILE_COMPLETED">Profile Completed</option>
+                      </select>
+                    </div>
+                  ) : null}
+                </section>
+
+                <section className="card card-muted" style={{ padding: 18 }}>
+                  <div className="section-title">
+                    <div>
+                      <div className="eyebrow">Applicant details</div>
+                      <h3 style={{ marginBottom: 0 }}>Household and contact information</h3>
+                    </div>
+                  </div>
+                  <div className="grid">
+                    <div className="field">
+                      <label>Household</label>
+                      <input className="input" value={workflowDraft.householdName} onChange={e => setWorkflowDraft({ ...workflowDraft, householdName: e.target.value })} />
+                    </div>
+                    <div className="field">
+                      <label>Primary applicant</label>
+                      <input className="input" value={workflowDraft.primaryApplicant} onChange={e => setWorkflowDraft({ ...workflowDraft, primaryApplicant: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid">
+                    <div className="field">
+                      <label>Email</label>
+                      <input className="input" value={workflowDraft.email} onChange={e => setWorkflowDraft({ ...workflowDraft, email: e.target.value })} />
+                    </div>
+                    <div className="field">
+                      <label>Phone</label>
+                      <input className="input" value={workflowDraft.phone} onChange={e => setWorkflowDraft({ ...workflowDraft, phone: e.target.value })} />
+                    </div>
+                  </div>
+                </section>
 
                 <section className="card card-muted" style={{ padding: 18 }}>
                   <div className="section-title">
@@ -948,7 +1157,7 @@ export default function ApplicationsPage() {
                   </div>
                 </section>
               </div>
-              <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 22 }}>
+              <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 22, position: 'sticky', bottom: -24, background: 'rgba(255,255,255,0.96)', paddingTop: 16, borderTop: '1px solid #eef3ef' }}>
                 <button type="button" className="button button-ghost" onClick={closeApplicationModal}>Cancel</button>
                 <button type="button" className="button button-primary" onClick={handleUpdateWorkflow} disabled={saving}>
                   {saving ? 'Saving…' : 'Save workflow'}

@@ -133,6 +133,12 @@ type OrganizationTreeItem = {
   parentOrganizationId?: string | null;
 };
 
+function formatOrganizationTypeLabel(type?: 'STATE_AGENCY' | 'COUNTY_AGENCY' | string | null) {
+  if (type === 'STATE_AGENCY') return 'State';
+  if (type === 'COUNTY_AGENCY') return 'County';
+  return 'Organization';
+}
+
 type HeaderReminder = {
   id: string;
   reminderType: string;
@@ -173,7 +179,7 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState<StoredUser | null>(null);
   const [organizationContext, setOrganizationContext] = useState<OrganizationContext | null>(null);
-  const [organizationOptions, setOrganizationOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [organizationOptions, setOrganizationOptions] = useState<Array<{ id: string; name: string; type: 'STATE_AGENCY' | 'COUNTY_AGENCY' }>>([]);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [switchingOrganization, setSwitchingOrganization] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
@@ -215,7 +221,9 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
 
         const root = tree.find(item => item.id === rootId);
         const counties = tree.filter(item => item.parentOrganizationId === rootId);
-        const options = [root, ...counties].filter(Boolean).map(item => ({ id: item!.id, name: item!.name }));
+        const options = [root, ...counties]
+          .filter(Boolean)
+          .map(item => ({ id: item!.id, name: item!.name, type: item!.type }));
         setOrganizationOptions(options);
         setSelectedOrganizationId(context?.id ?? '');
       } catch {
@@ -282,7 +290,7 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
       setMenuOpen(false);
       setNotificationsOpen(false);
       router.refresh();
-      router.push('/organizations');
+      router.push(pathname || '/organizations');
     } catch {
       setSelectedOrganizationId(user?.organizationId ?? '');
     } finally {
@@ -455,29 +463,56 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {organizationOptions.length > 1 ? (
+            {organizationOptions.length > 0 ? (
               <div
                 style={{
-                  minWidth: 260,
-                  padding: 10,
-                  borderRadius: 16,
+                  minWidth: 320,
+                  padding: 12,
+                  borderRadius: 18,
                   border: '1px solid #d9e5dd',
-                  background: 'white',
+                  background: switchingOrganization ? 'linear-gradient(135deg, #f4f8f5 0%, #eef6ff 100%)' : 'white',
                   boxShadow: '0 8px 18px rgba(15, 23, 42, 0.05)',
                 }}
               >
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#10588c', marginBottom: 6 }}>
-                  Portal context
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#10588c' }}>
+                    Portal context
+                  </div>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      background: switchingOrganization ? '#10588c' : '#eef6ff',
+                      color: switchingOrganization ? 'white' : '#10588c',
+                    }}
+                  >
+                    {switchingOrganization ? 'Switching…' : `${formatOrganizationTypeLabel(organizationContext?.type)} active`}
+                  </span>
                 </div>
+
+                {organizationContext ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontWeight: 800, color: '#123122', lineHeight: 1.2 }}>{organizationContext.name}</div>
+                    <div style={{ fontSize: 12, color: '#567060', marginTop: 4 }}>
+                      {formatOrganizationTypeLabel(organizationContext.type)} portal
+                      {organizationContext.parentOrganization ? ` · Parent: ${organizationContext.parentOrganization.name}` : ''}
+                    </div>
+                  </div>
+                ) : null}
+
                 <select
                   className="select"
                   value={selectedOrganizationId}
                   onChange={e => handleOrganizationSwitch(e.target.value)}
                   disabled={switchingOrganization}
-                  style={{ border: 'none', padding: 0, minHeight: 'auto', boxShadow: 'none', background: 'transparent' }}
+                  style={{ border: 'none', padding: 0, minHeight: 'auto', boxShadow: 'none', background: 'transparent', fontWeight: 700 }}
                 >
                   {organizationOptions.map(option => (
-                    <option key={option.id} value={option.id}>{option.name}</option>
+                    <option key={option.id} value={option.id}>{`${formatOrganizationTypeLabel(option.type)} · ${option.name}`}</option>
                   ))}
                 </select>
               </div>

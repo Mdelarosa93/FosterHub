@@ -70,6 +70,9 @@ export default function CaseDetailPage() {
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [childDraft, setChildDraft] = useState<any | null>(null);
   const [childDirty, setChildDirty] = useState(false);
+  const [activeBioParentId, setActiveBioParentId] = useState<string | null>(null);
+  const [bioParentDraft, setBioParentDraft] = useState<any | null>(null);
+  const [bioParentDirty, setBioParentDirty] = useState(false);
   const [caseDirty, setCaseDirty] = useState(false);
   const [caseWorkerQuery, setCaseWorkerQuery] = useState('');
   const [fosterParentQuery, setFosterParentQuery] = useState('');
@@ -257,6 +260,7 @@ export default function CaseDetailPage() {
   const displayCaseLabel = `${displayLastName} - ${displayCaseNumber}`;
   const childCountMap: Record<string, number> = { Hall: 2, Johnson: 1, Carter: 2, Lewis: 1 };
   const childCount = childProfiles.length > 0 ? childProfiles.length : (data?.id?.startsWith('local-') ? 0 : (data?.child?.lastName ? childCountMap[data.child.lastName] || 1 : 0));
+  const familyMemberCount = childProfiles.length + bioParents.length;
   const openRequestCount = data?.requests?.filter((request: any) => request.status === 'SUBMITTED').length ?? 0;
 
   const childProfileMap: Record<string, any[]> = {
@@ -357,13 +361,13 @@ export default function CaseDetailPage() {
   }, [caseLabel, childProfiles]);
 
   useEffect(() => {
-    if (!activeChildId && !activityModalOpen) return;
+    if (!activeChildId && !activityModalOpen && !activeBioParentId && !familyModalOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [activeChildId, activityModalOpen]);
+  }, [activeChildId, activityModalOpen, activeBioParentId, familyModalOpen]);
 
   useEffect(() => {
     if (!photoGalleryOpen || !childDraft?.photos?.length) return;
@@ -485,6 +489,12 @@ export default function CaseDetailPage() {
     setActivePicker(null);
   }
 
+  function openBioParentModal(parent: any) {
+    setActiveBioParentId(parent.id);
+    setBioParentDraft({ ...parent });
+    setBioParentDirty(false);
+  }
+
   const bioParentOptions = caseLabel ? [`Biological Parent - ${caseLabel.split(' - ')[0]} 1`, `Biological Parent - ${caseLabel.split(' - ')[0]} 2`] : ['Biological Parent 1', 'Biological Parent 2'];
   const activityAssigneeOptions = [...bioParentOptions, ...childProfiles.map((child: any) => child.name)];
   const activityInviteeOptions = Array.from(new Set([
@@ -598,6 +608,12 @@ export default function CaseDetailPage() {
     setPhotoMenuOpen(null);
     setPhotoViewerOpen(false);
     setSelectedPhotoIndex(0);
+  }
+
+  function closeBioParentModal() {
+    setActiveBioParentId(null);
+    setBioParentDraft(null);
+    setBioParentDirty(false);
   }
 
   function updateChildDraft(field: string, value: string) {
@@ -901,46 +917,52 @@ export default function CaseDetailPage() {
     if (!familyDraft.firstName.trim() || !familyDraft.lastName.trim()) return;
 
     const fullName = `${familyDraft.firstName.trim()} ${familyDraft.lastName.trim()}`;
+    const generatedId = `${Date.now()}`;
     if (familyDraft.type === 'child') {
-      setChildProfiles(current => [
-        ...current,
-        {
-          id: `${Date.now()}`,
-          name: fullName,
-          birthday: '2020-01-01',
-          status: 'Pending Placement',
-          caseWorker: '',
-          guardianAdLitem: '',
-          fosterParent: '',
-          primaryPermanencyPlan: '',
-          secondaryPermanencyPlan: '',
-          schoolOrDaycare: '',
-          medications: '',
-          medicalProviders: '',
-          lastMonthlyHomeVisit: '',
-          lastClothesVoucher: '',
-          notes: '',
-          photos: [],
-          profilePhotoId: '',
-        },
-      ]);
-    } else {
-      setBioParents(current => [
-        ...current,
-        {
-          id: `${Date.now()}`,
-          firstName: familyDraft.firstName.trim(),
-          lastName: familyDraft.lastName.trim(),
-          relationship: familyDraft.relationship,
-          phone: '',
-          email: '',
-          address: '',
-          notes: '',
-        },
-      ]);
+      const nextChild = {
+        id: generatedId,
+        name: fullName,
+        birthday: '2020-01-01',
+        status: 'Pending Placement',
+        caseWorker: '',
+        guardianAdLitem: '',
+        fosterParent: '',
+        primaryPermanencyPlan: '',
+        secondaryPermanencyPlan: '',
+        schoolOrDaycare: '',
+        medications: '',
+        medicalProviders: '',
+        lastMonthlyHomeVisit: '',
+        lastClothesVoucher: '',
+        notes: '',
+        photos: [],
+        profilePhotoId: '',
+      };
+      setChildProfiles(current => [...current, nextChild]);
+      setFamilyModalOpen(false);
+      openChildModal(nextChild);
+      return;
     }
 
+    const nextBioParent = {
+      id: generatedId,
+      firstName: familyDraft.firstName.trim(),
+      lastName: familyDraft.lastName.trim(),
+      relationship: familyDraft.relationship,
+      phone: '',
+      email: '',
+      address: '',
+      notes: '',
+    };
+    setBioParents(current => [...current, nextBioParent]);
     setFamilyModalOpen(false);
+    openBioParentModal(nextBioParent);
+  }
+
+  function saveBioParentChanges() {
+    if (!activeBioParentId || !bioParentDraft) return;
+    setBioParents(current => current.map(parent => (parent.id === activeBioParentId ? { ...bioParentDraft } : parent)));
+    closeBioParentModal();
   }
 
   function saveCaseMeta() {
@@ -1011,8 +1033,8 @@ export default function CaseDetailPage() {
             </select>
           </article>
           <article className="card kpi">
-            <span className="kpi-label">Children</span>
-            <span className="kpi-value">{childCount}</span>
+            <span className="kpi-label">Family Members</span>
+            <span className="kpi-value">{familyMemberCount || childCount}</span>
           </article>
           <article className="card kpi">
             <span className="kpi-label">Open Requests</span>
@@ -1038,56 +1060,117 @@ export default function CaseDetailPage() {
 
         <section className="grid" style={{ alignItems: 'start' }}>
           <div className="stack" style={{ gap: 24 }}>
-            <section className="card">
+            <section className="card" style={{ padding: 24 }}>
               <div className="section-title">
                 <div>
                   <div className="eyebrow">Family</div>
+                  <h3 style={{ marginBottom: 0 }}>Children and biological parents</h3>
                 </div>
-                <button type="button" className="button button-ghost" onClick={openFamilyModal}>
+                <button type="button" className="button button-primary" onClick={openFamilyModal}>
                   Add Family
                 </button>
               </div>
 
             {childProfiles.length || bioParents.length ? (
-              <div className="record-list">
-                {childProfiles.map((child: any) => (
-                  <button
-                    key={child.id}
-                    type="button"
-                    className="record-item clickable-card"
-                    onClick={() => openChildModal(child)}
-                    style={{ textAlign: 'left', cursor: 'pointer', width: '100%' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        {renderChildAvatar(child, 38)}
-                        <div>
-                          <strong className="clickable-card-title">{child.name}</strong>
-                          <div className="record-meta" style={{ marginTop: 8 }}>
-                            <span>Child</span>
-                            <span>{calculateAgeFromBirthday(child.birthday)} years old</span>
-                          </div>
-                        </div>
-                      </div>
-                      <span className="status-pill">{child.status}</span>
+              <div style={{ display: 'grid', gap: 18 }}>
+                <section className="card card-muted" style={{ padding: 18 }}>
+                  <div className="section-title" style={{ marginBottom: 14 }}>
+                    <div>
+                      <div className="eyebrow">Children</div>
+                      <h3 style={{ marginBottom: 0 }}>Child profiles</h3>
                     </div>
-                  </button>
-                ))}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, background: '#eef6ff', color: '#10588c', fontSize: 12, fontWeight: 800 }}>
+                      {childProfiles.length} child{childProfiles.length === 1 ? '' : 'ren'}
+                    </span>
+                  </div>
 
-                {bioParents.map((parent: any) => (
-                  <article key={parent.id} className="record-item" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-                      <div>
-                        <strong>{parent.firstName} {parent.lastName}</strong>
-                        <div className="record-meta" style={{ marginTop: 8 }}>
-                          <span>Biological Parent</span>
-                          <span>{parent.relationship}</span>
-                        </div>
-                        {parent.phone ? <p style={{ marginTop: 8, marginBottom: 0 }}><strong>Phone:</strong> {parent.phone}</p> : null}
-                      </div>
+                  {childProfiles.length ? (
+                    <div className="record-list">
+                      {childProfiles.map((child: any) => (
+                        <button
+                          key={child.id}
+                          type="button"
+                          className="record-item clickable-card"
+                          onClick={() => openChildModal(child)}
+                          style={{ textAlign: 'left', cursor: 'pointer', width: '100%', borderRadius: 18 }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                              {renderChildAvatar(child, 42)}
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                  <strong className="clickable-card-title">{child.name}</strong>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: '#dcfce7', color: '#166534', fontSize: 12, fontWeight: 800, border: '1px solid #bbf7d0' }}>
+                                    Child
+                                  </span>
+                                </div>
+                                <div className="record-meta" style={{ marginTop: 8 }}>
+                                  <span>{calculateAgeFromBirthday(child.birthday)} years old</span>
+                                  {child.caseWorker ? <span>Case Worker: {child.caseWorker}</span> : null}
+                                  {child.fosterParent ? <span>Foster Parent: {child.fosterParent}</span> : null}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="status-pill">{child.status}</span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                  </article>
-                ))}
+                  ) : (
+                    <div className="empty-state" style={{ marginTop: 0 }}>
+                      <strong>No children added yet.</strong>
+                      <p style={{ marginBottom: 0 }}>Add a child to start building out the family record.</p>
+                    </div>
+                  )}
+                </section>
+
+                <section className="card card-muted" style={{ padding: 18 }}>
+                  <div className="section-title" style={{ marginBottom: 14 }}>
+                    <div>
+                      <div className="eyebrow">Biological parents</div>
+                      <h3 style={{ marginBottom: 0 }}>Parent details</h3>
+                    </div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, background: '#fff4ed', color: '#c2410c', fontSize: 12, fontWeight: 800 }}>
+                      {bioParents.length} parent{bioParents.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  {bioParents.length ? (
+                    <div className="record-list">
+                      {bioParents.map((parent: any) => (
+                        <button
+                          key={parent.id}
+                          type="button"
+                          className="record-item clickable-card"
+                          onClick={() => openBioParentModal(parent)}
+                          style={{ width: '100%', textAlign: 'left', cursor: 'pointer', borderRadius: 18 }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                <strong className="clickable-card-title">{parent.firstName} {parent.lastName}</strong>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: '#fff4ed', color: '#c2410c', fontSize: 12, fontWeight: 800, border: '1px solid #fed7aa' }}>
+                                  {parent.relationship}
+                                </span>
+                              </div>
+                              <div className="record-meta" style={{ marginTop: 8 }}>
+                                <span>Biological Parent</span>
+                                {parent.phone ? <span>{parent.phone}</span> : null}
+                                {parent.email ? <span>{parent.email}</span> : null}
+                              </div>
+                            </div>
+                            <span className="status-pill">Parent</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state" style={{ marginTop: 0 }}>
+                      <strong>No biological parents added yet.</strong>
+                      <p style={{ marginBottom: 0 }}>Add a biological parent when you want parent-specific details available on the case.</p>
+                    </div>
+                  )}
+                </section>
               </div>
             ) : (
               <div className="empty-state">
@@ -1550,6 +1633,62 @@ export default function CaseDetailPage() {
           </div>
         ) : null}
 
+        {bioParentDraft ? (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.35)', display: 'grid', placeItems: 'center', padding: 24, zIndex: 55 }} onClick={closeBioParentModal}>
+            <section className="card" style={{ width: 'min(100%, 560px)', padding: 24 }} onClick={event => event.stopPropagation()}>
+              <div className="section-title">
+                <div>
+                  <div className="eyebrow">Biological parent</div>
+                  <h3 style={{ marginBottom: 0 }}>{bioParentDraft.firstName} {bioParentDraft.lastName}</h3>
+                </div>
+                <button type="button" className="button button-ghost" onClick={closeBioParentModal}>Close</button>
+              </div>
+              <div className="form-grid">
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                  <div className="field">
+                    <label>First name</label>
+                    <input className="input" value={bioParentDraft.firstName || ''} onChange={e => { setBioParentDraft((current: any) => ({ ...current, firstName: e.target.value })); setBioParentDirty(true); }} />
+                  </div>
+                  <div className="field">
+                    <label>Last name</label>
+                    <input className="input" value={bioParentDraft.lastName || ''} onChange={e => { setBioParentDraft((current: any) => ({ ...current, lastName: e.target.value })); setBioParentDirty(true); }} />
+                  </div>
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                  <div className="field">
+                    <label>Relationship</label>
+                    <select className="select" value={bioParentDraft.relationship || 'Mother'} onChange={e => { setBioParentDraft((current: any) => ({ ...current, relationship: e.target.value })); setBioParentDirty(true); }}>
+                      <option>Mother</option>
+                      <option>Father</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Phone</label>
+                    <input className="input" value={bioParentDraft.phone || ''} onChange={e => { setBioParentDraft((current: any) => ({ ...current, phone: e.target.value })); setBioParentDirty(true); }} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Email</label>
+                  <input className="input" value={bioParentDraft.email || ''} onChange={e => { setBioParentDraft((current: any) => ({ ...current, email: e.target.value })); setBioParentDirty(true); }} />
+                </div>
+                <div className="field">
+                  <label>Address</label>
+                  <input className="input" value={bioParentDraft.address || ''} onChange={e => { setBioParentDraft((current: any) => ({ ...current, address: e.target.value })); setBioParentDirty(true); }} />
+                </div>
+                <div className="field">
+                  <label>Notes</label>
+                  <textarea className="textarea" rows={4} value={bioParentDraft.notes || ''} onChange={e => { setBioParentDraft((current: any) => ({ ...current, notes: e.target.value })); setBioParentDirty(true); }} />
+                </div>
+                <div className="actions-row" style={{ justifyContent: 'flex-end' }}>
+                  <button type="button" className="button button-ghost" onClick={closeBioParentModal}>Cancel</button>
+                  <button type="button" className="button button-primary" onClick={saveBioParentChanges} disabled={!bioParentDirty}>Save</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
         {caseInfoOpen ? (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.35)', display: 'grid', placeItems: 'center', padding: 24, zIndex: 55 }} onClick={() => setCaseInfoOpen(false)}>
             <section className="card" style={{ width: 'min(100%, 480px)', padding: 24 }} onClick={event => event.stopPropagation()}>
@@ -1591,8 +1730,8 @@ export default function CaseDetailPage() {
                 top: 89,
                 right: 0,
                 bottom: 0,
-                width: 'min(100%, 44vw, 640px)',
-                minWidth: 460,
+                width: 'min(100%, 34vw, 540px)',
+                minWidth: 420,
                 borderRadius: '24px 0 0 0',
                 overflow: 'hidden',
                 padding: 0,
@@ -1603,9 +1742,9 @@ export default function CaseDetailPage() {
               }}
               onClick={event => event.stopPropagation()}
             >
-              <div style={{ padding: '20px 24px 18px', borderBottom: '1px solid #eef3ef', background: 'white' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 }}>
-                  <div className="eyebrow" style={{ marginTop: 2 }}>{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
+              <div style={{ padding: '18px 20px 16px', borderBottom: '1px solid #eef3ef', background: 'white' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
+                  <div className="eyebrow" style={{ marginTop: 0 }}>{activeChildId === 'new' ? 'Add child' : 'Child details'}</div>
                   <div className="actions-row" style={{ marginTop: 0 }}>
                     {childDirty || activeChildId === 'new' ? (
                       <button type="button" className="button button-primary" onClick={saveChildChanges}>
@@ -1618,27 +1757,33 @@ export default function CaseDetailPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   {childDraft.photos?.find((photo: any) => photo.id === childDraft.profilePhotoId)?.url ? (
-                    <button type="button" onClick={() => openPhotoGallery()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative', width: 64, height: 64, flexShrink: 0 }} aria-label="Choose profile picture">
-                      <img src={childDraft.photos.find((photo: any) => photo.id === childDraft.profilePhotoId).url} alt={childDraft.name || 'Child profile'} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid #d7e6dd' }} />
-                      <span style={{ position: 'absolute', right: 0, bottom: 0, width: 22, height: 22, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <button type="button" onClick={() => openPhotoGallery()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative', width: 56, height: 56, flexShrink: 0 }} aria-label="Choose profile picture">
+                      <img src={childDraft.photos.find((photo: any) => photo.id === childDraft.profilePhotoId).url} alt={childDraft.name || 'Child profile'} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '3px solid #d7e6dd' }} />
+                      <span style={{ position: 'absolute', right: 0, bottom: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                           <path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.45 18.5 6.65L17.35 5.5C16.55 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </span>
                     </button>
                   ) : (
-                    <button type="button" onClick={() => openPhotoGallery()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ width: 64, height: 64, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 18, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }} aria-label="Choose profile picture">
+                    <button type="button" onClick={() => openPhotoGallery()} onMouseEnter={() => setProfilePhotoHovered(true)} onMouseLeave={() => setProfilePhotoHovered(false)} style={{ width: 56, height: 56, borderRadius: '50%', background: '#dff1e3', color: '#135c31', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 16, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }} aria-label="Choose profile picture">
                       {(childDraft.name || 'N').split(' ').map((part: string) => part[0]).slice(0, 2).join('').toUpperCase()}
-                      <span style={{ position: 'absolute', right: 0, bottom: 0, width: 22, height: 22, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <span style={{ position: 'absolute', right: 0, bottom: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(18, 49, 34, 0.88)', color: 'white', display: 'grid', placeItems: 'center', boxShadow: '0 6px 14px rgba(15, 23, 42, 0.18)', opacity: profilePhotoHovered ? 1 : 0.72, transform: profilePhotoHovered ? 'scale(1)' : 'scale(0.92)', transition: 'opacity 140ms ease, transform 140ms ease' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                           <path d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.45 18.5 6.65L17.35 5.5C16.55 4.7 15.3 4.7 14.5 5.5L4 16V20Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </span>
                     </button>
                   )}
-                  <h2 style={{ marginBottom: 0 }}>{childDraft.name || 'New child'}</h2>
+                  <div style={{ minWidth: 0 }}>
+                    <h2 style={{ marginBottom: 2, lineHeight: 1.1 }}>{childDraft.name || 'New child'}</h2>
+                    <div className="record-meta">
+                      {childDraft.birthday ? <span>{calculateAgeFromBirthday(childDraft.birthday)} years old</span> : null}
+                      {childDraft.status ? <span>{childDraft.status}</span> : null}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1648,6 +1793,7 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Overview</div>
+                        <h3 style={{ marginBottom: 0 }}>Core child details</h3>
                       </div>
                     </div>
                     <div className="form-grid">
@@ -1684,31 +1830,38 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Placement & team</div>
+                        <h3 style={{ marginBottom: 0 }}>Assigned support team</h3>
                       </div>
                     </div>
+                    <p style={{ marginTop: 0, color: '#567060' }}>Search by role and assign the right person to each part of the child’s support team.</p>
                     <div className="form-grid">
                       <div className="field" style={{ position: 'relative' }} data-picker-field="true">
                         <label>Case Worker</label>
-                        <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('caseWorker')}>
+                        <div style={{ border: activePicker === 'caseWorker' ? '1px solid #10588c' : '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'grid', gap: 10, boxShadow: activePicker === 'caseWorker' ? '0 0 0 3px rgba(16, 88, 140, 0.10)' : 'none' }} onClick={() => setActivePicker('caseWorker')}>
                           {childDraft.caseWorker ? (
-                            <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('caseWorker', '')}>
-                              {childDraft.caseWorker} ×
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#eef6ff' }}>
+                              <div>
+                                <div style={{ fontWeight: 800, color: '#123122' }}>{childDraft.caseWorker}</div>
+                                <div style={{ fontSize: 12, color: '#10588c', fontWeight: 700 }}>Case Worker</div>
+                              </div>
+                              <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '4px 10px' }} onClick={() => updateChildDraft('caseWorker', '')}>Remove</button>
+                            </div>
                           ) : null}
                           <input
                             value={caseWorkerQuery}
                             onFocus={() => setActivePicker('caseWorker')}
                             onChange={e => setCaseWorkerQuery(e.target.value)}
                             placeholder={childDraft.caseWorker ? 'Search another case worker' : 'Search case worker'}
-                            style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                            style={{ width: '100%', border: 'none', outline: 'none', fontSize: 15, color: '#123122', background: 'transparent' }}
                           />
                         </div>
                         {activePicker === 'caseWorker' ? (
-                          <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
+                          <div className="card" style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto', padding: 10 }}>
                             <div className="stack" style={{ gap: 8 }}>
                               {caseWorkerSuggestions.length ? caseWorkerSuggestions.map((option: string) => (
-                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('caseWorker', option); setCaseWorkerQuery(''); setActivePicker(null); }}>
-                                  {option}
+                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'space-between', alignItems: 'center' }} onClick={() => { updateChildDraft('caseWorker', option); setCaseWorkerQuery(''); setActivePicker(null); }}>
+                                  <span>{option}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: '#10588c' }}>CASE WORKER</span>
                                 </button>
                               )) : <span className="muted">No case workers found.</span>}
                             </div>
@@ -1718,26 +1871,31 @@ export default function CaseDetailPage() {
 
                       <div className="field" style={{ position: 'relative' }} data-picker-field="true">
                         <label>Foster Parents</label>
-                        <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('fosterParent')}>
+                        <div style={{ border: activePicker === 'fosterParent' ? '1px solid #10588c' : '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'grid', gap: 10, boxShadow: activePicker === 'fosterParent' ? '0 0 0 3px rgba(16, 88, 140, 0.10)' : 'none' }} onClick={() => setActivePicker('fosterParent')}>
                           {childDraft.fosterParent ? (
-                            <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('fosterParent', '')}>
-                              {childDraft.fosterParent} ×
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#eef9f0' }}>
+                              <div>
+                                <div style={{ fontWeight: 800, color: '#123122' }}>{childDraft.fosterParent}</div>
+                                <div style={{ fontSize: 12, color: '#166534', fontWeight: 700 }}>Foster Parent</div>
+                              </div>
+                              <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '4px 10px' }} onClick={() => updateChildDraft('fosterParent', '')}>Remove</button>
+                            </div>
                           ) : null}
                           <input
                             value={fosterParentQuery}
                             onFocus={() => setActivePicker('fosterParent')}
                             onChange={e => setFosterParentQuery(e.target.value)}
                             placeholder={childDraft.fosterParent ? 'Search another foster parent' : 'Search foster parents'}
-                            style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                            style={{ width: '100%', border: 'none', outline: 'none', fontSize: 15, color: '#123122', background: 'transparent' }}
                           />
                         </div>
                         {activePicker === 'fosterParent' ? (
-                          <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
+                          <div className="card" style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto', padding: 10 }}>
                             <div className="stack" style={{ gap: 8 }}>
                               {fosterParentSuggestions.length ? fosterParentSuggestions.map((option: string) => (
-                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('fosterParent', option); setFosterParentQuery(''); setActivePicker(null); }}>
-                                  {option}
+                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'space-between', alignItems: 'center' }} onClick={() => { updateChildDraft('fosterParent', option); setFosterParentQuery(''); setActivePicker(null); }}>
+                                  <span>{option}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: '#166534' }}>FOSTER PARENT</span>
                                 </button>
                               )) : <span className="muted">No foster parents found.</span>}
                             </div>
@@ -1747,26 +1905,31 @@ export default function CaseDetailPage() {
 
                       <div className="field" style={{ position: 'relative' }} data-picker-field="true">
                         <label>Guardian Ad Litem</label>
-                        <div style={{ border: '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }} onClick={() => setActivePicker('guardianAdLitem')}>
+                        <div style={{ border: activePicker === 'guardianAdLitem' ? '1px solid #10588c' : '1px solid #cbd8d0', borderRadius: 16, background: 'white', padding: 12, display: 'grid', gap: 10, boxShadow: activePicker === 'guardianAdLitem' ? '0 0 0 3px rgba(16, 88, 140, 0.10)' : 'none' }} onClick={() => setActivePicker('guardianAdLitem')}>
                           {childDraft.guardianAdLitem ? (
-                            <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '8px 12px' }} onClick={() => updateChildDraft('guardianAdLitem', '')}>
-                              {childDraft.guardianAdLitem} ×
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#f5f3ff' }}>
+                              <div>
+                                <div style={{ fontWeight: 800, color: '#123122' }}>{childDraft.guardianAdLitem}</div>
+                                <div style={{ fontSize: 12, color: '#6d28d9', fontWeight: 700 }}>Guardian Ad Litem</div>
+                              </div>
+                              <button type="button" className="button button-ghost" style={{ minHeight: 30, padding: '4px 10px' }} onClick={() => updateChildDraft('guardianAdLitem', '')}>Remove</button>
+                            </div>
                           ) : null}
                           <input
                             value={guardianAdLitemQuery}
                             onFocus={() => setActivePicker('guardianAdLitem')}
                             onChange={e => setGuardianAdLitemQuery(e.target.value)}
                             placeholder={childDraft.guardianAdLitem ? 'Search another attorney' : 'Search guardian ad litem'}
-                            style={{ flex: '1 1 180px', minWidth: 180, border: 'none', outline: 'none', fontSize: 16, color: '#123122' }}
+                            style={{ width: '100%', border: 'none', outline: 'none', fontSize: 15, color: '#123122', background: 'transparent' }}
                           />
                         </div>
                         {activePicker === 'guardianAdLitem' ? (
-                          <div className="card" style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', padding: 10 }}>
+                          <div className="card" style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto', padding: 10 }}>
                             <div className="stack" style={{ gap: 8 }}>
                               {guardianAdLitemSuggestions.length ? guardianAdLitemSuggestions.map((option: string) => (
-                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => { updateChildDraft('guardianAdLitem', option); setGuardianAdLitemQuery(''); setActivePicker(null); }}>
-                                  {option}
+                                <button key={option} type="button" className="button button-ghost" style={{ justifyContent: 'space-between', alignItems: 'center' }} onClick={() => { updateChildDraft('guardianAdLitem', option); setGuardianAdLitemQuery(''); setActivePicker(null); }}>
+                                  <span>{option}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: '#6d28d9' }}>ATTORNEY</span>
                                 </button>
                               )) : <span className="muted">No attorneys found.</span>}
                             </div>
@@ -1780,6 +1943,7 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Education</div>
+                        <h3 style={{ marginBottom: 0 }}>School and daycare</h3>
                       </div>
                     </div>
                     <div className="field">
@@ -1792,6 +1956,7 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Health</div>
+                        <h3 style={{ marginBottom: 0 }}>Medical and visit details</h3>
                       </div>
                     </div>
                     <div className="field" style={{ marginTop: 8 }}>
@@ -1802,15 +1967,7 @@ export default function CaseDetailPage() {
                       <label>Medical Providers</label>
                       <textarea className="textarea" rows={4} value={childDraft.medicalProviders || ''} onChange={e => updateChildDraft('medicalProviders', e.target.value)} placeholder="Doctors, dentists, therapists, specialists..." />
                     </div>
-                  </section>
-
-                  <section className="card card-muted" style={{ padding: 18 }}>
-                    <div className="section-title" style={{ marginBottom: 14 }}>
-                      <div>
-                        <div className="eyebrow">Activity</div>
-                      </div>
-                    </div>
-                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+                    <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, marginTop: 12 }}>
                       <div className="field">
                         <label>Last Monthly Home Visit</label>
                         <input className="input" type="date" value={childDraft.lastMonthlyHomeVisit || ''} onChange={e => updateChildDraft('lastMonthlyHomeVisit', e.target.value)} />
@@ -1826,6 +1983,7 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 14 }}>
                       <div>
                         <div className="eyebrow">Notes</div>
+                        <h3 style={{ marginBottom: 0 }}>Documentation</h3>
                       </div>
                     </div>
                     <div className="field">
@@ -1838,8 +1996,10 @@ export default function CaseDetailPage() {
                     <div className="section-title" style={{ marginBottom: 12 }}>
                       <div>
                         <div className="eyebrow">Photos - {childDraft.photos?.length || 0}</div>
+                        <h3 style={{ marginBottom: 0 }}>Photo history</h3>
                       </div>
                     </div>
+                    <p style={{ marginTop: 0, color: '#567060' }}>Keep important moments and profile images together in one child gallery.</p>
                     {childDraft.photos?.length ? (
                       <div>
                         <div className="record-list" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
@@ -1858,14 +2018,19 @@ export default function CaseDetailPage() {
                     ) : (
                       <div className="empty-state" style={{ marginTop: 0 }}>
                         <strong>No pictures yet.</strong>
-                        <p style={{ marginBottom: 0 }}>Case workers and foster parents can add photos here to preserve a visual history for the child.</p>
+                        <p style={{ marginBottom: 12 }}>Case workers and foster parents can add photos here to preserve a visual history for the child.</p>
+                        <button type="button" className="button button-primary" onClick={() => openPhotoGallery()}>
+                          Open gallery
+                        </button>
                       </div>
                     )}
-                    <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-start' }}>
-                      <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => openPhotoGallery(childDraft.photos?.[0]?.id)}>
-                        Open gallery
-                      </button>
-                    </div>
+                    {childDraft.photos?.length ? (
+                      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-start' }}>
+                        <button type="button" className="button button-ghost" style={{ minHeight: 34, padding: '6px 12px' }} onClick={() => openPhotoGallery(childDraft.photos?.[0]?.id)}>
+                          Open gallery
+                        </button>
+                      </div>
+                    ) : null}
                   </section>
                 </div>
               </div>
@@ -1916,7 +2081,10 @@ export default function CaseDetailPage() {
                   ) : (
                     <div className="empty-state" style={{ marginTop: 0 }}>
                       <strong>No pictures yet.</strong>
-                      <p style={{ marginBottom: 0 }}>Upload a photo here to start the child gallery.</p>
+                      <p style={{ marginBottom: 12 }}>Upload a photo here to start the child gallery.</p>
+                      <button type="button" className="button button-primary" onClick={() => document.getElementById('child-photo-upload')?.click()}>
+                        Upload first photo
+                      </button>
                     </div>
                   )}
                 </section>
@@ -1939,7 +2107,7 @@ export default function CaseDetailPage() {
                 <section className="card" style={{ width: 'min(100%, 980px)', maxHeight: '88vh', overflow: 'auto', padding: 20 }} onClick={event => event.stopPropagation()}>
                   <div className="section-title" style={{ marginBottom: 14 }}>
                     <div>
-                      <div className="eyebrow">Photo</div>
+                      <div className="eyebrow">Photo {selectedPhotoIndex + 1} of {childDraft.photos?.length || 0}</div>
                     </div>
                     <div className="actions-row" style={{ marginTop: 0, position: 'relative' }}>
                       <button type="button" className="button button-ghost" style={{ minHeight: 36, padding: '6px 12px' }} onClick={() => setPhotoMenuOpen(current => current === 'viewer' ? null : 'viewer')}>
@@ -1972,6 +2140,26 @@ export default function CaseDetailPage() {
                     </div>
                   </div>
                   <div style={{ position: 'relative', background: '#f7faf8', borderRadius: 18, overflow: 'hidden' }}>
+                    {childDraft.photos.length > 1 ? (
+                      <>
+                        <button
+                          type="button"
+                          className="button button-ghost"
+                          style={{ position: 'absolute', top: '50%', left: 16, transform: 'translateY(-50%)', zIndex: 2, minHeight: 40, width: 40, borderRadius: 999, background: 'rgba(255,255,255,0.88)' }}
+                          onClick={() => setSelectedPhotoIndex(current => current === 0 ? childDraft.photos.length - 1 : current - 1)}
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          className="button button-ghost"
+                          style={{ position: 'absolute', top: '50%', right: 16, transform: 'translateY(-50%)', zIndex: 2, minHeight: 40, width: 40, borderRadius: 999, background: 'rgba(255,255,255,0.88)' }}
+                          onClick={() => setSelectedPhotoIndex(current => current === childDraft.photos.length - 1 ? 0 : current + 1)}
+                        >
+                          ›
+                        </button>
+                      </>
+                    ) : null}
                     <img src={childDraft.photos[selectedPhotoIndex].url} alt={childDraft.photos[selectedPhotoIndex].name || 'Photo'} style={{ width: '100%', maxHeight: '72vh', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                     {childDraft.photos[selectedPhotoIndex].id === childDraft.profilePhotoId ? (
                       <span style={{ position: 'absolute', top: 16, right: 16, width: 28, height: 28, borderRadius: '50%', background: '#1f8f47', color: 'white', display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800 }}>
