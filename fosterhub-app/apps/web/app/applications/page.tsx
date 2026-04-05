@@ -685,15 +685,6 @@ export default function ApplicationsPage() {
                   </div>
                   <span className="status-pill">{application.stage.replace(/_/g, ' ')}</span>
                 </div>
-                      <span>{application.organizationName}</span>
-                      <span>{application.primaryApplicant}</span>
-                      <span>{application.assignedToUserName ? `Owner: ${application.assignedToUserName}` : 'Owner: Unassigned'}</span>
-                      {application.convertedToUserId ? <span>Onboarding: {(application.onboardingStatus || 'NOT_STARTED').replace(/_/g, ' ')}</span> : null}
-                      <span>Submitted {new Date(application.submittedAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <span className="status-pill">{application.stage.replace(/_/g, ' ')}</span>
-                </div>
                 <div className="grid" style={{ marginTop: 18 }}>
                   <div className="card card-muted" style={{ padding: 18 }}>
                     <div className="eyebrow">Checklist</div>
