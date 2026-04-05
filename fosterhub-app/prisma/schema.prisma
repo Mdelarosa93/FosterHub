@@ -57,6 +57,61 @@ enum KnowledgeDocumentStatus {
   ARCHIVED
 }
 
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+  CUSTOM
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  SUSPENDED
+}
+
+enum PaymentMethodProvider {
+  STRIPE
+  MANUAL
+  INVOICE_ONLY
+}
+
+enum BillingInvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum InvoiceLineItemType {
+  BASE_PLAN
+  SEAT
+  COUNTY
+  MODULE
+  ADJUSTMENT
+}
+
+enum CountySubscriptionAllocationStatus {
+  ACTIVE
+  PENDING
+  REMOVED
+}
+
+enum BillingModuleCategory {
+  CORE
+  ADD_ON
+}
+
+enum BillingAuditEventType {
+  CONTACT_UPDATED
+  PAYMENT_METHOD_UPDATED
+  PLAN_CHANGED
+  COUNTY_ALLOCATION_UPDATED
+  MODULE_UPDATED
+}
+
 enum FosterApplicationStage {
   SUBMITTED
   MISSING_DOCUMENTS
@@ -126,6 +181,9 @@ model Organization {
   surveyCampaigns SurveyCampaign[]
   knowledgeDocumentSources KnowledgeDocumentSource[]
   knowledgeDocumentAuditEvents KnowledgeDocumentAuditEvent[]
+  subscriptions OrganizationSubscription[]
+  countySubscriptionAllocations SubscriptionCountyAllocation[] @relation("CountySubscriptionAllocationOrganization")
+  billingAuditEvents BillingAuditEvent[]
 }
 
 model User {
@@ -154,6 +212,8 @@ model User {
   fosterApplicationReminders FosterApplicationReminder[]
   createdKnowledgeDocumentSources KnowledgeDocumentSource[] @relation("KnowledgeDocumentCreatedBy")
   knowledgeDocumentAuditEvents KnowledgeDocumentAuditEvent[] @relation("KnowledgeDocumentAuditActor")
+  seatAssignments SubscriptionSeatAssignment[]
+  billingAuditEvents BillingAuditEvent[] @relation("BillingAuditActor")
 }
 
 model Team {
@@ -408,6 +468,220 @@ model KnowledgeDocumentSectionSnapshot {
 
   @@unique([knowledgeDocumentSourceId, versionNumber])
   @@index([knowledgeDocumentSourceId, createdAt])
+}
+
+model BillingPlan {
+  id                         String                 @id @default(cuid())
+  name                       String
+  code                       String                 @unique
+  description                String?
+  billingInterval            BillingInterval        @default(MONTHLY)
+  basePriceCents             Int                    @default(0)
+  perSeatPriceCents          Int                    @default(0)
+  countyIncludedCount        Int                    @default(0)
+  additionalCountyPriceCents Int                    @default(0)
+  active                     Boolean                @default(true)
+  sortOrder                  Int                    @default(0)
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+
+  planModules                BillingPlanModule[]
+  subscriptions              OrganizationSubscription[]
+}
+
+model BillingModule {
+  id             String                     @id @default(cuid())
+  name           String
+  code           String                     @unique
+  description    String?
+  category       BillingModuleCategory      @default(CORE)
+  defaultIncluded Boolean                   @default(false)
+  active         Boolean                    @default(true)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  planModules    BillingPlanModule[]
+  subscriptionModules OrganizationSubscriptionModule[]
+  seatAssignments SubscriptionSeatAssignment[]
+}
+
+model BillingPlanModule {
+  id             String                     @id @default(cuid())
+  billingPlanId   String
+  billingModuleId String
+  included       Boolean                    @default(true)
+  seatLimit      Int?
+  countyLimit    Int?
+
+  billingPlan    BillingPlan                @relation(fields: [billingPlanId], references: [id], onDelete: Cascade)
+  billingModule  BillingModule              @relation(fields: [billingModuleId], references: [id], onDelete: Cascade)
+
+  @@unique([billingPlanId, billingModuleId])
+}
+
+model OrganizationSubscription {
+  id                 String                    @id @default(cuid())
+  organizationId     String
+  billingPlanId      String
+  status             SubscriptionStatus        @default(TRIALING)
+  renewalDate        DateTime?
+  startsAt           DateTime                  @default(now())
+  endsAt             DateTime?
+  seatCountPurchased Int                       @default(0)
+  seatCountInUse     Int                       @default(0)
+  countyCountCovered Int                       @default(0)
+  billingContactName String?
+  billingContactEmail String?
+  billingContactPhone String?
+  currency           String                    @default("USD")
+  subtotalCents      Int                       @default(0)
+  discountCents      Int                       @default(0)
+  taxCents           Int                       @default(0)
+  totalCents         Int                       @default(0)
+  notes              String?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  organization       Organization              @relation(fields: [organizationId], references: [id])
+  billingPlan        BillingPlan               @relation(fields: [billingPlanId], references: [id])
+  modules            OrganizationSubscriptionModule[]
+  paymentMethods     PaymentMethod[]
+  invoices           BillingInvoice[]
+  countyAllocations  SubscriptionCountyAllocation[]
+  seatAssignments    SubscriptionSeatAssignment[]
+  auditEvents        BillingAuditEvent[]
+
+  @@index([organizationId, status])
+}
+
+model OrganizationSubscriptionModule {
+  id                         String                 @id @default(cuid())
+  organizationSubscriptionId String
+  billingModuleId            String
+  enabled                    Boolean                @default(true)
+  seatLimit                  Int?
+  countyLimit                Int?
+  priceOverrideCents         Int?
+
+  organizationSubscription   OrganizationSubscription @relation(fields: [organizationSubscriptionId], references: [id], onDelete: Cascade)
+  billingModule              BillingModule          @relation(fields: [billingModuleId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationSubscriptionId, billingModuleId])
+}
+
+model BillingAuditEvent {
+  id                         String               @id @default(cuid())
+  organizationSubscriptionId String
+  organizationId             String
+  actorUserId                String?
+  eventType                  BillingAuditEventType
+  summary                    String
+  snapshotPlanName           String?
+  snapshotStatus             SubscriptionStatus?
+  snapshotTotalCents         Int?
+  metadataJson               Json?
+  createdAt                  DateTime             @default(now())
+
+  organizationSubscription   OrganizationSubscription @relation(fields: [organizationSubscriptionId], references: [id], onDelete: Cascade)
+  organization               Organization          @relation(fields: [organizationId], references: [id])
+  actor                      User?                 @relation("BillingAuditActor", fields: [actorUserId], references: [id])
+
+  @@index([organizationSubscriptionId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+model PaymentMethod {
+  id                         String                 @id @default(cuid())
+  organizationSubscriptionId String
+  provider                   PaymentMethodProvider  @default(STRIPE)
+  providerPaymentMethodId    String?
+  brand                      String?
+  last4                      String?
+  expMonth                   Int?
+  expYear                    Int?
+  isDefault                  Boolean                @default(false)
+  billingName                String?
+  billingEmail               String?
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+
+  organizationSubscription   OrganizationSubscription @relation(fields: [organizationSubscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationSubscriptionId, isDefault])
+}
+
+model BillingInvoice {
+  id                         String                 @id @default(cuid())
+  organizationSubscriptionId String
+  invoiceNumber              String                 @unique
+  providerInvoiceId          String?
+  status                     BillingInvoiceStatus   @default(DRAFT)
+  issuedAt                   DateTime               @default(now())
+  dueAt                      DateTime?
+  paidAt                     DateTime?
+  subtotalCents              Int                    @default(0)
+  taxCents                   Int                    @default(0)
+  totalCents                 Int                    @default(0)
+  currency                   String                 @default("USD")
+  hostedInvoiceUrl           String?
+  pdfUrl                     String?
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+
+  organizationSubscription   OrganizationSubscription @relation(fields: [organizationSubscriptionId], references: [id], onDelete: Cascade)
+  lineItems                  BillingInvoiceLineItem[]
+
+  @@index([organizationSubscriptionId, status])
+}
+
+model BillingInvoiceLineItem {
+  id               String            @id @default(cuid())
+  billingInvoiceId  String
+  description      String
+  quantity         Int               @default(1)
+  unitPriceCents   Int               @default(0)
+  totalCents       Int               @default(0)
+  lineType         InvoiceLineItemType @default(ADJUSTMENT)
+
+  billingInvoice   BillingInvoice    @relation(fields: [billingInvoiceId], references: [id], onDelete: Cascade)
+}
+
+model SubscriptionCountyAllocation {
+  id                         String                          @id @default(cuid())
+  organizationSubscriptionId String
+  countyOrganizationId       String
+  status                     CountySubscriptionAllocationStatus @default(PENDING)
+  seatLimit                  Int?
+  seatInUse                  Int                             @default(0)
+  startsAt                   DateTime                        @default(now())
+  endsAt                     DateTime?
+  notes                      String?
+  createdAt                  DateTime                        @default(now())
+  updatedAt                  DateTime                        @updatedAt
+
+  organizationSubscription   OrganizationSubscription        @relation(fields: [organizationSubscriptionId], references: [id], onDelete: Cascade)
+  countyOrganization         Organization                    @relation("CountySubscriptionAllocationOrganization", fields: [countyOrganizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationSubscriptionId, countyOrganizationId])
+  @@index([countyOrganizationId, status])
+}
+
+model SubscriptionSeatAssignment {
+  id                         String                    @id @default(cuid())
+  organizationSubscriptionId String
+  userId                     String
+  countyOrganizationId       String?
+  billingModuleId            String?
+  active                     Boolean                   @default(true)
+  assignedAt                 DateTime                  @default(now())
+  revokedAt                  DateTime?
+
+  organizationSubscription   OrganizationSubscription  @relation(fields: [organizationSubscriptionId], references: [id], onDelete: Cascade)
+  user                       User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billingModule              BillingModule?            @relation(fields: [billingModuleId], references: [id], onDelete: SetNull)
+
+  @@index([organizationSubscriptionId, active])
+  @@index([userId, active])
 }
 
 model FosterParentApplication {

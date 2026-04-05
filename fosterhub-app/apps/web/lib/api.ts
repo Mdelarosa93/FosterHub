@@ -102,3 +102,21 @@ export async function authedDelete(path: string, token: string) {
 
   return body;
 }
+
+export async function authedPut(path: string, token: string, payload: Record<string, any>) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body?.message || `Request failed for ${path}`);
+  }
+
+  return body;
+}

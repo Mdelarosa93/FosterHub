@@ -255,6 +255,269 @@ async function main() {
     skipDuplicates: true,
   }).catch(() => undefined);
 
+  const countyStarterPlan = await prisma.billingPlan.upsert({
+    where: { code: 'county-starter' },
+    update: {
+      name: 'County Starter',
+      description: 'Single-county starter plan for core workflow management.',
+      billingInterval: 'MONTHLY',
+      basePriceCents: 49900,
+      perSeatPriceCents: 1500,
+      countyIncludedCount: 1,
+      additionalCountyPriceCents: 0,
+      active: true,
+      sortOrder: 1,
+    },
+    create: {
+      code: 'county-starter',
+      name: 'County Starter',
+      description: 'Single-county starter plan for core workflow management.',
+      billingInterval: 'MONTHLY',
+      basePriceCents: 49900,
+      perSeatPriceCents: 1500,
+      countyIncludedCount: 1,
+      additionalCountyPriceCents: 0,
+      active: true,
+      sortOrder: 1,
+    },
+  });
+
+  const statePlatformPlan = await prisma.billingPlan.upsert({
+    where: { code: 'state-platform' },
+    update: {
+      name: 'State Platform',
+      description: 'State-managed billing, county coverage, and shared licensing.',
+      billingInterval: 'MONTHLY',
+      basePriceCents: 250000,
+      perSeatPriceCents: 1200,
+      countyIncludedCount: 2,
+      additionalCountyPriceCents: 25000,
+      active: true,
+      sortOrder: 2,
+    },
+    create: {
+      code: 'state-platform',
+      name: 'State Platform',
+      description: 'State-managed billing, county coverage, and shared licensing.',
+      billingInterval: 'MONTHLY',
+      basePriceCents: 250000,
+      perSeatPriceCents: 1200,
+      countyIncludedCount: 2,
+      additionalCountyPriceCents: 25000,
+      active: true,
+      sortOrder: 2,
+    },
+  });
+
+  const enterprisePlan = await prisma.billingPlan.upsert({
+    where: { code: 'enterprise-plus' },
+    update: {
+      name: 'Enterprise+',
+      description: 'Advanced statewide licensing with expanded modules and support.',
+      billingInterval: 'CUSTOM',
+      basePriceCents: 0,
+      perSeatPriceCents: 0,
+      countyIncludedCount: 0,
+      additionalCountyPriceCents: 0,
+      active: true,
+      sortOrder: 3,
+    },
+    create: {
+      code: 'enterprise-plus',
+      name: 'Enterprise+',
+      description: 'Advanced statewide licensing with expanded modules and support.',
+      billingInterval: 'CUSTOM',
+      basePriceCents: 0,
+      perSeatPriceCents: 0,
+      countyIncludedCount: 0,
+      additionalCountyPriceCents: 0,
+      active: true,
+      sortOrder: 3,
+    },
+  });
+
+  const billingModuleSeeds = [
+    { code: 'cases', name: 'Cases', description: 'Case workflow and child record management.', category: 'CORE' },
+    { code: 'applications', name: 'Applications', description: 'Foster parent application pipeline.', category: 'CORE' },
+    { code: 'calendar', name: 'Calendar', description: 'Events, reminders, and scheduling.', category: 'CORE' },
+    { code: 'knowledge-base-ai', name: 'Knowledge Base AI', description: 'Policy search and citation assistant.', category: 'ADD_ON' },
+    { code: 'vendor-portal', name: 'Vendor Portal', description: 'Vendor directory, invoicing, and status tracking.', category: 'ADD_ON' },
+    { code: 'analytics', name: 'Analytics', description: 'Cross-county and state reporting.', category: 'ADD_ON' },
+  ];
+
+  const seededModules = [] as Array<{ id: string; code: string }>;
+  for (const moduleSeed of billingModuleSeeds) {
+    const moduleRecord = await prisma.billingModule.upsert({
+      where: { code: moduleSeed.code },
+      update: {
+        name: moduleSeed.name,
+        description: moduleSeed.description,
+        category: moduleSeed.category as any,
+        active: true,
+      },
+      create: {
+        code: moduleSeed.code,
+        name: moduleSeed.name,
+        description: moduleSeed.description,
+        category: moduleSeed.category as any,
+        active: true,
+      },
+    });
+    seededModules.push({ id: moduleRecord.id, code: moduleRecord.code });
+  }
+
+  await prisma.billingPlanModule.deleteMany({ where: { billingPlanId: { in: [countyStarterPlan.id, statePlatformPlan.id, enterprisePlan.id] } } });
+  await prisma.billingPlanModule.createMany({
+    data: [
+      ...seededModules.filter(moduleSeed => ['cases', 'applications', 'calendar'].includes(moduleSeed.code)).map(moduleSeed => ({
+        billingPlanId: countyStarterPlan.id,
+        billingModuleId: moduleSeed.id,
+        included: true,
+      })),
+      ...seededModules.filter(moduleSeed => ['cases', 'applications', 'calendar', 'knowledge-base-ai', 'analytics'].includes(moduleSeed.code)).map(moduleSeed => ({
+        billingPlanId: statePlatformPlan.id,
+        billingModuleId: moduleSeed.id,
+        included: true,
+      })),
+      ...seededModules.map(moduleSeed => ({
+        billingPlanId: enterprisePlan.id,
+        billingModuleId: moduleSeed.id,
+        included: true,
+      })),
+    ],
+  });
+
+  const stateSubscription = await prisma.organizationSubscription.upsert({
+    where: { id: 'alabama-dhr-state-subscription-seed' },
+    update: {
+      organizationId: organization.id,
+      billingPlanId: statePlatformPlan.id,
+      status: 'ACTIVE',
+      renewalDate: new Date('2026-05-01T00:00:00.000Z'),
+      seatCountPurchased: 75,
+      seatCountInUse: 61,
+      countyCountCovered: 2,
+      billingContactName: 'Finance Office',
+      billingContactEmail: 'finance@aldhr.gov',
+      billingContactPhone: '251-555-0184',
+      currency: 'USD',
+      subtotalCents: 250000,
+      discountCents: 0,
+      taxCents: 0,
+      totalCents: 250000,
+      notes: 'Seeded state subscription for billing portal development.',
+    },
+    create: {
+      id: 'alabama-dhr-state-subscription-seed',
+      organizationId: organization.id,
+      billingPlanId: statePlatformPlan.id,
+      status: 'ACTIVE',
+      renewalDate: new Date('2026-05-01T00:00:00.000Z'),
+      seatCountPurchased: 75,
+      seatCountInUse: 61,
+      countyCountCovered: 2,
+      billingContactName: 'Finance Office',
+      billingContactEmail: 'finance@aldhr.gov',
+      billingContactPhone: '251-555-0184',
+      currency: 'USD',
+      subtotalCents: 250000,
+      discountCents: 0,
+      taxCents: 0,
+      totalCents: 250000,
+      notes: 'Seeded state subscription for billing portal development.',
+    },
+  });
+
+  await prisma.organizationSubscriptionModule.deleteMany({ where: { organizationSubscriptionId: stateSubscription.id } });
+  await prisma.organizationSubscriptionModule.createMany({
+    data: seededModules.filter(moduleSeed => ['cases', 'applications', 'calendar', 'knowledge-base-ai', 'analytics'].includes(moduleSeed.code)).map(moduleSeed => ({
+      organizationSubscriptionId: stateSubscription.id,
+      billingModuleId: moduleSeed.id,
+      enabled: true,
+    })),
+  });
+
+  await prisma.paymentMethod.deleteMany({ where: { organizationSubscriptionId: stateSubscription.id } });
+  await prisma.paymentMethod.create({
+    data: {
+      organizationSubscriptionId: stateSubscription.id,
+      provider: 'STRIPE',
+      brand: 'Visa',
+      last4: '1842',
+      expMonth: 5,
+      expYear: 2028,
+      isDefault: true,
+      billingName: 'Alabama DHR Finance',
+      billingEmail: 'finance@aldhr.gov',
+    },
+  });
+
+  await prisma.billingInvoice.deleteMany({ where: { organizationSubscriptionId: stateSubscription.id } });
+  const invoiceOne = await prisma.billingInvoice.create({
+    data: {
+      organizationSubscriptionId: stateSubscription.id,
+      invoiceNumber: 'INV-2026-004',
+      status: 'PAID',
+      issuedAt: new Date('2026-04-01T00:00:00.000Z'),
+      dueAt: new Date('2026-04-15T00:00:00.000Z'),
+      paidAt: new Date('2026-04-03T00:00:00.000Z'),
+      subtotalCents: 250000,
+      taxCents: 0,
+      totalCents: 250000,
+      currency: 'USD',
+    },
+  });
+  await prisma.billingInvoiceLineItem.create({
+    data: {
+      billingInvoiceId: invoiceOne.id,
+      description: 'State Platform monthly subscription',
+      quantity: 1,
+      unitPriceCents: 250000,
+      totalCents: 250000,
+      lineType: 'BASE_PLAN',
+    },
+  });
+
+  if (mobileCounty) {
+    await prisma.subscriptionCountyAllocation.upsert({
+      where: { organizationSubscriptionId_countyOrganizationId: { organizationSubscriptionId: stateSubscription.id, countyOrganizationId: mobileCounty.id } },
+      update: {
+        status: 'ACTIVE',
+        seatLimit: 42,
+        seatInUse: 34,
+        startsAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      create: {
+        organizationSubscriptionId: stateSubscription.id,
+        countyOrganizationId: mobileCounty.id,
+        status: 'ACTIVE',
+        seatLimit: 42,
+        seatInUse: 34,
+        startsAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    });
+  }
+
+  if (baldwinCounty) {
+    await prisma.subscriptionCountyAllocation.upsert({
+      where: { organizationSubscriptionId_countyOrganizationId: { organizationSubscriptionId: stateSubscription.id, countyOrganizationId: baldwinCounty.id } },
+      update: {
+        status: 'ACTIVE',
+        seatLimit: 20,
+        seatInUse: 15,
+        startsAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      create: {
+        organizationSubscriptionId: stateSubscription.id,
+        countyOrganizationId: baldwinCounty.id,
+        status: 'ACTIVE',
+        seatLimit: 20,
+        seatInUse: 15,
+        startsAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    });
+  }
+
   const statePolicySource = await prisma.knowledgeDocumentSource.upsert({
     where: { id: 'state-policy-manual-dev-seed' },
     update: {

@@ -105,6 +105,19 @@ const navItems = [
     ),
   },
   {
+    href: '/billing',
+    label: 'Billing',
+    shortLabel: 'BI',
+    description: 'Licensing and plans',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5 7.25H19V16.75H5V7.25Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+        <path d="M5 10.25H19" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+        <path d="M8.25 14H10.25" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: '/cases',
     label: 'Cases',
     shortLabel: 'CA',
@@ -129,7 +142,7 @@ const navSections = [
   },
   {
     label: 'Administration',
-    items: ['/organizations', '/intake'],
+    items: ['/organizations', '/intake', '/billing'],
   },
 ] as const;
 

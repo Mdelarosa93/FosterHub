@@ -34,6 +34,8 @@ export const permissionKeys = [
   'travel_approvals.review',
   'knowledge_sources.view',
   'knowledge_sources.manage',
+  'billing.view',
+  'billing.manage',
 ] as const;
 
 export type PermissionKey = (typeof permissionKeys)[number];
@@ -117,6 +119,8 @@ export const rolePermissionMap: Record<UserRole, PermissionKey[]> = {
     'travel_approvals.review',
     'knowledge_sources.view',
     'knowledge_sources.manage',
+    'billing.view',
+    'billing.manage',
   ],
   county_admin: [
     'users.view',
@@ -139,6 +143,8 @@ export const rolePermissionMap: Record<UserRole, PermissionKey[]> = {
     'reports.view',
     'knowledge_sources.view',
     'knowledge_sources.manage',
+    'billing.view',
+    'billing.manage',
   ],
   licensing_worker: [
     'children.view',
@@ -150,6 +156,7 @@ export const rolePermissionMap: Record<UserRole, PermissionKey[]> = {
     'applications.manage',
     'surveys.view',
     'vendors.view',
+    'billing.view',
   ],
 };
 
