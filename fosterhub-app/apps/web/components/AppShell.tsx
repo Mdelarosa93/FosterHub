@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { authedGet, authedPost } from '../lib/api';
 
@@ -221,11 +221,13 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
   const [organizationOptions, setOrganizationOptions] = useState<Array<{ id: string; name: string; type: 'STATE_AGENCY' | 'COUNTY_AGENCY' }>>([]);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [switchingOrganization, setSwitchingOrganization] = useState(false);
+  const [organizationMenuOpen, setOrganizationMenuOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [headerReminders, setHeaderReminders] = useState<HeaderReminder[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [dismissingReminderId, setDismissingReminderId] = useState<string | null>(null);
   const [hoveredNavHref, setHoveredNavHref] = useState<string | null>(null);
+  const organizationMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem('fosterhub.dev.user');
@@ -306,6 +308,20 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
   }, [user]);
 
   useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!organizationMenuRef.current?.contains(event.target as Node)) {
+        setOrganizationMenuOpen(false);
+      }
+    }
+
+    if (organizationMenuOpen) {
+      window.addEventListener('mousedown', handlePointerDown);
+    }
+
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [organizationMenuOpen]);
+
+  useEffect(() => {
     if (forceSidebarCollapsed) {
       setSidebarCollapsed(true);
     }
@@ -329,6 +345,7 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
       setSelectedOrganizationId(result.data.session.user.organizationId ?? nextOrganizationId);
       setMenuOpen(false);
       setNotificationsOpen(false);
+      setOrganizationMenuOpen(false);
       router.refresh();
       router.push(pathname || '/organizations');
     } catch {
@@ -544,57 +561,105 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {organizationOptions.length > 0 ? (
-              <div
-                style={{
-                  minWidth: 320,
-                  padding: 12,
-                  borderRadius: 18,
-                  border: '1px solid #d9e5dd',
-                  background: switchingOrganization ? 'linear-gradient(135deg, #f4f8f5 0%, #eef6ff 100%)' : 'white',
-                  boxShadow: '0 8px 18px rgba(15, 23, 42, 0.05)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#10588c' }}>
-                    Portal context
+              <div ref={organizationMenuRef} style={{ position: 'relative', minWidth: 320 }}>
+                <button
+                  type="button"
+                  onClick={() => setOrganizationMenuOpen(current => !current)}
+                  disabled={switchingOrganization}
+                  style={{
+                    width: '100%',
+                    minHeight: 54,
+                    padding: '10px 14px',
+                    borderRadius: 16,
+                    border: '1px solid #d9e5dd',
+                    background: switchingOrganization ? 'linear-gradient(135deg, #f4f8f5 0%, #eef6ff 100%)' : 'white',
+                    boxShadow: '0 8px 18px rgba(15, 23, 42, 0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, color: '#123122', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {organizationContext?.name || 'Select organization'}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#567060', marginTop: 4 }}>
+                      {switchingOrganization ? 'Switching…' : `${formatOrganizationTypeLabel(organizationContext?.type)} portal`}
+                    </div>
                   </div>
-                  <span
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '4px 10px',
+                        borderRadius: 999,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        background: switchingOrganization ? '#10588c' : '#eef6ff',
+                        color: switchingOrganization ? 'white' : '#10588c',
+                      }}
+                    >
+                      {switchingOrganization ? 'Switching…' : formatOrganizationTypeLabel(organizationContext?.type)}
+                    </span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: '#567060', transform: organizationMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.16s ease' }}>
+                      <path d="M6.75 9.75L12 15L17.25 9.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </button>
+
+                {organizationMenuOpen ? (
+                  <div
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      background: switchingOrganization ? '#10588c' : '#eef6ff',
-                      color: switchingOrganization ? 'white' : '#10588c',
+                      position: 'absolute',
+                      top: 'calc(100% + 10px)',
+                      left: 0,
+                      right: 0,
+                      background: 'white',
+                      border: '1px solid #d9e5dd',
+                      borderRadius: 18,
+                      boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12)',
+                      padding: 8,
+                      zIndex: 20,
                     }}
                   >
-                    {switchingOrganization ? 'Switching…' : `${formatOrganizationTypeLabel(organizationContext?.type)} active`}
-                  </span>
-                </div>
-
-                {organizationContext ? (
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontWeight: 800, color: '#123122', lineHeight: 1.2 }}>{organizationContext.name}</div>
-                    <div style={{ fontSize: 12, color: '#567060', marginTop: 4 }}>
-                      {formatOrganizationTypeLabel(organizationContext.type)} portal
-                      {organizationContext.parentOrganization ? ` · Parent: ${organizationContext.parentOrganization.name}` : ''}
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      {organizationOptions.map(option => {
+                        const active = option.id === selectedOrganizationId;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            disabled={switchingOrganization && !active}
+                            onClick={() => handleOrganizationSwitch(option.id)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              borderRadius: 12,
+                              border: active ? '1px solid rgba(16, 88, 140, 0.16)' : '1px solid transparent',
+                              background: active ? '#f3f8ff' : 'transparent',
+                              color: '#123122',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 12,
+                              textAlign: 'left',
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{option.name}</div>
+                              <div style={{ fontSize: 12, color: '#567060', marginTop: 2 }}>{formatOrganizationTypeLabel(option.type)} portal</div>
+                            </div>
+                            {active ? <span style={{ fontSize: 11, fontWeight: 800, color: '#10588c' }}>{switchingOrganization ? 'Switching…' : 'Current'}</span> : null}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}
-
-                <select
-                  className="select"
-                  value={selectedOrganizationId}
-                  onChange={e => handleOrganizationSwitch(e.target.value)}
-                  disabled={switchingOrganization}
-                  style={{ border: 'none', padding: 0, minHeight: 'auto', boxShadow: 'none', background: 'transparent', fontWeight: 700 }}
-                >
-                  {organizationOptions.map(option => (
-                    <option key={option.id} value={option.id}>{`${formatOrganizationTypeLabel(option.type)} · ${option.name}`}</option>
-                  ))}
-                </select>
               </div>
             ) : null}
 

@@ -497,11 +497,10 @@ export default function ApplicationsPage() {
   }
 
   return (
-    <AppShell
-      title="Application management"
-      headerActions={
-        <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
-          <div className="actions-row" style={{ flexWrap: 'wrap' }}>
+    <AppShell title="Application management">
+      <main className="page-stack">
+        <section className="card card-muted" style={{ padding: 20 }}>
+          <div className="actions-row" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
             {[
               { key: 'all', label: 'All' },
               { key: 'my-queue', label: 'My Queue' },
@@ -538,10 +537,8 @@ export default function ApplicationsPage() {
               {filtered.length} visible application{filtered.length === 1 ? '' : 's'}
             </span>
           </div>
-        </div>
-      }
-    >
-      <main className="page-stack">
+        </section>
+
         {error ? (
           <section className="notice notice-error">
             <strong>Application problem</strong>
