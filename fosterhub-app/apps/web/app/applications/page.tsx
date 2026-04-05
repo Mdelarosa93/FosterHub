@@ -499,7 +499,13 @@ export default function ApplicationsPage() {
   return (
     <AppShell title="Application management">
       <main className="page-stack">
-        <section className="card card-muted" style={{ padding: 20 }}>
+        <section
+          style={{
+            padding: '4px 0 2px',
+            borderBottom: '1px solid #e6eeea',
+            marginBottom: 4,
+          }}
+        >
           <div className="actions-row" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
             {[
               { key: 'all', label: 'All' },
