@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '../../components/AppShell';
+import { getOrgScopedStorageKey } from '../../lib/org-storage';
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -214,7 +215,7 @@ function syncActivityEventToCaseStorage(event: CalendarEvent) {
   if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
 
   const activityId = event.id.replace(/^activity-/, '');
-  const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
+  const storedActivitiesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseActivities'));
   const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
   const caseActivities = storedActivities[event.caseLabel] || [];
 
@@ -233,13 +234,13 @@ function syncActivityEventToCaseStorage(event: CalendarEvent) {
       : activity,
   );
 
-  localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
+  localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseActivities'), JSON.stringify(storedActivities));
 }
 
 function logDeletedActivityEvent(event: CalendarEvent, reason: string) {
   if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
 
-  const storedDeletedRaw = localStorage.getItem('fosterhub.deletedCaseActivities');
+  const storedDeletedRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.deletedCaseActivities'));
   const storedDeleted = storedDeletedRaw ? JSON.parse(storedDeletedRaw) : {};
   const caseDeletedActivities = storedDeleted[event.caseLabel] || [];
 
@@ -256,26 +257,26 @@ function logDeletedActivityEvent(event: CalendarEvent, reason: string) {
   });
 
   storedDeleted[event.caseLabel] = caseDeletedActivities;
-  localStorage.setItem('fosterhub.deletedCaseActivities', JSON.stringify(storedDeleted));
+  localStorage.setItem(getOrgScopedStorageKey('fosterhub.deletedCaseActivities'), JSON.stringify(storedDeleted));
 }
 
 function removeActivityEventFromCaseStorage(event: CalendarEvent, reason: string) {
   if (typeof window === 'undefined' || !event.id.startsWith('activity-')) return;
 
   const activityId = event.id.replace(/^activity-/, '');
-  const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
+  const storedActivitiesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseActivities'));
   const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
   const caseActivities = storedActivities[event.caseLabel] || [];
 
   storedActivities[event.caseLabel] = caseActivities.filter((activity: any) => activity.id !== activityId);
-  localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
+  localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseActivities'), JSON.stringify(storedActivities));
   logDeletedActivityEvent(event, reason);
 }
 
 export default function CalendarPage() {
   const [appointments, setAppointments] = useState<CalendarEvent[]>(() => {
     if (typeof window === 'undefined') return initialAppointments;
-    const storedEventsRaw = localStorage.getItem('fosterhub.calendarEvents');
+    const storedEventsRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.calendarEvents'));
     const storedEvents = storedEventsRaw ? JSON.parse(storedEventsRaw) : [];
     return [...initialAppointments, ...storedEvents];
   });
@@ -373,13 +374,13 @@ export default function CalendarPage() {
   }, [monthPickerOpen]);
 
   useEffect(() => {
-    const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
+    const storedChildrenRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseChildren'));
     setStoredChildrenByCase(storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {});
   }, []);
 
   useEffect(() => {
     const customEvents = appointments.filter(item => !initialAppointments.some(seed => seed.id === item.id));
-    localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(customEvents));
+    localStorage.setItem(getOrgScopedStorageKey('fosterhub.calendarEvents'), JSON.stringify(customEvents));
   }, [appointments]);
 
   useEffect(() => {

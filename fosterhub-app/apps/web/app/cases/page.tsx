@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { authedGet } from '../../lib/api';
 import { AppShell } from '../../components/AppShell';
+import { getOrgScopedStorageKey } from '../../lib/org-storage';
 
 type CaseRecord = {
   id: string;
@@ -25,6 +26,7 @@ type DisplayCase = CaseRecord & {
   childCount: number;
   caseWorker: string;
   supervisor: string;
+  organizationId?: string;
 };
 
 const caseMetaByLastName: Record<string, { childCount: number; caseWorker: string; supervisor: string }> = {
@@ -64,6 +66,7 @@ export default function CasesPage() {
   const [assignedWorkerQuery, setAssignedWorkerQuery] = useState('');
   const [workerPickerOpen, setWorkerPickerOpen] = useState(false);
   const [caseOpenDateDraft, setCaseOpenDateDraft] = useState(() => getLocalDateInputValue());
+  const [currentOrganizationId, setCurrentOrganizationId] = useState('');
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -78,13 +81,23 @@ export default function CasesPage() {
   }, []);
 
   useEffect(() => {
-    const countsRaw = localStorage.getItem('fosterhub.caseChildCounts');
+    const rawUser = localStorage.getItem('fosterhub.dev.user');
+    if (rawUser) {
+      try {
+        const parsed = JSON.parse(rawUser);
+        setCurrentOrganizationId(parsed?.organizationId ?? '');
+      } catch {
+        setCurrentOrganizationId('');
+      }
+    }
+
+    const countsRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseChildCounts'));
     setStoredChildCounts(countsRaw ? JSON.parse(countsRaw) : {});
 
-    const overridesRaw = localStorage.getItem('fosterhub.caseMetaOverrides');
+    const overridesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseMetaOverrides'));
     setCaseMetaOverrides(overridesRaw ? JSON.parse(overridesRaw) : {});
 
-    const createdRaw = localStorage.getItem('fosterhub.createdCases');
+    const createdRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.createdCases'));
     setCreatedCases(createdRaw ? JSON.parse(createdRaw) : []);
 
     const authToken = localStorage.getItem('fosterhub.dev.token') ?? '';
@@ -124,12 +137,14 @@ export default function CasesPage() {
     });
   }, [cases, storedChildCounts, caseMetaOverrides]);
 
-  const displayCases = useMemo(() => [...mappedApiCases, ...createdCases.map(item => ({
-    ...item,
-    childCount: storedChildCounts[item.caseLabel] ?? item.childCount,
-    status: caseMetaOverrides[item.id]?.status || item.status,
-    createdAt: caseMetaOverrides[item.id]?.openedAt || item.createdAt,
-  }))], [mappedApiCases, createdCases, storedChildCounts, caseMetaOverrides]);
+  const displayCases = useMemo(() => [...mappedApiCases, ...createdCases
+    .filter(item => !currentOrganizationId || !item.organizationId || item.organizationId === currentOrganizationId)
+    .map(item => ({
+      ...item,
+      childCount: storedChildCounts[item.caseLabel] ?? item.childCount,
+      status: caseMetaOverrides[item.id]?.status || item.status,
+      createdAt: caseMetaOverrides[item.id]?.openedAt || item.createdAt,
+    }))], [mappedApiCases, createdCases, storedChildCounts, caseMetaOverrides, currentOrganizationId]);
 
   const searchMatches = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -149,8 +164,9 @@ export default function CasesPage() {
 
   const storedUsersRaw = typeof window !== 'undefined' ? localStorage.getItem('fosterhub.users') : null;
   const storedUsers = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
-  const workerOptions = storedUsers.filter((user: any) => user.type === 'Staff' && user.roles?.includes('Case Worker')).map((user: any) => user.name);
-  const workerSupervisorMap = storedUsers.reduce((map: Record<string, string>, user: any) => {
+  const scopedUsers = storedUsers.filter((user: any) => !currentOrganizationId || !user.organizationId || user.organizationId === currentOrganizationId || currentOrganizationId === 'al-dhr');
+  const workerOptions = scopedUsers.filter((user: any) => user.type === 'Staff' && user.roles?.includes('Case Worker')).map((user: any) => user.name);
+  const workerSupervisorMap = scopedUsers.reduce((map: Record<string, string>, user: any) => {
     if (user.type === 'Staff' && user.roles?.includes('Case Worker')) {
       map[user.name] = user.supervisor || 'Unassigned';
     }
@@ -189,20 +205,21 @@ export default function CasesPage() {
       childCount: 0,
       caseWorker,
       supervisor,
+      organizationId: currentOrganizationId || undefined,
     };
 
     const nextCreatedCases = [...createdCases, newCase];
     setCreatedCases(nextCreatedCases);
-    localStorage.setItem('fosterhub.createdCases', JSON.stringify(nextCreatedCases));
+    localStorage.setItem(getOrgScopedStorageKey('fosterhub.createdCases', currentOrganizationId), JSON.stringify(nextCreatedCases));
 
     const nextChildCounts = {
       ...storedChildCounts,
       [newCase.caseLabel]: 0,
     };
     setStoredChildCounts(nextChildCounts);
-    localStorage.setItem('fosterhub.caseChildCounts', JSON.stringify(nextChildCounts));
-    localStorage.setItem('fosterhub.caseChildren', JSON.stringify({
-      ...(JSON.parse(localStorage.getItem('fosterhub.caseChildren') || '{}')),
+    localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseChildCounts', currentOrganizationId), JSON.stringify(nextChildCounts));
+    localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseChildren', currentOrganizationId), JSON.stringify({
+      ...(JSON.parse(localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseChildren', currentOrganizationId)) || '{}')),
       [newCase.caseLabel]: [],
     }));
 

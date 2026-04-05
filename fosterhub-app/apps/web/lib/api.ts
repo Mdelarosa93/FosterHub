@@ -10,6 +10,10 @@ export type LoginResponse = {
         lastName: string;
         email: string;
         role: string;
+        organizationId?: string;
+        organizationName?: string;
+        organizationType?: string;
+        parentOrganizationId?: string | null;
       };
       permissions: string[];
     };
@@ -37,6 +41,42 @@ export async function authedGet(path: string, token: string) {
       Authorization: `Bearer ${token}`,
     },
     cache: 'no-store',
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body?.message || `Request failed for ${path}`);
+  }
+
+  return body;
+}
+
+export async function authedPost(path: string, token: string, payload: Record<string, any>) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body?.message || `Request failed for ${path}`);
+  }
+
+  return body;
+}
+
+export async function authedPatch(path: string, token: string, payload: Record<string, any>) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
   });
 
   const body = await response.json();

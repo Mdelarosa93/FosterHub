@@ -13,13 +13,13 @@ export class DocumentsController {
 
   @Get('case/:caseId')
   @RequirePermissions('cases.view.all')
-  async listByCase(@Param('caseId') caseId: string) {
-    return { data: await this.documentsService.listByCase(caseId) };
+  async listByCase(@Param('caseId') caseId: string, @CurrentUser() user: any) {
+    return { data: await this.documentsService.listByCase(caseId, user) };
   }
 
   @Post()
   @RequirePermissions('cases.edit')
   async create(@Body() body: CreateDocumentDto, @CurrentUser() user: any) {
-    return { data: await this.documentsService.create(user.email, body) };
+    return { data: await this.documentsService.create(user, body) };
   }
 }

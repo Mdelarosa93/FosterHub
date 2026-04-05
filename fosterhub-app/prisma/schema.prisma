@@ -41,19 +41,78 @@ enum PermissionOverrideValue {
   DENY
 }
 
+enum OrganizationType {
+  STATE_AGENCY
+  COUNTY_AGENCY
+}
+
+enum FosterApplicationStage {
+  SUBMITTED
+  MISSING_DOCUMENTS
+  TRAINING_REQUIRED
+  HOME_STUDY
+  READY_FOR_APPROVAL
+  APPROVED
+  DENIED
+}
+
+enum VendorStatus {
+  RECOMMENDED
+  INVITED
+  UNDER_REVIEW
+  APPROVED
+  DENIED
+}
+
+enum InvoiceStatus {
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum SurveyStatus {
+  DRAFT
+  SCHEDULED
+  LIVE
+  CLOSED
+}
+
+enum ApplicationReminderStatus {
+  OPEN
+  DISMISSED
+}
+
+enum FosterParentOnboardingStatus {
+  NOT_STARTED
+  INVITED
+  ACCOUNT_ACTIVATED
+  PROFILE_COMPLETED
+}
+
 model Organization {
   id            String         @id @default(cuid())
   name          String
+  type          OrganizationType @default(COUNTY_AGENCY)
+  code          String?
+  parentOrganizationId String?
   timezone      String         @default("America/New_York")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
+  parentOrganization Organization? @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id])
+  childOrganizations Organization[] @relation("OrganizationHierarchy")
   users         User[]
   teams         Team[]
   children      Child[]
   cases         Case[]
   intakeRecords IntakeRecord[]
   roleTemplates RoleTemplate[]
+  fosterParentApplications FosterParentApplication[]
+  travelApprovals TravelApproval[]
+  vendors Vendor[]
+  surveyCampaigns SurveyCampaign[]
 }
 
 model User {
@@ -76,6 +135,10 @@ model User {
   assignedIntakeRecords IntakeRecord[]          @relation("AssignedIntakeRecords")
   decidedRequests      ServiceRequest[]         @relation("RequestDecider")
   uploadedDocuments    Document[]               @relation("UploadedDocuments")
+  uploadedChecklistDocuments FosterApplicationChecklistDocument[] @relation("UploadedChecklistDocuments")
+  fosterApplicationTimelineEvents FosterApplicationTimelineEvent[]
+  assignedFosterApplications FosterParentApplication[] @relation("AssignedFosterApplications")
+  fosterApplicationReminders FosterApplicationReminder[]
 }
 
 model Team {
@@ -243,4 +306,157 @@ model Document {
 
   case             Case      @relation(fields: [caseId], references: [id])
   uploadedBy       User      @relation("UploadedDocuments", fields: [uploadedByUserId], references: [id])
+}
+
+model FosterParentApplication {
+  id                String                 @id @default(cuid())
+  organizationId    String
+  householdName     String
+  primaryApplicant  String
+  email             String?
+  phone             String?
+  stage             FosterApplicationStage @default(SUBMITTED)
+  checklistProgress Int                    @default(0)
+  assignedToUserId  String?
+  convertedToUserId String?
+  convertedAt       DateTime?
+  onboardingStatus  FosterParentOnboardingStatus @default(NOT_STARTED)
+  onboardingStatusUpdatedAt DateTime?
+  submittedAt       DateTime               @default(now())
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  organization      Organization           @relation(fields: [organizationId], references: [id])
+  assignedToUser    User?                  @relation("AssignedFosterApplications", fields: [assignedToUserId], references: [id])
+  checklistItems    FosterApplicationChecklistItem[]
+  timelineEvents    FosterApplicationTimelineEvent[]
+  reminders         FosterApplicationReminder[]
+}
+
+model FosterApplicationReminder {
+  id                         String                    @id @default(cuid())
+  fosterParentApplicationId  String
+  reminderType               String
+  message                    String
+  recipientUserId            String?
+  status                     ApplicationReminderStatus @default(OPEN)
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+
+  fosterParentApplication    FosterParentApplication   @relation(fields: [fosterParentApplicationId], references: [id], onDelete: Cascade)
+  recipientUser              User?                     @relation(fields: [recipientUserId], references: [id])
+}
+
+model FosterApplicationTimelineEvent {
+  id                         String                  @id @default(cuid())
+  fosterParentApplicationId  String
+  eventType                  String
+  message                    String
+  createdByUserId            String?
+  createdAt                  DateTime                @default(now())
+
+  fosterParentApplication    FosterParentApplication @relation(fields: [fosterParentApplicationId], references: [id], onDelete: Cascade)
+  createdBy                  User?                   @relation(fields: [createdByUserId], references: [id])
+}
+
+model FosterApplicationChecklistItem {
+  id                         String                  @id @default(cuid())
+  fosterParentApplicationId  String
+  label                      String
+  requiresDocument           Boolean                 @default(false)
+  requiredDocumentLabel      String?
+  completed                  Boolean                 @default(false)
+  sortOrder                  Int                     @default(0)
+  completedAt                DateTime?
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+
+  fosterParentApplication    FosterParentApplication @relation(fields: [fosterParentApplicationId], references: [id], onDelete: Cascade)
+  documents                  FosterApplicationChecklistDocument[]
+}
+
+model FosterApplicationChecklistDocument {
+  id                             String                         @id @default(cuid())
+  fosterApplicationChecklistItemId String
+  title                          String
+  fileName                       String
+  contentType                    String?
+  notes                          String?
+  uploadedByUserId               String
+  createdAt                      DateTime                       @default(now())
+  updatedAt                      DateTime                       @updatedAt
+
+  checklistItem                  FosterApplicationChecklistItem @relation(fields: [fosterApplicationChecklistItemId], references: [id], onDelete: Cascade)
+  uploadedBy                     User                           @relation("UploadedChecklistDocuments", fields: [uploadedByUserId], references: [id])
+}
+
+model TravelApproval {
+  id                String        @id @default(cuid())
+  organizationId    String
+  caseId            String?
+  submittedByUserId String?
+  destination       String
+  startDate         DateTime
+  endDate           DateTime
+  status            RequestStatus @default(SUBMITTED)
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  organization      Organization  @relation(fields: [organizationId], references: [id])
+}
+
+model Vendor {
+  id                String         @id @default(cuid())
+  organizationId    String
+  name              String
+  category          String
+  city              String?
+  status            VendorStatus   @default(RECOMMENDED)
+  referredBy        String?
+  portalEmail       String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  organization      Organization   @relation(fields: [organizationId], references: [id])
+  invoices          VendorInvoice[]
+}
+
+model VendorInvoice {
+  id                String        @id @default(cuid())
+  vendorId          String
+  invoiceNumber     String
+  amountCents       Int
+  status            InvoiceStatus @default(SUBMITTED)
+  submittedAt       DateTime      @default(now())
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  vendor            Vendor        @relation(fields: [vendorId], references: [id])
+}
+
+model SurveyCampaign {
+  id                String        @id @default(cuid())
+  organizationId    String
+  name              String
+  audience          String
+  cadence           String?
+  baseline          Boolean       @default(false)
+  status            SurveyStatus  @default(DRAFT)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  organization      Organization  @relation(fields: [organizationId], references: [id])
+  responses         SurveyResponse[]
+}
+
+model SurveyResponse {
+  id                String        @id @default(cuid())
+  surveyCampaignId  String
+  rating            Int?
+  comment           String?
+  submittedAt       DateTime      @default(now())
+
+  surveyCampaign    SurveyCampaign @relation(fields: [surveyCampaignId], references: [id])
 }

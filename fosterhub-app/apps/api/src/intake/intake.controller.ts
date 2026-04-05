@@ -13,8 +13,8 @@ export class IntakeController {
 
   @Get()
   @RequirePermissions('cases.view.all')
-  async list() {
-    return { data: await this.intakeService.list() };
+  async list(@CurrentUser() user: any) {
+    return { data: await this.intakeService.list(user) };
   }
 
   @Post()

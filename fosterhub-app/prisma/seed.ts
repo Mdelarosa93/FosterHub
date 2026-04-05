@@ -10,7 +10,10 @@ const roleSeed = [
   { name: 'Resource Parent', key: 'resource_parent', description: 'Resource parent portal access.' },
   { name: 'Vendor', key: 'vendor', description: 'Vendor onboarding and communication access.' },
   { name: 'Birth Parent', key: 'birth_parent', description: 'Scoped child and communication access.' },
-  { name: 'Youth', key: 'youth', description: 'Age-appropriate communication and request access.' }
+  { name: 'Youth', key: 'youth', description: 'Age-appropriate communication and request access.' },
+  { name: 'State Super Admin', key: 'state_super_admin', description: 'Cross-county oversight and state-level controls.' },
+  { name: 'County Admin', key: 'county_admin', description: 'County portal administration and reporting.' },
+  { name: 'Licensing Worker', key: 'licensing_worker', description: 'Application review and onboarding workflow management.' }
 ] as const;
 
 const categoryForPermission = (key: string) => key.split('.')[0] || 'general';

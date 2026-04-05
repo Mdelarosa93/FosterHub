@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { API_BASE, authedGet } from '../../../lib/api';
 import { AppShell } from '../../../components/AppShell';
+import { getOrgScopedStorageKey } from '../../../lib/org-storage';
 
 type RequestDecisionState = Record<string, string>;
 
@@ -86,17 +87,22 @@ export default function CaseDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentOrganizationName, setCurrentOrganizationName] = useState('');
 
   async function load() {
     const token = localStorage.getItem('fosterhub.dev.token');
+    const rawUser = localStorage.getItem('fosterhub.dev.user');
+    const parsedUser = rawUser ? JSON.parse(rawUser) : null;
+    setCurrentOrganizationName(parsedUser?.organizationName ?? '');
+
     if (!caseId) {
       setError('No case id found. Please try again.');
       return;
     }
 
-    const createdCasesRaw = localStorage.getItem('fosterhub.createdCases');
+    const createdCasesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.createdCases', parsedUser?.organizationId));
     const createdCases = createdCasesRaw ? JSON.parse(createdCasesRaw) : [];
-    const localCase = createdCases.find((item: any) => item.id === caseId);
+    const localCase = createdCases.find((item: any) => item.id === caseId && (!parsedUser?.organizationId || !item.organizationId || item.organizationId === parsedUser.organizationId));
 
     if (localCase) {
       setData({
@@ -266,7 +272,7 @@ export default function CaseDetailPage() {
   useEffect(() => {
     if (!data?.child?.lastName) return;
     const defaultChildren = childProfileMap[data.child.lastName] || [];
-    const storedProfilesRaw = localStorage.getItem('fosterhub.caseProfiles');
+    const storedProfilesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseProfiles'));
     const storedProfiles = storedProfilesRaw ? JSON.parse(storedProfilesRaw) : {};
     const savedProfiles: any[] = storedProfiles[caseLabel] || [];
 
@@ -275,7 +281,7 @@ export default function CaseDetailPage() {
       return;
     }
 
-    const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
+    const storedChildrenRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseChildren'));
     const storedChildren = storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {};
     const savedNames: string[] = storedChildren[caseLabel] || [];
 
@@ -310,18 +316,18 @@ export default function CaseDetailPage() {
 
   useEffect(() => {
     if (!caseLabel) return;
-    const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
+    const storedActivitiesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseActivities'));
     const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
     setActivities(storedActivities[caseLabel] || []);
 
-    const storedDeletedActivitiesRaw = localStorage.getItem('fosterhub.deletedCaseActivities');
+    const storedDeletedActivitiesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.deletedCaseActivities'));
     const storedDeletedActivities = storedDeletedActivitiesRaw ? JSON.parse(storedDeletedActivitiesRaw) : {};
     setDeletedActivities(storedDeletedActivities[caseLabel] || []);
   }, [caseLabel]);
 
   useEffect(() => {
     if (!caseId) return;
-    const storedBioParentsRaw = localStorage.getItem('fosterhub.caseBioParents');
+    const storedBioParentsRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseBioParents'));
     const storedBioParents = storedBioParentsRaw ? JSON.parse(storedBioParentsRaw) : {};
     setBioParents(storedBioParents[caseId] || []);
   }, [caseId]);
@@ -330,20 +336,20 @@ export default function CaseDetailPage() {
     if (!caseLabel || !childProfiles.length) return;
 
     try {
-      const storedCountsRaw = localStorage.getItem('fosterhub.caseChildCounts');
+      const storedCountsRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseChildCounts'));
       const storedCounts = storedCountsRaw ? JSON.parse(storedCountsRaw) : {};
       storedCounts[caseLabel] = childProfiles.length;
-      localStorage.setItem('fosterhub.caseChildCounts', JSON.stringify(storedCounts));
+      localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseChildCounts'), JSON.stringify(storedCounts));
 
-      const storedChildrenRaw = localStorage.getItem('fosterhub.caseChildren');
+      const storedChildrenRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseChildren'));
       const storedChildren = storedChildrenRaw ? JSON.parse(storedChildrenRaw) : {};
       storedChildren[caseLabel] = childProfiles.map((child: any) => child.name);
-      localStorage.setItem('fosterhub.caseChildren', JSON.stringify(storedChildren));
+      localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseChildren'), JSON.stringify(storedChildren));
 
-      const storedProfilesRaw = localStorage.getItem('fosterhub.caseProfiles');
+      const storedProfilesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseProfiles'));
       const storedProfiles = storedProfilesRaw ? JSON.parse(storedProfilesRaw) : {};
       storedProfiles[caseLabel] = childProfiles;
-      localStorage.setItem('fosterhub.caseProfiles', JSON.stringify(storedProfiles));
+      localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseProfiles'), JSON.stringify(storedProfiles));
       setError(null);
     } catch {
       setError('These child changes are too large to save in browser storage right now. Try fewer or smaller photos.');
@@ -369,18 +375,18 @@ export default function CaseDetailPage() {
 
   useEffect(() => {
     if (!caseLabel) return;
-    const storedActivitiesRaw = localStorage.getItem('fosterhub.caseActivities');
+    const storedActivitiesRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseActivities'));
     const storedActivities = storedActivitiesRaw ? JSON.parse(storedActivitiesRaw) : {};
     storedActivities[caseLabel] = activities;
-    localStorage.setItem('fosterhub.caseActivities', JSON.stringify(storedActivities));
+    localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseActivities'), JSON.stringify(storedActivities));
   }, [caseLabel, activities]);
 
   useEffect(() => {
     if (!caseId) return;
-    const storedBioParentsRaw = localStorage.getItem('fosterhub.caseBioParents');
+    const storedBioParentsRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseBioParents'));
     const storedBioParents = storedBioParentsRaw ? JSON.parse(storedBioParentsRaw) : {};
     storedBioParents[caseId] = bioParents;
-    localStorage.setItem('fosterhub.caseBioParents', JSON.stringify(storedBioParents));
+    localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseBioParents'), JSON.stringify(storedBioParents));
   }, [caseId, bioParents]);
 
   useEffect(() => {
@@ -759,7 +765,7 @@ export default function CaseDetailPage() {
 
     setActivities(current => activeActivityId ? current.map(activity => (activity.id === activeActivityId ? nextActivity : activity)) : [nextActivity, ...current]);
 
-    const storedCalendarRaw = localStorage.getItem('fosterhub.calendarEvents');
+    const storedCalendarRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.calendarEvents'));
     let storedCalendarEvents = storedCalendarRaw ? JSON.parse(storedCalendarRaw) : [];
     storedCalendarEvents = storedCalendarEvents.filter((event: any) => event.id !== `activity-${nextActivity.id}`);
 
@@ -779,7 +785,7 @@ export default function CaseDetailPage() {
         color: activityTypeColors[nextActivity.type] || '#10588c',
       });
     }
-    localStorage.setItem('fosterhub.calendarEvents', JSON.stringify(storedCalendarEvents));
+    localStorage.setItem(getOrgScopedStorageKey('fosterhub.calendarEvents'), JSON.stringify(storedCalendarEvents));
 
     setActivityDraft({ type: 'Home Visit', date: getLocalDateValue(), startTime: '09:00', endTime: '10:00', location: '', notes: '', assignees: [], invitees: [], documents: [], photos: [], addToCalendar: true, outcome: 'Scheduled' });
     setActiveActivityId(null);
@@ -947,14 +953,14 @@ export default function CaseDetailPage() {
     );
     localStorage.setItem('fosterhub.createdCases', JSON.stringify(nextCreatedCases));
 
-    const overrideRaw = localStorage.getItem('fosterhub.caseMetaOverrides');
+    const overrideRaw = localStorage.getItem(getOrgScopedStorageKey('fosterhub.caseMetaOverrides'));
     const overrides = overrideRaw ? JSON.parse(overrideRaw) : {};
     overrides[caseId || caseLabel] = {
       status: data?.status,
       openedAt: data?.openedAt,
       caseNumber: data?.caseNumber,
     };
-    localStorage.setItem('fosterhub.caseMetaOverrides', JSON.stringify(overrides));
+    localStorage.setItem(getOrgScopedStorageKey('fosterhub.caseMetaOverrides'), JSON.stringify(overrides));
 
     setCaseDirty(false);
     setCaseInfoOpen(false);
@@ -963,6 +969,15 @@ export default function CaseDetailPage() {
   return (
     <AppShell forceSidebarCollapsed={!!childDraft || activityPanelOpen} title={<Link href="/cases" className="button button-ghost" style={{ fontSize: 16, fontWeight: 800, minHeight: 44, padding: '10px 16px' }}>Back to Cases</Link>}>
       <main className="page-stack">
+        {currentOrganizationName ? (
+          <section className="card card-muted" style={{ padding: 18 }}>
+            <div className="eyebrow">Portal context</div>
+            <p style={{ marginBottom: 0 }}>
+              This case detail page is currently scoped to <strong>{currentOrganizationName}</strong>. Request and document actions follow the active organization context.
+            </p>
+          </section>
+        ) : null}
+
         <section className="hero" style={{ padding: '28px 32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             <h2 style={{ fontSize: 34, margin: 0 }}>{displayCaseLabel}</h2>

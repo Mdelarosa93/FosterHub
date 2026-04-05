@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { authedGet, authedPost } from '../lib/api';
 
 const navItems = [
   {
@@ -18,6 +19,19 @@ const navItems = [
     ),
   },
   {
+    href: '/organizations',
+    label: 'Organizations',
+    shortLabel: 'OR',
+    description: 'State and county portals',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4.75 19.25V10.75H10.25V19.25" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+        <path d="M13.75 19.25V4.75H19.25V19.25" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+        <path d="M8.5 7.75H15.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: '/calendar',
     label: 'Calendar',
     shortLabel: 'CL',
@@ -26,6 +40,44 @@ const navItems = [
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <rect x="4" y="5.5" width="16" height="14.5" rx="3" stroke="currentColor" strokeWidth="1.9" />
         <path d="M8 3.75V7.25M16 3.75V7.25M4 9.25H20" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/applications',
+    label: 'Applications',
+    shortLabel: 'AP',
+    description: 'Prospective foster homes',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7 5.25H17C18.1 5.25 19 6.15 19 7.25V18.25L15.5 16.25L12 18.25L8.5 16.25L5 18.25V7.25C5 6.15 5.9 5.25 7 5.25Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+        <path d="M8.5 9H15.5M8.5 12H13.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/vendors',
+    label: 'Vendors',
+    shortLabel: 'VE',
+    description: 'Onboarding and invoices',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4.75 7.75H19.25V19.25H4.75V7.75Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+        <path d="M9 7.75V5.75C9 4.92 9.67 4.25 10.5 4.25H13.5C14.33 4.25 15 4.92 15 5.75V7.75" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/surveys',
+    label: 'Surveys',
+    shortLabel: 'SU',
+    description: 'Satisfaction and outcomes',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 6.25H18" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+        <path d="M6 11.25H14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+        <path d="M6 16.25H11" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+        <path d="M18.25 15.75L19.75 17.25L22.25 13.75" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -59,13 +111,44 @@ type StoredUser = {
   firstName?: string;
   lastName?: string;
   email?: string;
+  role?: string;
+  organizationId?: string;
+  organizationName?: string;
+  organizationType?: string;
+  parentOrganizationId?: string | null;
 };
 
-function HeaderIconButton({ label, children }: { label: string; children: ReactNode }) {
+type OrganizationContext = {
+  id: string;
+  name: string;
+  type: 'STATE_AGENCY' | 'COUNTY_AGENCY';
+  parentOrganization: { id: string; name: string; type: 'STATE_AGENCY' | 'COUNTY_AGENCY' } | null;
+  childOrganizations: Array<{ id: string; name: string; type: 'STATE_AGENCY' | 'COUNTY_AGENCY' }>;
+};
+
+type OrganizationTreeItem = {
+  id: string;
+  name: string;
+  type: 'STATE_AGENCY' | 'COUNTY_AGENCY';
+  parentOrganizationId?: string | null;
+};
+
+type HeaderReminder = {
+  id: string;
+  reminderType: string;
+  message: string;
+  createdAt: string;
+  organizationName: string;
+  recipientName: string;
+  applicationId: string;
+};
+
+function HeaderIconButton({ label, children, onClick }: { label: string; children: ReactNode; onClick?: () => void }) {
   return (
     <button
       type="button"
       aria-label={label}
+      onClick={onClick}
       style={{
         width: 46,
         height: 46,
@@ -89,17 +172,83 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState<StoredUser | null>(null);
+  const [organizationContext, setOrganizationContext] = useState<OrganizationContext | null>(null);
+  const [organizationOptions, setOrganizationOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
+  const [switchingOrganization, setSwitchingOrganization] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [headerReminders, setHeaderReminders] = useState<HeaderReminder[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [dismissingReminderId, setDismissingReminderId] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem('fosterhub.dev.user');
     if (!raw) return;
 
     try {
-      setUser(JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      setUser(parsed);
+      setSelectedOrganizationId(parsed?.organizationId ?? '');
     } catch {
       setUser(null);
     }
   }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('fosterhub.dev.token') ?? '';
+    if (!token) return;
+
+    async function loadOrganizationSwitcher() {
+      try {
+        const [contextResult, treeResult] = await Promise.all([
+          authedGet('/organizations/context', token),
+          authedGet('/organizations/tree', token),
+        ]);
+
+        const context = contextResult.data as OrganizationContext | null;
+        const tree = treeResult.data as OrganizationTreeItem[];
+        setOrganizationContext(context);
+
+        const rootId = context?.type === 'COUNTY_AGENCY'
+          ? context.parentOrganization?.id ?? context.id
+          : context?.id;
+
+        const root = tree.find(item => item.id === rootId);
+        const counties = tree.filter(item => item.parentOrganizationId === rootId);
+        const options = [root, ...counties].filter(Boolean).map(item => ({ id: item!.id, name: item!.name }));
+        setOrganizationOptions(options);
+        setSelectedOrganizationId(context?.id ?? '');
+      } catch {
+        setOrganizationContext(null);
+        setOrganizationOptions([]);
+      }
+    }
+
+    loadOrganizationSwitcher();
+  }, [user?.organizationId]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('fosterhub.dev.token') ?? '';
+    if (!token) return;
+
+    async function loadNotificationCount() {
+      try {
+        try {
+          await authedPost('/foster-applications/reminders/sync', token, {});
+        } catch {
+          // ignore if current role cannot trigger reminder sync
+        }
+        const reminders = await authedGet('/foster-applications/reminders', token);
+        setHeaderReminders(reminders.data || []);
+        setNotificationCount((reminders.data || []).length);
+      } catch {
+        setHeaderReminders([]);
+        setNotificationCount(0);
+      }
+    }
+
+    loadNotificationCount();
+  }, [user?.organizationId, pathname]);
 
   const initials = useMemo(() => {
     const first = user?.firstName?.[0] ?? '';
@@ -113,6 +262,48 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
       setSidebarCollapsed(true);
     }
   }, [forceSidebarCollapsed]);
+
+  async function handleOrganizationSwitch(nextOrganizationId: string) {
+    if (!nextOrganizationId || nextOrganizationId === user?.organizationId) {
+      setSelectedOrganizationId(nextOrganizationId);
+      return;
+    }
+
+    const token = localStorage.getItem('fosterhub.dev.token') ?? '';
+    if (!token) return;
+
+    try {
+      setSwitchingOrganization(true);
+      const result = await authedPost('/auth/switch-organization', token, { organizationId: nextOrganizationId });
+      localStorage.setItem('fosterhub.dev.token', result.data.accessToken);
+      localStorage.setItem('fosterhub.dev.user', JSON.stringify(result.data.session.user));
+      setUser(result.data.session.user);
+      setSelectedOrganizationId(result.data.session.user.organizationId ?? nextOrganizationId);
+      setMenuOpen(false);
+      setNotificationsOpen(false);
+      router.refresh();
+      router.push('/organizations');
+    } catch {
+      setSelectedOrganizationId(user?.organizationId ?? '');
+    } finally {
+      setSwitchingOrganization(false);
+    }
+  }
+
+  async function handleDismissReminder(reminderId: string) {
+    const token = localStorage.getItem('fosterhub.dev.token') ?? '';
+    if (!token) return;
+
+    try {
+      setDismissingReminderId(reminderId);
+      await authedPost(`/foster-applications/reminders/${reminderId}/dismiss`, token, {});
+      const reminders = await authedGet('/foster-applications/reminders', token);
+      setHeaderReminders(reminders.data || []);
+      setNotificationCount((reminders.data || []).length);
+    } finally {
+      setDismissingReminderId(null);
+    }
+  }
 
   function handleSignOut() {
     localStorage.removeItem('fosterhub.dev.token');
@@ -264,6 +455,34 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {organizationOptions.length > 1 ? (
+              <div
+                style={{
+                  minWidth: 260,
+                  padding: 10,
+                  borderRadius: 16,
+                  border: '1px solid #d9e5dd',
+                  background: 'white',
+                  boxShadow: '0 8px 18px rgba(15, 23, 42, 0.05)',
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#10588c', marginBottom: 6 }}>
+                  Portal context
+                </div>
+                <select
+                  className="select"
+                  value={selectedOrganizationId}
+                  onChange={e => handleOrganizationSwitch(e.target.value)}
+                  disabled={switchingOrganization}
+                  style={{ border: 'none', padding: 0, minHeight: 'auto', boxShadow: 'none', background: 'transparent' }}
+                >
+                  {organizationOptions.map(option => (
+                    <option key={option.id} value={option.id}>{option.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
             <HeaderIconButton label="View messages">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M4 5.5C4 4.67 4.67 4 5.5 4H18.5C19.33 4 20 4.67 20 5.5V14.5C20 15.33 19.33 16 18.5 16H9L4 20V5.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -271,25 +490,114 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
             </HeaderIconButton>
 
             <div style={{ position: 'relative' }}>
-              <HeaderIconButton label="View notifications">
+              <HeaderIconButton label="View notifications" onClick={() => setNotificationsOpen(current => !current)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M12 4.5C9.93 4.5 8.25 6.18 8.25 8.25V10.11C8.25 10.67 8.08 11.22 7.77 11.68L6.58 13.46C5.93 14.44 6.63 15.75 7.79 15.75H16.21C17.37 15.75 18.07 14.44 17.42 13.46L16.23 11.68C15.92 11.22 15.75 10.67 15.75 10.11V8.25C15.75 6.18 14.07 4.5 12 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
                   <path d="M10 18C10.37 19.05 11.12 19.5 12 19.5C12.88 19.5 13.63 19.05 14 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 </svg>
               </HeaderIconButton>
-              <span
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  top: 9,
-                  right: 10,
-                  width: 8,
-                  height: 8,
-                  borderRadius: 999,
-                  background: '#d96c3c',
-                  border: '2px solid white',
-                }}
-              />
+              {notificationCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    minWidth: 22,
+                    height: 22,
+                    padding: '0 6px',
+                    borderRadius: 999,
+                    background: '#d96c3c',
+                    border: '2px solid white',
+                    color: 'white',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    display: 'grid',
+                    placeItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
+                  {notificationCount > 99 ? '99+' : notificationCount}
+                </span>
+              ) : null}
+
+              {notificationsOpen ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 56,
+                    right: 0,
+                    width: 360,
+                    maxHeight: 420,
+                    overflow: 'auto',
+                    background: 'white',
+                    border: '1px solid #d9e5dd',
+                    borderRadius: 18,
+                    boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12)',
+                    padding: 10,
+                    zIndex: 20,
+                  }}
+                >
+                  <div style={{ padding: '8px 10px 12px', borderBottom: '1px solid #eef3ef', marginBottom: 8 }}>
+                    <div style={{ fontWeight: 800, color: '#123122' }}>Notifications</div>
+                    <div style={{ fontSize: 13, color: '#567060', marginTop: 4 }}>{notificationCount} open reminder{notificationCount === 1 ? '' : 's'}</div>
+                  </div>
+
+                  {headerReminders.length ? (
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {headerReminders.slice(0, 6).map(reminder => (
+                        <div key={reminder.id} className="record-item">
+                          <strong>{reminder.message}</strong>
+                          <div className="record-meta">
+                            <span>{reminder.reminderType}</span>
+                            <span>{reminder.organizationName}</span>
+                            <span>{reminder.recipientName}</span>
+                          </div>
+                          <div className="actions-row" style={{ justifyContent: 'flex-end', marginTop: 10 }}>
+                            <button
+                              type="button"
+                              className="button button-secondary"
+                              onClick={() => {
+                                setNotificationsOpen(false);
+                                router.push(`/applications?applicationId=${reminder.applicationId}`);
+                              }}
+                            >
+                              Open application
+                            </button>
+                            <button
+                              type="button"
+                              className="button button-ghost"
+                              onClick={() => handleDismissReminder(reminder.id)}
+                              disabled={dismissingReminderId === reminder.id}
+                            >
+                              {dismissingReminderId === reminder.id ? 'Dismissing…' : 'Dismiss'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <strong>No open notifications.</strong>
+                      <p style={{ marginBottom: 0 }}>You’re caught up for now.</p>
+                    </div>
+                  )}
+
+                  <div className="actions-row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
+                    <button type="button" className="button button-ghost" onClick={() => setNotificationsOpen(false)}>Close</button>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        router.push('/dashboard');
+                      }}
+                    >
+                      Open dashboard feed
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div style={{ position: 'relative' }}>
@@ -334,6 +642,9 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
                     </div>
                     {user?.email ? (
                       <div style={{ fontSize: 13, color: '#567060', marginTop: 4 }}>{user.email}</div>
+                    ) : null}
+                    {user?.organizationName ? (
+                      <div style={{ fontSize: 13, color: '#567060', marginTop: 4 }}>{user.organizationName}</div>
                     ) : null}
                   </div>
 

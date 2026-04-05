@@ -14,6 +14,10 @@ export class MockAuthGuard implements CanActivate {
       email: 'mike@example.com',
       role,
       permissions: getRolePermissions(role),
+      organizationId: 'al-dhr',
+      organizationName: 'Alabama Department of Human Resources',
+      organizationType: 'state_agency',
+      parentOrganizationId: null,
     };
 
     return true;

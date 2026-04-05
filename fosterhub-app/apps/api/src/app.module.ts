@@ -8,6 +8,10 @@ import { IntakeModule } from './intake/intake.module';
 import { CasesModule } from './cases/cases.module';
 import { WorkerDashboardModule } from './worker-dashboard/worker-dashboard.module';
 import { DocumentsModule } from './documents/documents.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { FosterApplicationsModule } from './foster-applications/foster-applications.module';
+import { VendorsModule } from './vendors/vendors.module';
+import { SurveyCampaignsModule } from './survey-campaigns/survey-campaigns.module';
 
 @Controller()
 class AppController {
@@ -33,7 +37,7 @@ class AppController {
 }
 
 @Module({
-  imports: [PrismaModule, AuthModule, IntakeModule, CasesModule, WorkerDashboardModule, DocumentsModule],
+  imports: [PrismaModule, AuthModule, IntakeModule, CasesModule, WorkerDashboardModule, DocumentsModule, OrganizationsModule, FosterApplicationsModule, VendorsModule, SurveyCampaignsModule],
   controllers: [AppController],
   providers: [PermissionsGuard],
 })

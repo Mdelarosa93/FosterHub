@@ -10,8 +10,9 @@ export class IntakeService {
     this.prisma = prisma;
   }
 
-  async list() {
+  async list(currentUser: any) {
     return this.prisma.intakeRecord.findMany({
+      where: currentUser.organizationId ? { organizationId: currentUser.organizationId } : undefined,
       orderBy: { createdAt: 'desc' },
       include: {
         assignedWorker: true,
@@ -27,7 +28,7 @@ export class IntakeService {
 
     return this.prisma.intakeRecord.create({
       data: {
-        organizationId: user.organizationId,
+        organizationId: currentUser.organizationId ?? user.organizationId,
         childFirstName: dto.childFirstName,
         childLastName: dto.childLastName,
         notes: dto.notes,

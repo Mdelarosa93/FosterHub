@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser } from '../common/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
+import { SwitchOrganizationDto } from './dto/switch-organization.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -33,5 +34,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   myNavigation(@Req() req: any) {
     return { data: this.authService.getNavigation(req.user.role) };
+  }
+
+  @Post('switch-organization')
+  @UseGuards(JwtAuthGuard)
+  async switchOrganization(@CurrentUser() user: any, @Body() body: SwitchOrganizationDto) {
+    return { data: await this.authService.switchOrganization(user, body.organizationId) };
   }
 }

@@ -10,4 +10,7 @@ export const roleLabels: Record<UserRole, string> = {
   vendor: 'Vendor',
   birth_parent: 'Birth Parent',
   youth: 'Youth',
+  state_super_admin: 'State Super Admin',
+  county_admin: 'County Admin',
+  licensing_worker: 'Licensing Worker',
 };

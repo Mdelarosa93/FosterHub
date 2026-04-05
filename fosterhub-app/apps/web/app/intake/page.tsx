@@ -14,6 +14,7 @@ type UserRecord = {
   type: UserType;
   status: 'Active' | 'Invited' | 'Suspended';
   permissions: string[];
+  organizationId?: string;
 };
 
 const userTypeOptions: UserType[] = ['Staff', 'Legal', 'Vendors', 'Foster Parents', 'Biological Parents'];
@@ -36,6 +37,7 @@ const initialUsers: UserRecord[] = [
     type: 'Staff',
     status: 'Active',
     permissions: ['Manage users', 'Manage roles', 'View all cases', 'Edit cases'],
+    organizationId: 'al-dhr',
   },
   {
     id: 'u2',
@@ -46,6 +48,7 @@ const initialUsers: UserRecord[] = [
     type: 'Staff',
     status: 'Active',
     permissions: ['View assigned cases', 'Edit assigned cases', 'Schedule case events'],
+    organizationId: 'baldwin-dhr',
   },
   {
     id: 'u3',
@@ -56,6 +59,7 @@ const initialUsers: UserRecord[] = [
     type: 'Staff',
     status: 'Active',
     permissions: ['View team cases', 'Approve requests', 'Manage staff assignments'],
+    organizationId: 'mobile-dhr',
   },
   {
     id: 'u4',
@@ -65,6 +69,7 @@ const initialUsers: UserRecord[] = [
     type: 'Foster Parents',
     status: 'Invited',
     permissions: ['View child updates', 'View calendar events'],
+    organizationId: 'mobile-dhr',
   },
   {
     id: 'u5',
@@ -74,6 +79,7 @@ const initialUsers: UserRecord[] = [
     type: 'Legal',
     status: 'Active',
     permissions: ['View court documents', 'View case milestones'],
+    organizationId: 'mobile-dhr',
   },
   {
     id: 'u6',
@@ -83,6 +89,7 @@ const initialUsers: UserRecord[] = [
     type: 'Vendors',
     status: 'Active',
     permissions: ['View assigned service requests'],
+    organizationId: 'mobile-dhr',
   },
   {
     id: 'u7',
@@ -92,6 +99,7 @@ const initialUsers: UserRecord[] = [
     type: 'Biological Parents',
     status: 'Invited',
     permissions: ['View approved visitation events'],
+    organizationId: 'baldwin-dhr',
   },
 ];
 
@@ -126,6 +134,7 @@ export default function IntakePage() {
   });
   const [query, setQuery] = useState('');
   const [selectedType, setSelectedType] = useState<UserType>('Staff');
+  const [currentOrganizationId, setCurrentOrganizationId] = useState('al-dhr');
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -137,17 +146,33 @@ export default function IntakePage() {
   const filteredUsers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return users.filter(user => {
+      const visibleInScope = currentOrganizationId === 'al-dhr'
+        ? true
+        : !user.organizationId || user.organizationId === currentOrganizationId;
+      if (!visibleInScope) return false;
       if (user.type !== selectedType) return false;
       if (!normalized) return true;
       return user.name.toLowerCase().includes(normalized) || user.email.toLowerCase().includes(normalized) || user.roles.join(' ').toLowerCase().includes(normalized);
     });
-  }, [users, query, selectedType]);
+  }, [users, query, selectedType, currentOrganizationId]);
 
   const activeUser = users.find(user => user.id === activeUserId) || null;
 
   useEffect(() => {
     localStorage.setItem('fosterhub.users', JSON.stringify(users));
   }, [users]);
+
+  useEffect(() => {
+    const rawUser = localStorage.getItem('fosterhub.dev.user');
+    if (!rawUser) return;
+
+    try {
+      const parsed = JSON.parse(rawUser);
+      setCurrentOrganizationId(parsed?.organizationId ?? 'al-dhr');
+    } catch {
+      setCurrentOrganizationId('al-dhr');
+    }
+  }, []);
 
   useEffect(() => {
     if (activeUser && activeUser.type !== selectedType) {
@@ -181,6 +206,7 @@ export default function IntakePage() {
         type: selectedType,
         status: 'Invited',
         permissions: draftRole === 'Admin' ? ['Manage users', 'Manage roles', 'View all cases', 'Edit cases'] : ['View assigned cases'],
+        organizationId: currentOrganizationId,
       },
       ...current,
     ]);

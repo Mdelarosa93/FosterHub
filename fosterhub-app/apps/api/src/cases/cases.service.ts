@@ -9,8 +9,9 @@ export class CasesService {
     this.prisma = prisma;
   }
 
-  async list() {
+  async list(currentUser: any) {
     return this.prisma.case.findMany({
+      where: currentUser.organizationId ? { organizationId: currentUser.organizationId } : undefined,
       orderBy: { createdAt: 'desc' },
       include: {
         child: true,
@@ -21,9 +22,12 @@ export class CasesService {
     });
   }
 
-  async getById(id: string) {
-    return this.prisma.case.findUnique({
-      where: { id },
+  async getById(id: string, currentUser: any) {
+    return this.prisma.case.findFirst({
+      where: {
+        id,
+        ...(currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
+      },
       include: {
         child: true,
         assignments: {
@@ -38,7 +42,18 @@ export class CasesService {
     });
   }
 
-  async createRequest(caseId: string, title: string, description?: string) {
+  async createRequest(caseId: string, title: string, description: string | undefined, currentUser: any) {
+    const existingCase = await this.prisma.case.findFirst({
+      where: {
+        id: caseId,
+        ...(currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
+      },
+    });
+
+    if (!existingCase) {
+      throw new Error('Case not found in the active organization context');
+    }
+
     return this.prisma.serviceRequest.create({
       data: {
         caseId,
@@ -49,9 +64,20 @@ export class CasesService {
     });
   }
 
-  async updateRequestStatus(requestId: string, status: 'APPROVED' | 'DENIED', note: string | undefined, currentUserEmail: string) {
-    const user = await this.prisma.user.findUnique({ where: { email: currentUserEmail } });
+  async updateRequestStatus(requestId: string, status: 'APPROVED' | 'DENIED', note: string | undefined, currentUser: any) {
+    const user = await this.prisma.user.findUnique({ where: { email: currentUser.email } });
     if (!user) throw new Error('Authenticated user not found');
+
+    const existingRequest = await this.prisma.serviceRequest.findFirst({
+      where: {
+        id: requestId,
+        case: currentUser.organizationId ? { organizationId: currentUser.organizationId } : undefined,
+      },
+    });
+
+    if (!existingRequest) {
+      throw new Error('Request not found in the active organization context');
+    }
 
     return this.prisma.serviceRequest.update({
       where: { id: requestId },
@@ -64,7 +90,15 @@ export class CasesService {
     });
   }
 
-  async assignWorker(caseId: string, workerEmail: string) {
+  async assignWorker(caseId: string, workerEmail: string, currentUser: any) {
+    const existingCase = await this.prisma.case.findFirst({
+      where: {
+        id: caseId,
+        ...(currentUser.organizationId ? { organizationId: currentUser.organizationId } : {}),
+      },
+    });
+    if (!existingCase) throw new Error('Case not found in the active organization context');
+
     const worker = await this.prisma.user.findUnique({ where: { email: workerEmail } });
     if (!worker) throw new Error('Worker not found');
 
