@@ -1,4 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { PermissionsGuard } from '../common/permissions.guard';
@@ -43,8 +46,14 @@ export class KnowledgeBaseController {
   @RequirePermissions('knowledge_sources.view')
   async getSourceFile(@Param('sourceId') sourceId: string, @CurrentUser() user: any, @Res() res: any) {
     const file = await this.knowledgeBaseService.getStoredFileForSource(sourceId, user);
+    const fileStat = await stat(file.path);
+    const encodedFileName = encodeURIComponent(file.fileName);
+
     res.setHeader('Content-Type', file.contentType);
-    return res.download(file.path, file.fileName);
+    res.setHeader('Content-Length', String(fileStat.size));
+    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName.replace(/"/g, '')}"; filename*=UTF-8''${encodedFileName}`);
+
+    await pipeline(createReadStream(file.path), res);
   }
 
   @Get('sources/:sourceId/audit')
