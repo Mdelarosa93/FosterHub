@@ -118,6 +118,21 @@ const navItems = [
   },
 ];
 
+const navSections = [
+  {
+    label: 'Workspace',
+    items: ['/dashboard', '/messages', '/calendar'],
+  },
+  {
+    label: 'Operations',
+    items: ['/applications', '/cases', '/vendors', '/surveys'],
+  },
+  {
+    label: 'Administration',
+    items: ['/organizations', '/intake'],
+  },
+] as const;
+
 type StoredUser = {
   firstName?: string;
   lastName?: string;
@@ -197,6 +212,7 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
   const [headerReminders, setHeaderReminders] = useState<HeaderReminder[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [dismissingReminderId, setDismissingReminderId] = useState<string | null>(null);
+  const [hoveredNavHref, setHoveredNavHref] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem('fosterhub.dev.user');
@@ -343,19 +359,22 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
         style={{
           background: 'linear-gradient(180deg, #0f2d1c 0%, #123e28 100%)',
           color: 'white',
-          padding: sidebarCollapsed ? 16 : 24,
+          padding: sidebarCollapsed ? 16 : 18,
           position: 'sticky',
           top: 0,
           height: '100vh',
           borderRight: '1px solid rgba(255,255,255,0.06)',
           transition: 'padding 0.2s ease',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
         }}
       >
         <div
           style={{
-            marginBottom: 28,
+            marginBottom: 18,
             position: 'relative',
-            minHeight: sidebarCollapsed ? 88 : 170,
+            minHeight: sidebarCollapsed ? 84 : 132,
             display: 'grid',
             placeItems: 'center',
             paddingTop: sidebarCollapsed ? 22 : 0,
@@ -399,56 +418,93 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
           </button>
         </div>
 
-        <nav>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
-            {navItems.map(item => {
-              const active = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href));
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    aria-label={item.label}
-                    title={sidebarCollapsed ? item.label : undefined}
+        <nav style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: sidebarCollapsed ? 0 : 4, paddingBottom: 12 }}>
+          <div style={{ display: 'grid', gap: sidebarCollapsed ? 12 : 14 }}>
+            {navSections.map(section => (
+              <div key={section.label}>
+                {!sidebarCollapsed ? (
+                  <div
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                      gap: sidebarCollapsed ? 0 : 12,
-                      minHeight: 64,
-                      padding: sidebarCollapsed ? '14px 10px' : '14px 14px',
-                      borderRadius: 16,
-                      background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
-                      border: active ? '1px solid rgba(255,255,255,0.16)' : '1px solid transparent',
-                      boxShadow: active ? '0 8px 20px rgba(0,0,0,0.12)' : 'none',
-                      textAlign: sidebarCollapsed ? 'center' : 'left',
+                      padding: '0 10px 8px',
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: 'rgba(255,255,255,0.52)',
                     }}
                   >
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        width: 24,
-                        height: 24,
-                        display: 'grid',
-                        placeItems: 'center',
-                        color: active ? '#ffffff' : 'rgba(255,255,255,0.92)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {item.icon}
-                    </span>
-                    {!sidebarCollapsed ? (
-                      <span style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: active ? 800 : 700 }}>
-                          {item.label}
-                        </div>
-                        <div style={{ fontSize: 13, opacity: 0.78, marginTop: 4 }}>{item.description}</div>
-                      </span>
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                    {section.label}
+                  </div>
+                ) : (
+                  <div style={{ padding: '4px 10px 6px' }}>
+                    <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', borderRadius: 999 }} />
+                  </div>
+                )}
+
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }}>
+                  {section.items.map(href => {
+                    const item = navItems.find(entry => entry.href === href);
+                    if (!item) return null;
+
+                    const active = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href));
+                    const hovered = hoveredNavHref === item.href;
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          aria-label={item.label}
+                          title={sidebarCollapsed ? item.label : undefined}
+                          onMouseEnter={() => setHoveredNavHref(item.href)}
+                          onMouseLeave={() => setHoveredNavHref(current => (current === item.href ? null : current))}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                            gap: sidebarCollapsed ? 0 : 12,
+                            minHeight: sidebarCollapsed ? 44 : 46,
+                            padding: sidebarCollapsed ? '10px 0' : '10px 12px',
+                            borderRadius: 12,
+                            background: active
+                              ? 'rgba(255,255,255,0.16)'
+                              : hovered
+                                ? 'rgba(255,255,255,0.07)'
+                                : 'transparent',
+                            border: active ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+                            boxShadow: active ? '0 8px 20px rgba(0,0,0,0.12)' : 'none',
+                            textAlign: sidebarCollapsed ? 'center' : 'left',
+                            transition: 'background 0.16s ease, border-color 0.16s ease, transform 0.16s ease',
+                            transform: hovered && !active ? 'translateX(1px)' : 'none',
+                          }}
+                        >
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              width: sidebarCollapsed ? 28 : 24,
+                              height: sidebarCollapsed ? 28 : 24,
+                              display: 'grid',
+                              placeItems: 'center',
+                              color: active ? '#ffffff' : hovered ? '#ffffff' : 'rgba(255,255,255,0.84)',
+                              flexShrink: 0,
+                              margin: sidebarCollapsed ? '0 auto' : 0,
+                            }}
+                          >
+                            {item.icon}
+                          </span>
+                          {!sidebarCollapsed ? (
+                            <span style={{ minWidth: 0, display: 'block' }}>
+                              <div style={{ fontWeight: active ? 800 : 700, fontSize: 14, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: active ? '#ffffff' : hovered ? '#ffffff' : 'rgba(255,255,255,0.94)' }}>
+                                {item.label}
+                              </div>
+                            </span>
+                          ) : null}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
         </nav>
       </aside>
 
