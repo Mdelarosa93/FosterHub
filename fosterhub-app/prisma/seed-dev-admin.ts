@@ -255,6 +255,98 @@ async function main() {
     skipDuplicates: true,
   }).catch(() => undefined);
 
+  const statePolicySource = await prisma.knowledgeDocumentSource.upsert({
+    where: { id: 'state-policy-manual-dev-seed' },
+    update: {
+      organizationId: organization.id,
+      title: 'Alabama DHR Policy Manual',
+      sourceType: 'POLICY_MANUAL',
+      accessScope: 'INHERIT_TO_CHILDREN',
+      status: 'READY',
+      versionLabel: '2026.1',
+      fileName: 'alabama-dhr-policy-manual.pdf',
+      notes: 'Seeded state-level policy source for Ask FosterHub AI.',
+      createdByUserId: user.id,
+    },
+    create: {
+      id: 'state-policy-manual-dev-seed',
+      organizationId: organization.id,
+      title: 'Alabama DHR Policy Manual',
+      sourceType: 'POLICY_MANUAL',
+      accessScope: 'INHERIT_TO_CHILDREN',
+      status: 'READY',
+      versionLabel: '2026.1',
+      fileName: 'alabama-dhr-policy-manual.pdf',
+      notes: 'Seeded state-level policy source for Ask FosterHub AI.',
+      createdByUserId: user.id,
+    },
+  });
+
+  await prisma.knowledgeDocumentSection.deleteMany({ where: { knowledgeDocumentSourceId: statePolicySource.id } });
+  await prisma.knowledgeDocumentSection.createMany({
+    data: [
+      {
+        knowledgeDocumentSourceId: statePolicySource.id,
+        heading: 'Visitation and Family Contact',
+        sectionKey: '4.2',
+        pageNumber: 113,
+        sortOrder: 0,
+        body: 'Visitation schedules shall follow the case plan and court requirements. Any requested change should be reviewed by the agency and documented in the case record before implementation.',
+      },
+      {
+        knowledgeDocumentSourceId: statePolicySource.id,
+        heading: 'Placement Change Requirements',
+        sectionKey: '7.1',
+        pageNumber: 89,
+        sortOrder: 1,
+        body: 'Before a placement change is finalized, the agency should complete the required review steps, notify involved parties as required, and document the reason for the change in the case file.',
+      },
+    ],
+  }).catch(() => undefined);
+
+  if (mobileCounty) {
+    const countyPolicySource = await prisma.knowledgeDocumentSource.upsert({
+      where: { id: 'mobile-county-guidance-dev-seed' },
+      update: {
+        organizationId: mobileCounty.id,
+        title: 'Mobile County Foster Parent Guidance',
+        sourceType: 'COUNTY_GUIDANCE',
+        accessScope: 'ORGANIZATION_ONLY',
+        status: 'READY',
+        versionLabel: 'Spring 2026',
+        fileName: 'mobile-county-foster-parent-guidance.pdf',
+        notes: 'Seeded county-level guidance source for Ask FosterHub AI.',
+        createdByUserId: user.id,
+      },
+      create: {
+        id: 'mobile-county-guidance-dev-seed',
+        organizationId: mobileCounty.id,
+        title: 'Mobile County Foster Parent Guidance',
+        sourceType: 'COUNTY_GUIDANCE',
+        accessScope: 'ORGANIZATION_ONLY',
+        status: 'READY',
+        versionLabel: 'Spring 2026',
+        fileName: 'mobile-county-foster-parent-guidance.pdf',
+        notes: 'Seeded county-level guidance source for Ask FosterHub AI.',
+        createdByUserId: user.id,
+      },
+    });
+
+    await prisma.knowledgeDocumentSection.deleteMany({ where: { knowledgeDocumentSourceId: countyPolicySource.id } });
+    await prisma.knowledgeDocumentSection.createMany({
+      data: [
+        {
+          knowledgeDocumentSourceId: countyPolicySource.id,
+          heading: 'After-Hours Escalation',
+          sectionKey: 'MC-2',
+          pageNumber: 6,
+          sortOrder: 0,
+          body: 'After-hours placement concerns should be routed through the county on-call workflow and documented in the case record on the next business day.',
+        },
+      ],
+    }).catch(() => undefined);
+  }
+
   const applicationsNeedingChecklist = await prisma.fosterParentApplication.findMany({
     include: { checklistItems: true },
   });

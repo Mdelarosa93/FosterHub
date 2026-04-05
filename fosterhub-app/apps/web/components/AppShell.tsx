@@ -32,6 +32,17 @@ const navItems = [
     ),
   },
   {
+    href: '/messages',
+    label: 'Messages',
+    shortLabel: 'MS',
+    description: 'Team conversations and AI',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 5.5C4 4.67 4.67 4 5.5 4H18.5C19.33 4 20 4.67 20 5.5V14.5C20 15.33 19.33 16 18.5 16H9L4 20V5.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     href: '/calendar',
     label: 'Calendar',
     shortLabel: 'CL',
@@ -518,7 +529,7 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
               </div>
             ) : null}
 
-            <HeaderIconButton label="View messages">
+            <HeaderIconButton label="View messages" onClick={() => router.push('/messages')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M4 5.5C4 4.67 4.67 4 5.5 4H18.5C19.33 4 20 4.67 20 5.5V14.5C20 15.33 19.33 16 18.5 16H9L4 20V5.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
               </svg>
@@ -694,6 +705,10 @@ export function AppShell({ title, headerActions, children, forceSidebarCollapsed
                       background: 'transparent',
                       color: '#123122',
                       fontWeight: 700,
+                    }}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push('/settings/knowledge-base');
                     }}
                   >
                     Settings

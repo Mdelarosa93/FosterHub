@@ -12,6 +12,8 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { FosterApplicationsModule } from './foster-applications/foster-applications.module';
 import { VendorsModule } from './vendors/vendors.module';
 import { SurveyCampaignsModule } from './survey-campaigns/survey-campaigns.module';
+import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
+import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 
 @Controller()
 class AppController {
@@ -37,7 +39,7 @@ class AppController {
 }
 
 @Module({
-  imports: [PrismaModule, AuthModule, IntakeModule, CasesModule, WorkerDashboardModule, DocumentsModule, OrganizationsModule, FosterApplicationsModule, VendorsModule, SurveyCampaignsModule],
+  imports: [PrismaModule, AuthModule, IntakeModule, CasesModule, WorkerDashboardModule, DocumentsModule, OrganizationsModule, FosterApplicationsModule, VendorsModule, SurveyCampaignsModule, AiAssistantModule, KnowledgeBaseModule],
   controllers: [AppController],
   providers: [PermissionsGuard],
 })

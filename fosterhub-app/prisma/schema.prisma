@@ -46,6 +46,17 @@ enum OrganizationType {
   COUNTY_AGENCY
 }
 
+enum KnowledgeDocumentAccessScope {
+  ORGANIZATION_ONLY
+  INHERIT_TO_CHILDREN
+}
+
+enum KnowledgeDocumentStatus {
+  DRAFT
+  READY
+  ARCHIVED
+}
+
 enum FosterApplicationStage {
   SUBMITTED
   MISSING_DOCUMENTS
@@ -113,6 +124,8 @@ model Organization {
   travelApprovals TravelApproval[]
   vendors Vendor[]
   surveyCampaigns SurveyCampaign[]
+  knowledgeDocumentSources KnowledgeDocumentSource[]
+  knowledgeDocumentAuditEvents KnowledgeDocumentAuditEvent[]
 }
 
 model User {
@@ -139,6 +152,8 @@ model User {
   fosterApplicationTimelineEvents FosterApplicationTimelineEvent[]
   assignedFosterApplications FosterParentApplication[] @relation("AssignedFosterApplications")
   fosterApplicationReminders FosterApplicationReminder[]
+  createdKnowledgeDocumentSources KnowledgeDocumentSource[] @relation("KnowledgeDocumentCreatedBy")
+  knowledgeDocumentAuditEvents KnowledgeDocumentAuditEvent[] @relation("KnowledgeDocumentAuditActor")
 }
 
 model Team {
@@ -306,6 +321,93 @@ model Document {
 
   case             Case      @relation(fields: [caseId], references: [id])
   uploadedBy       User      @relation("UploadedDocuments", fields: [uploadedByUserId], references: [id])
+}
+
+model KnowledgeDocumentSource {
+  id                String                       @id @default(cuid())
+  organizationId    String
+  title             String
+  sourceType        String
+  accessScope       KnowledgeDocumentAccessScope @default(ORGANIZATION_ONLY)
+  status            KnowledgeDocumentStatus      @default(DRAFT)
+  versionLabel      String?
+  effectiveDate     DateTime?
+  fileName          String?
+  fileContentType   String?
+  fileSizeBytes     Int?
+  fileStoragePath   String?
+  lastExtractedAt   DateTime?
+  fileUrl           String?
+  notes             String?
+  createdByUserId   String
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+
+  organization      Organization                 @relation(fields: [organizationId], references: [id])
+  createdBy         User                         @relation("KnowledgeDocumentCreatedBy", fields: [createdByUserId], references: [id])
+  sections          KnowledgeDocumentSection[]
+  auditEvents       KnowledgeDocumentAuditEvent[]
+  sectionSnapshots  KnowledgeDocumentSectionSnapshot[]
+
+  @@index([organizationId, accessScope, status])
+}
+
+model KnowledgeDocumentSection {
+  id                String                  @id @default(cuid())
+  knowledgeDocumentSourceId String
+  heading           String
+  sectionKey        String?
+  pageNumber        Int?
+  sortOrder         Int                     @default(0)
+  body              String
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  source            KnowledgeDocumentSource @relation(fields: [knowledgeDocumentSourceId], references: [id], onDelete: Cascade)
+
+  @@index([knowledgeDocumentSourceId, sortOrder])
+}
+
+model KnowledgeDocumentAuditEvent {
+  id                      String                   @id @default(cuid())
+  knowledgeDocumentSourceId String?
+  organizationId          String
+  actorUserId             String?
+  eventType               String
+  summary                 String
+  snapshotTitle           String
+  snapshotVersionLabel    String?
+  snapshotStatus          KnowledgeDocumentStatus?
+  snapshotSectionCount    Int?
+  createdAt               DateTime                 @default(now())
+
+  source                  KnowledgeDocumentSource? @relation(fields: [knowledgeDocumentSourceId], references: [id], onDelete: SetNull)
+  organization            Organization             @relation(fields: [organizationId], references: [id])
+  actor                   User?                    @relation("KnowledgeDocumentAuditActor", fields: [actorUserId], references: [id])
+  sectionSnapshots        KnowledgeDocumentSectionSnapshot[]
+
+  @@index([knowledgeDocumentSourceId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+model KnowledgeDocumentSectionSnapshot {
+  id                      String                   @id @default(cuid())
+  knowledgeDocumentSourceId String
+  auditEventId            String?
+  versionNumber           Int
+  sectionCount            Int
+  addedCount              Int                      @default(0)
+  removedCount            Int                      @default(0)
+  updatedCount            Int                      @default(0)
+  snapshotJson            Json
+  changedHeadingsJson     Json?
+  createdAt               DateTime                 @default(now())
+
+  source                  KnowledgeDocumentSource  @relation(fields: [knowledgeDocumentSourceId], references: [id], onDelete: Cascade)
+  auditEvent              KnowledgeDocumentAuditEvent? @relation(fields: [auditEventId], references: [id], onDelete: SetNull)
+
+  @@unique([knowledgeDocumentSourceId, versionNumber])
+  @@index([knowledgeDocumentSourceId, createdAt])
 }
 
 model FosterParentApplication {

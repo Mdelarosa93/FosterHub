@@ -86,3 +86,19 @@ export async function authedPatch(path: string, token: string, payload: Record<s
 
   return body;
 }
+
+export async function authedDelete(path: string, token: string) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body?.message || `Request failed for ${path}`);
+  }
+
+  return body;
+}
